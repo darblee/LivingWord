@@ -144,10 +144,18 @@ fun MemorizeScreen(
                 if (!recognizedText.isNullOrEmpty()) {
                     val newText = recognizedText[0]
                     val processedText = processNewText(newText, memorizedText)
+                    val finalText = processPunctuation(processedText, memorizedText)
                     memorizedText = if (memorizedText.isEmpty()) {
-                        processedText
+                        finalText
                     } else {
-                        "$memorizedText $processedText"
+
+                        val combinedText = "$memorizedText $finalText"
+                        // Handle punctuation attachment for the combined text
+                        if (finalText.startsWith(".") || finalText.startsWith("?") || finalText.startsWith("!")) {
+                            memorizedText.trimEnd() + finalText
+                        } else {
+                            combinedText
+                        }
                     }
                     // Clear partial text since we have final results
                     partialText = ""
@@ -165,7 +173,8 @@ fun MemorizeScreen(
                     partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!recognizedText.isNullOrEmpty()) {
                     val newPartialText = recognizedText[0]
-                    partialText = processNewText(newPartialText, memorizedText)
+                    val processedText = processNewText(newPartialText, memorizedText)
+                    partialText = processPunctuation(processedText, memorizedText)
                 }
             }
 
@@ -184,7 +193,13 @@ fun MemorizeScreen(
             if (memorizedText.isNotEmpty()) {
                 append(memorizedText)
                 if (partialText.isNotEmpty()) {
-                    append(" ")
+                    // Check if we need to add space or if punctuation should be directly attached
+                    val needsSpace = !partialText.startsWith(".") &&
+                            !partialText.startsWith("?") &&
+                            !partialText.startsWith("!")
+                    if (needsSpace) {
+                        append(" ")
+                    }
                 }
             }
             if (partialText.isNotEmpty()) {
@@ -490,6 +505,28 @@ private fun processNewText(newText: String, existingText: String): String {
     } else {
         newText
     }
+}
+
+private fun processPunctuation(text: String, existingText: String): String {
+    var processedText = text
+
+    // Handle "period" -> "."
+    if (processedText.equals("period", ignoreCase = true)) {
+        return "."
+    }
+
+    // Handle text that contains "period" at the end
+    if (processedText.endsWith(" period", ignoreCase = true)) {
+        processedText = processedText.substring(0, processedText.length - 7) + "."
+    } else if (processedText.endsWith("period", ignoreCase = true) && processedText.length > 6) {
+        // Check if "period" is a separate word (preceded by space or start of string)
+        val beforePeriod = processedText.substring(0, processedText.length - 6)
+        if (beforePeriod.endsWith(" ") || beforePeriod.isEmpty()) {
+            processedText = beforePeriod.trimEnd() + "."
+        }
+    }
+
+    return processedText
 }
 
 @Preview(showBackground = true)
