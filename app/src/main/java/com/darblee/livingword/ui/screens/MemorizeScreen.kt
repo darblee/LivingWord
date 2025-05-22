@@ -19,9 +19,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -233,6 +233,12 @@ fun MemorizeScreen(
                     selected = currentScreen == Screen.Home,
                     onClick = { navController.navigate(Screen.Home) },
                     label = { Text("Home") },
+                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
+                )
+                NavigationBarItem(
+                    selected = currentScreen == Screen.MeditateScreen,
+                    onClick = { navController.navigate(Screen.MeditateScreen) },
+                    label = { Text("Meditate") },
                     icon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_meditate_custom),
@@ -240,12 +246,6 @@ fun MemorizeScreen(
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.MeditateScreen,
-                    onClick = { navController.navigate(Screen.MeditateScreen) },
-                    label = { Text("Meditate") },
-                    icon = { Icon(Icons.Filled.Person, contentDescription = "Meditate") }
                 )
                 NavigationBarItem(
                     selected = currentScreen == Screen.VerseByTopicScreen,
