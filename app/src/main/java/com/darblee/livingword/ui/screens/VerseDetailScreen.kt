@@ -325,7 +325,6 @@ fun VerseDetailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val scriptureTextContent = verseItem?.scripture ?: "Loading scripture...."
-            val snackBarScope = rememberCoroutineScope()
 
             // --- Scripture Box ---
             LabeledOutlinedBox(
@@ -498,7 +497,6 @@ fun VerseDetailScreen(
                             )
                         }
                     }
-
                 }
             }
 

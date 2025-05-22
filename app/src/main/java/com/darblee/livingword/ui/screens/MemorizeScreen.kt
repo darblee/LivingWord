@@ -12,8 +12,9 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -28,11 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -256,81 +257,57 @@ fun MemorizeScreen(
             }
         }
     ) { paddingValues ->
+        val scriptureScrollState = rememberScrollState()
+
         Column(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 8.dp, vertical = 8.dp), // Adjusted vertical padding
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top box: Read-only scripture
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = verse?.scripture ?: "Loading...",
-                    modifier = Modifier.padding(8.dp)
+            // Scripture Box
+            LabeledOutlinedBox(
+                label = "Scripture",
+                modifier = Modifier.fillMaxWidth().weight(0.1f).heightIn(min = 40.dp)
+            ) {
+                BasicTextField(
+                    value = verse?.scripture ?: "Loading...",
+                    onValueChange = { /* Read-only */ },
+                    modifier = Modifier.fillMaxSize().verticalScroll(scriptureScrollState),
+                    readOnly = true,
+                    textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 )
             }
 
-            // Status indicator
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isListening)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Text(
-                    text = if (isListening) "🎤 Listening..." else "⏸️ Not listening",
-                    modifier = Modifier.padding(16.dp),
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center
-                )
-            }
+            Spacer(modifier = Modifier.height(8.dp)) // Space between boxes
 
-            // Middle box: Memorized content with speak-to-text
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                shape = RoundedCornerShape(12.dp)
+            // Memorized scripture
+            LabeledOutlinedBox(
+                label = "Memorized Verse",
+                modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Column(modifier = Modifier.padding(8.dp))
+                {
+                    // Status indicator
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 1.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isListening)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        )
                     ) {
                         Text(
-                            text = if (isEditing) "Edit Text:" else "Transcribed Text:",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
+                            text = if (isListening) "🎤 Listening..." else "⏸️ Not listening",
+                            modifier = Modifier.padding(4.dp),
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center
                         )
-
-                        if (!isEditing) {
-                            IconButton(
-                                onClick = {
-                                    isEditing = true
-                                    coroutineScope.launch {
-                                        delay(100) // Small delay to ensure UI is ready
-                                        focusRequester.requestFocus()
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit text",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -356,103 +333,116 @@ fun MemorizeScreen(
                             minLines = 8,
                             maxLines = 12
                         )
+                    } else {
+                        OutlinedTextField(
+                            value = memorizedText,
+                            onValueChange = {  },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Hit voice icon or edit icon to add text ...") },
+                            enabled =  false,
+                            minLines = 8,
+                            maxLines = 12
+                        )
+                    }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    isEditing = false
-                                    partialText = "" // Clear partial text when done editing
+                    // Control buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Start/Stop button
+                        FloatingActionButton(
+                            onClick = {
+                                if (!hasPermission) {
+                                    // Request permission
+                                    return@FloatingActionButton
                                 }
-                            ) {
+
+                                if (isListening) {
+                                    stopListening(speechRecognizer)
+                                    isListening = false
+                                    partialText = "" // Clear partial text when stopping
+                                } else {
+                                    startListening(speechRecognizer)
+                                }
+                            },
+                            Modifier.weight(1f),
+                            containerColor = if (isListening)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.primary
+                        ) {
+                            Icon(
+                                imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
+                                contentDescription = if (isListening) "Stop listening" else "Start listening"
+                            )
+                        }
+
+                        // Edit button
+                        FloatingActionButton(
+                            onClick = {
+                                if (!isEditing) {
+                                    isEditing  = true
+                                    coroutineScope.launch {
+                                        delay(100) // Small delay to ensure UI is ready
+                                        focusRequester.requestFocus()
+                                    }
+                                } else {
+                                    isEditing = false
+                                    partialText = ""
+                                }
+                            },
+                            Modifier.weight(1f),
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            if (isEditing) {
                                 Text("Done")
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit text",
+                                    modifier = Modifier.size(24.dp),
+                                )
                             }
                         }
-                    } else {
-                        if (displayText.isEmpty()) {
-                            Text(
-                                text = "Start speaking or tap the edit icon to type your text...",
-                                fontSize = 16.sp,
-                                modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Text(
-                                text = displayText,
-                                fontSize = 16.sp,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .verticalScroll(scrollState),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+
+                        // Clear button
+                        FloatingActionButton(
+                            onClick = {
+                                memorizedText = ""
+                                partialText = ""
+                                isEditing = false
+                            },
+                            Modifier.weight(1f),
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text("Clear")
+                        }
+
+
+                        // Clear button
+                        FloatingActionButton(
+                            onClick = {
+                                if (memorizedText.isEmpty()) { null } else {  }
+                            },
+                            modifier =  Modifier.weight(1f),
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text("Evaluate")
                         }
                     }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Control buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Start/Stop button
-                FloatingActionButton(
-                    onClick = {
-                        if (!hasPermission) {
-                            // Request permission
-                            return@FloatingActionButton
-                        }
-
-                        if (isListening) {
-                            stopListening(speechRecognizer)
-                            isListening = false
-                            partialText = "" // Clear partial text when stopping
-                        } else {
-                            startListening(speechRecognizer)
-                        }
-                    },
-                    containerColor = if (isListening)
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(
-                        imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
-                        contentDescription = if (isListening) "Stop listening" else "Start listening"
-                    )
-                }
-
-                // Clear button
-                Button(
-                    onClick = {
-                        memorizedText = ""
-                        partialText = ""
-                        isEditing = false
+                    if (!hasPermission) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Microphone permission is required for live transcription",
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
                     }
-                ) {
-                    Text("Clear")
                 }
-            }
-
-            if (!hasPermission) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Microphone permission is required for live transcription",
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            // Bottom box: Topic selection (Simplified for now)
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Topic Selection (Not fully implemented)",
-                    modifier = Modifier.padding(8.dp)
-                )
             }
         }
     }
