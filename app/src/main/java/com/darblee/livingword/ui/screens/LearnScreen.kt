@@ -25,7 +25,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Church
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -236,6 +236,12 @@ fun LearnScreen(
                     selected = currentScreen == Screen.Home,
                     onClick = { navController.navigate(Screen.Home) },
                     label = { Text("Home") },
+                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
+                )
+                NavigationBarItem(
+                    selected = currentScreen == Screen.MeditateScreen,
+                    onClick = { navController.navigate(Screen.MeditateScreen) },
+                    label = { Text("Meditate") },
                     icon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_meditate_custom),
@@ -243,12 +249,6 @@ fun LearnScreen(
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.MeditateScreen,
-                    onClick = { navController.navigate(Screen.MeditateScreen) },
-                    label = { Text("Meditate") },
-                    icon = { Icon(Icons.Filled.Person, contentDescription = "Meditate") }
                 )
                 NavigationBarItem(
                     selected = currentScreen == Screen.VerseByTopicScreen,
