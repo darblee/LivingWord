@@ -143,10 +143,11 @@ fun MemorizeScreen(
                 Log.d("Speech", "Results: $recognizedText")
                 if (!recognizedText.isNullOrEmpty()) {
                     val newText = recognizedText[0]
+                    val processedText = processNewText(newText, memorizedText)
                     memorizedText = if (memorizedText.isEmpty()) {
-                        newText
+                        processedText
                     } else {
-                        "$memorizedText $newText"
+                        "$memorizedText $processedText"
                     }
                     // Clear partial text since we have final results
                     partialText = ""
@@ -163,7 +164,8 @@ fun MemorizeScreen(
                 val recognizedText =
                     partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!recognizedText.isNullOrEmpty()) {
-                    partialText = recognizedText[0]
+                    val newPartialText = recognizedText[0]
+                    partialText = processNewText(newPartialText, memorizedText)
                 }
             }
 
@@ -176,7 +178,7 @@ fun MemorizeScreen(
         }
     }
 
-    // Combine final and partial text for display
+    // Combine memorized text and partial text for display
     val displayText = remember(memorizedText, partialText) {
         buildAnnotatedString {
             if (memorizedText.isNotEmpty()) {
@@ -472,6 +474,22 @@ private fun startListening(speechRecognizer: SpeechRecognizer?) {
 
 private fun stopListening(speechRecognizer: SpeechRecognizer?) {
     speechRecognizer?.stopListening()
+}
+
+private fun processNewText(newText: String, existingText: String): String {
+    if (newText.isEmpty()) return newText
+
+    // Check if we should capitalize the first letter
+    val shouldCapitalize = existingText.trim().isEmpty() ||
+            existingText.trim().endsWith('.') ||
+            existingText.trim().endsWith('?') ||
+            existingText.endsWith('\n')
+
+    return if (shouldCapitalize) {
+        newText.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+    } else {
+        newText
+    }
 }
 
 @Preview(showBackground = true)
