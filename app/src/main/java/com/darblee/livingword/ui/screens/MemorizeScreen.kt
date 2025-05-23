@@ -55,6 +55,10 @@ import com.darblee.livingword.R
 import com.darblee.livingword.data.verseReference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,6 +92,9 @@ fun MemorizeScreen(
 
     // State to track if the memorized text field is focused
     var isMemorizedTextFieldFocused by remember { mutableStateOf(false) }
+
+    // State to control scripture visibility
+    var isScriptureVisible by remember { mutableStateOf(false) } // Added state
 
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
@@ -273,15 +280,8 @@ fun MemorizeScreen(
         }
     }
 
-
-    // Effect to auto-scroll (if memorizedTextBoxScrollState were used by a scrollable container for the TextField)
-    // Note: OutlinedTextField scrolls internally. This might be for a different setup.
-    LaunchedEffect(combinedDisplayAnnotatedText.text) { // Key on the text content
+    LaunchedEffect(combinedDisplayAnnotatedText.text) {
         if (combinedDisplayAnnotatedText.text.isNotEmpty()) {
-            // If memorizedTextBoxScrollState was attached to a parent Column with .verticalScroll, this would work.
-            // For OutlinedTextField, internal scrolling is handled.
-            // To scroll OutlinedTextField, you might need to manage its TextFieldValue's selection or use its own scroll state if available.
-            // For now, this will scroll memorizedTextBoxScrollState if it's used elsewhere.
             memorizedTextBoxScrollState.animateScrollTo(memorizedTextBoxScrollState.maxValue)
         }
     }
@@ -297,7 +297,7 @@ fun MemorizeScreen(
                     } else {
                         Text("Memorize Verse")
                     }
-                        },
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             )
         },
@@ -341,18 +341,80 @@ fun MemorizeScreen(
         ) {
             LabeledOutlinedBox(
                 label = "Scripture",
-                modifier = Modifier.fillMaxWidth().weight(0.1f).heightIn(min = 40.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.3f) // Adjusted weight for visibility toggle
+                    .heightIn(min = 100.dp) // Ensure enough height for button and text
             ) {
-                BasicTextField(
-                    value = verse?.scripture ?: "Loading...",
-                    onValueChange = { /* Read-only */ },
-                    modifier = Modifier.fillMaxSize().verticalScroll(scriptureScrollState),
-                    readOnly = true,
-                    textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    minLines = 6,
-                    maxLines = 6
+                Column(
+                    modifier = Modifier
+                        .border(5.dp, Color.Black, RoundedCornerShape(4.dp))
+                        .padding(8.dp)
+                        .fillMaxSize()
                 )
+                {
+                    if (isScriptureVisible) {
+                        BasicTextField(
+                            value = verse?.scripture ?: "Loading...",
+                            onValueChange = { /* Read-only */ },
+                            modifier = Modifier
+                                .height(120.dp)
+                                .fillMaxWidth()
+                                .verticalScroll(scriptureScrollState)
+                                .padding(8.dp) // Add some padding inside
+                                .clickable { /* Do nothing */ },
+                            readOnly = true,
+                            textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            minLines = 6, // Consider if these min/max lines are still needed or adjust
+                            maxLines = 6
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .height(120.dp)
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) // Opaque box
+                                .clickable { isScriptureVisible = true } // Click to reveal
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Click to reveal scripture verse",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+
+                    Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            onClick = { isScriptureVisible = true },
+                            enabled = !isScriptureVisible
+                        )
+                        {
+                            Text(text = "Reveal")
+                        }
+                        Button(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            onClick = { isScriptureVisible = false },
+                            enabled = isScriptureVisible
+                        ) {
+                            Text(text = "Hide")
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -375,7 +437,7 @@ fun MemorizeScreen(
                     ) {
                         Text(
                             text = if (isListening) "🎤 Listening..." else "⏸️ Not listening",
-                            modifier = Modifier.padding(4.dp),
+                            modifier = Modifier.padding(4.dp).fillMaxWidth(), // Added fillMaxWidth
                             fontSize = 16.sp,
                             textAlign = TextAlign.Center
                         )
@@ -390,14 +452,10 @@ fun MemorizeScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .weight(1f) // Allow text field to take available space
                             .focusRequester(focusRequester)
                             .onFocusChanged { focusState -> // Update focus state here
                                 isMemorizedTextFieldFocused = focusState.isFocused
-                                if (!focusState.isFocused && partialText.isNotEmpty()) {
-                                    // Optional: If field loses focus and there's partial text,
-                                    // you might want to commit it or clear it.
-                                    // For now, partialText remains until next speech result.
-                                }
                             },
                         placeholder = {
                             // Display combinedDisplayAnnotatedText as placeholder if you want to see partial text preview
@@ -418,11 +476,11 @@ fun MemorizeScreen(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         ),
-                        minLines = 6,
-                        maxLines = 6
+                        minLines = 6, // Adjusted min/max lines
+                        maxLines = 8  // Adjusted min/max lines
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -431,9 +489,8 @@ fun MemorizeScreen(
                         FloatingActionButton(
                             onClick = {
                                 if (!hasPermission) {
-                                    // TODO: Implement permission request flow
-                                    // For now, it just returns. You'll need a permission launcher.
                                     Log.w("MemorizeScreen", "Record audio permission not granted.")
+                                    // TODO: Implement permission request flow if not already present elsewhere
                                     return@FloatingActionButton
                                 }
 
@@ -450,23 +507,24 @@ fun MemorizeScreen(
                             },
                             Modifier
                                 .weight(1f)
-                                .height(40.dp),
+                                .height(48.dp), // Slightly increased height for better tap target
                             containerColor = if (isListening)
-                                MaterialTheme.colorScheme.error
+                                MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
                             else
-                                MaterialTheme.colorScheme.primary
+                                MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Icon(
                                 imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
-                                contentDescription = if (isListening) "Stop listening" else "Start listening"
+                                contentDescription = if (isListening) "Stop listening" else "Start listening",
+                                tint = if (isListening) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
 
                         FloatingActionButton(
                             onClick = {
-                                if (combinedDisplayAnnotatedText.text.isNotEmpty()) { // Use the combined text for this check
-
-                                    if (combinedDisplayAnnotatedText.text.length < 10) {
+                                val textToCheck = memorizedTextFieldValue.text + partialText // Consider combined text
+                                if (textToCheck.isNotEmpty()) {
+                                    if (textToCheck.length < 10) {
                                         memorizedTextFieldValue = TextFieldValue("")
                                         partialText = ""
                                     } else {
@@ -476,44 +534,45 @@ fun MemorizeScreen(
                             },
                             Modifier
                                 .weight(1f)
-                                .height(40.dp),
-                            containerColor = if (combinedDisplayAnnotatedText.text.isNotEmpty()) {
-                                MaterialTheme.colorScheme.primary
+                                .height(48.dp),
+                            containerColor = if ((memorizedTextFieldValue.text + partialText).isNotEmpty()) { // Use the combined text
+                                MaterialTheme.colorScheme.secondaryContainer
                             } else {
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                MaterialTheme.colorScheme.surfaceVariant
                             }
                         ) {
                             Text(
                                 "Clear",
-                                color = if (combinedDisplayAnnotatedText.text.isNotEmpty()) { // Use the combined text
-                                    MaterialTheme.colorScheme.onPrimary
+                                color = if ((memorizedTextFieldValue.text + partialText).isNotEmpty()) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 }
                             )
                         }
 
                         FloatingActionButton(
                             onClick = {
-                                if (combinedDisplayAnnotatedText.text.length >= 5) { // Use the combined text
-                                    Log.i("Memorized Screen", "Do the evaluation with text: ${combinedDisplayAnnotatedText.text}")
+                                val textToEvaluate = memorizedTextFieldValue.text + partialText // Consider combined text
+                                if (textToEvaluate.length >= 5) {
+                                    Log.i("Memorize Screen", "Do the evaluation with text: $textToEvaluate")
                                 }
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp),
-                            containerColor = if (combinedDisplayAnnotatedText.text.length >= 5) { // Use the combined text
-                                MaterialTheme.colorScheme.primary
+                                .height(48.dp),
+                            containerColor = if ((memorizedTextFieldValue.text + partialText).length >= 5) { // Use the combined text
+                                MaterialTheme.colorScheme.tertiaryContainer
                             } else {
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                MaterialTheme.colorScheme.surfaceVariant
                             }
                         ) {
                             Text(
                                 "Evaluate",
-                                color = if (combinedDisplayAnnotatedText.text.length >= 5) { // Use the combined text
-                                    MaterialTheme.colorScheme.onPrimary
+                                color = if ((memorizedTextFieldValue.text + partialText).length >= 5) {
+                                    MaterialTheme.colorScheme.onTertiaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 }
                             )
                         }
@@ -524,9 +583,9 @@ fun MemorizeScreen(
                         Text(
                             text = "Microphone permission is required for live transcription. Please grant permission in app settings.",
                             color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodySmall
                         )
-                        // TODO: Add a button to request permission or guide user to settings.
                     }
 
                     if (processDeletingMemorizedText) {
@@ -554,7 +613,6 @@ fun MemorizeScreen(
                             }
                         )
                     }
-
                 }
             }
         }
@@ -680,5 +738,7 @@ fun MemorizeScreenPreview() {
     val context = LocalContext.current
     val factory = BibleVerseViewModel.Factory(context.applicationContext)
     val bibleViewModel: BibleVerseViewModel = viewModel(factory = factory)
-    MemorizeScreen(navController = navController, bibleViewModel = bibleViewModel, verseID = 1L)
+    MaterialTheme { // Wrap with MaterialTheme for preview
+        MemorizeScreen(navController = navController, bibleViewModel = bibleViewModel, verseID = 1L)
+    }
 }
