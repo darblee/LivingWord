@@ -52,6 +52,7 @@ import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.R
+import com.darblee.livingword.data.verseReference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -68,6 +69,8 @@ fun MemorizeScreen(
     val coroutineScope = rememberCoroutineScope()
     var partialText by remember { mutableStateOf("") }
     var isListening by remember { mutableStateOf(false) }
+    var processDeletingMemorizedText by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val speechRecognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
     var hasPermission by remember {
@@ -288,7 +291,13 @@ fun MemorizeScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Memorize Verse") },
+                title = {
+                    if (verse != null) {
+                        Text("Memorize : ${verseReference(verse!!)}" )
+                    } else {
+                        Text("Memorize Verse")
+                    }
+                        },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             )
         },
@@ -456,8 +465,13 @@ fun MemorizeScreen(
                         FloatingActionButton(
                             onClick = {
                                 if (combinedDisplayAnnotatedText.text.isNotEmpty()) { // Use the combined text for this check
-                                    memorizedTextFieldValue = TextFieldValue("")
-                                    partialText = ""
+
+                                    if (combinedDisplayAnnotatedText.text.length < 10) {
+                                        memorizedTextFieldValue = TextFieldValue("")
+                                        partialText = ""
+                                    } else {
+                                        processDeletingMemorizedText = true
+                                    }
                                 }
                             },
                             Modifier
@@ -514,6 +528,33 @@ fun MemorizeScreen(
                         )
                         // TODO: Add a button to request permission or guide user to settings.
                     }
+
+                    if (processDeletingMemorizedText) {
+                        AlertDialog(
+                            onDismissRequest = { processDeletingMemorizedText = false },
+                            title = { Text("Confirm Erase") },
+                            text = { Text("Are you sure you want to clear this?") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        memorizedTextFieldValue = TextFieldValue("")
+                                        partialText = ""
+                                        processDeletingMemorizedText = false
+                                    }
+                                ) {
+                                    Text("Clear")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { processDeletingMemorizedText = false }
+                                ) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
+
                 }
             }
         }
