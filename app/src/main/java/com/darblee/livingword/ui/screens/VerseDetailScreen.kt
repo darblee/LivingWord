@@ -359,7 +359,6 @@ fun VerseDetailScreen(
                             background = MaterialTheme.colorScheme.primaryContainer,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
-                        applyMarkdownFormatting = true
                     )
 
                     Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
@@ -449,7 +448,6 @@ fun VerseDetailScreen(
                             background = MaterialTheme.colorScheme.primaryContainer,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
-                        applyMarkdownFormatting = true
                     )
 
                     Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
@@ -904,7 +902,7 @@ fun VerseDetailScreen(
 
 // Helper function to build AnnotatedString with potential TTS highlighting & Markdown
 @Composable
-private fun buildAnnotatedStringForTts(
+internal fun buildAnnotatedStringForTts(
     fullText: String,
     isTargeted: Boolean,
     highlightSentenceIndex: Int,
@@ -912,7 +910,6 @@ private fun buildAnnotatedStringForTts(
     isPaused: Boolean,
     baseStyle: SpanStyle,
     highlightStyle: SpanStyle,
-    applyMarkdownFormatting: Boolean = false
 ): AnnotatedString {
 
     val textToProcess = fullText.replace(".**", "**.")
@@ -954,7 +951,6 @@ private fun buildAnnotatedStringForTts(
             // Find which sentence this currentTextIndex falls into
             for (i in sentences.indices) {
                 if (i < sentenceRanges.size && sentenceRanges[i].first <= currentTextIndex && currentTextIndex <= sentenceRanges[i].last) {
-                    val sentence = sentences[i]
                     val shouldHighlightThisSentence = isTargeted &&
                             ((isSpeaking && !isPaused && i == highlightSentenceIndex) ||
                                     (isPaused && i == highlightSentenceIndex))
@@ -982,155 +978,149 @@ private fun buildAnnotatedStringForTts(
                 currentTextIndex = nextSentenceStart
             }
 
-            if (applyMarkdownFormatting) {
-                withStyle(appliedStyle) {
-                    // Process bullet points for paragraphs starting with "* "
-                    val lines = textSegment.split("\n")
-                    val processedSegment = lines.joinToString("\n") { line ->
-                        if (line.trim().startsWith("* ")) {
-                            "• " + line.trim().substring(2)
-                        } else {
-                            line
-                        }
+            withStyle(appliedStyle) {
+                // Process bullet points for paragraphs starting with "* "
+                val lines = textSegment.split("\n")
+                val processedSegment = lines.joinToString("\n") { line ->
+                    if (line.trim().startsWith("* ")) {
+                        "• " + line.trim().substring(2)
+                    } else {
+                        line
                     }
+                }
 
-                    val textToProcess = processedSegment
+                val textToProcess = processedSegment
 
-                    // Completely rewritten approach to handle both bold and italic formatting
-                    // This approach ensures consistent handling of all formatting instances
+                // Completely rewritten approach to handle both bold and italic formatting
+                // This approach ensures consistent handling of all formatting instances
 
-                    // Step 1: Create a list of all formatting markers with their positions and types
-                    data class Marker(val position: Int, val isStart: Boolean, val type: String)
-                    val markers = mutableListOf<Marker>()
+                // Step 1: Create a list of all formatting markers with their positions and types
+                data class Marker(val position: Int, val isStart: Boolean, val type: String)
+                val markers = mutableListOf<Marker>()
 
-                    // Find all bold markers (**) and add them to the list
-                    val boldRegex = Regex("""\*\*""")
-                    boldRegex.findAll(textToProcess).forEach { match ->
-                        val position = match.range.first
-                        // Count the number of ** before this position to determine if it's even (start) or odd (end)
-                        val previousMarkers = boldRegex.findAll(textToProcess.substring(0, position)).count()
+                // Find all bold markers (**) and add them to the list
+                val boldRegex = Regex("""\*\*""")
+                boldRegex.findAll(textToProcess).forEach { match ->
+                    val position = match.range.first
+                    // Count the number of ** before this position to determine if it's even (start) or odd (end)
+                    val previousMarkers = boldRegex.findAll(textToProcess.substring(0, position)).count()
+                    val isStart = previousMarkers % 2 == 0
+                    markers.add(Marker(position, isStart, "bold"))
+                }
+
+                // Find all italic markers (*) that are not part of bold markers
+                val italicRegex = Regex("""\*(?!\*)""")
+                italicRegex.findAll(textToProcess).forEach { match ->
+                    val position = match.range.first
+                    // Check if this * is part of a ** (bold marker)
+                    val isBoldMarker = textToProcess.substring(position, minOf(position + 2, textToProcess.length)) == "**" ||
+                            (position > 0 && textToProcess.substring(position - 1, position + 1) == "**")
+
+                    if (!isBoldMarker) {
+                        // Count previous standalone * markers to determine if start or end
+                        val previousMarkers = italicRegex.findAll(textToProcess.substring(0, position)).count {
+                            val pos = it.range.first
+                            val isPartOfBold = textToProcess.substring(pos, minOf(pos + 2, textToProcess.length)) == "**" ||
+                                    (pos > 0 && textToProcess.substring(pos - 1, pos + 1) == "**")
+                            !isPartOfBold
+                        }
                         val isStart = previousMarkers % 2 == 0
-                        markers.add(Marker(position, isStart, "bold"))
+                        markers.add(Marker(position, isStart, "italic"))
                     }
+                }
 
-                    // Find all italic markers (*) that are not part of bold markers
-                    val italicRegex = Regex("""\*(?!\*)""")
-                    italicRegex.findAll(textToProcess).forEach { match ->
-                        val position = match.range.first
-                        // Check if this * is part of a ** (bold marker)
-                        val isBoldMarker = textToProcess.substring(position, minOf(position + 2, textToProcess.length)) == "**" ||
-                                (position > 0 && textToProcess.substring(position - 1, position + 1) == "**")
+                // Sort markers by position
+                val sortedMarkers = markers.sortedBy { it.position }
 
-                        if (!isBoldMarker) {
-                            // Count previous standalone * markers to determine if start or end
-                            val previousMarkers = italicRegex.findAll(textToProcess.substring(0, position)).count {
-                                val pos = it.range.first
-                                val isPartOfBold = textToProcess.substring(pos, minOf(pos + 2, textToProcess.length)) == "**" ||
-                                        (pos > 0 && textToProcess.substring(pos - 1, pos + 1) == "**")
-                                !isPartOfBold
-                            }
-                            val isStart = previousMarkers % 2 == 0
-                            markers.add(Marker(position, isStart, "italic"))
-                        }
-                    }
+                // Step 2: Process the text using the markers
+                var currentPos = 0
+                var boldActive = false
+                var italicActive = false
 
-                    // Sort markers by position
-                    val sortedMarkers = markers.sortedBy { it.position }
+                // Create stacks to track active formatting
+                val formattingStack = mutableListOf<String>() // "bold" or "italic"
 
-                    // Step 2: Process the text using the markers
-                    var currentPos = 0
-                    var boldActive = false
-                    var italicActive = false
+                // Break down text into segments and process each with appropriate formatting
+                for (i in sortedMarkers.indices) {
+                    val marker = sortedMarkers[i]
 
-                    // Create stacks to track active formatting
-                    val formattingStack = mutableListOf<String>() // "bold" or "italic"
+                    // Append text before this marker with current formatting
+                    if (marker.position > currentPos) {
+                        val textBefore = textToProcess.substring(currentPos, marker.position)
 
-                    // Break down text into segments and process each with appropriate formatting
-                    for (i in sortedMarkers.indices) {
-                        val marker = sortedMarkers[i]
-
-                        // Append text before this marker with current formatting
-                        if (marker.position > currentPos) {
-                            val textBefore = textToProcess.substring(currentPos, marker.position)
-
-                            // Apply current formatting
-                            if (boldActive && italicActive) {
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, color=Color.Yellow)) {
-                                    append(textBefore)
-                                }
-                            } else if (boldActive) {
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.Yellow)) {
-                                    append(textBefore)
-                                }
-                            } else if (italicActive) {
-                                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                                    append(textBefore)
-                                }
-                            } else {
+                        // Apply current formatting
+                        if (boldActive && italicActive) {
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, color=Color.Yellow)) {
                                 append(textBefore)
                             }
-                        }
-
-                        // Update the current position based on marker type
-                        if (marker.type == "bold") {
-                            currentPos = marker.position + 2 // Skip past "**"
-                        } else {
-                            currentPos = marker.position + 1 // Skip past "*"
-                        }
-
-                        // Process the marker - update formatting state
-                        if (marker.type == "bold") {
-                            if (marker.isStart) {
-                                boldActive = true
-                                formattingStack.add("bold")
-                            } else {
-                                boldActive = false
-                                // Remove the last "bold" from the stack
-                                val lastBoldIndex = formattingStack.lastIndexOf("bold")
-                                if (lastBoldIndex != -1) {
-                                    formattingStack.removeAt(lastBoldIndex)
-                                }
-                            }
-                        } else if (marker.type == "italic") {
-                            if (marker.isStart) {
-                                italicActive = true
-                                formattingStack.add("italic")
-                            } else {
-                                italicActive = false
-                                // Remove the last "italic" from the stack
-                                val lastItalicIndex = formattingStack.lastIndexOf("italic")
-                                if (lastItalicIndex != -1) {
-                                    formattingStack.removeAt(lastItalicIndex)
-                                }
-                            }
-                        }
-                    }
-
-                    // Append any remaining text after the last marker
-                    if (currentPos < textToProcess.length) {
-                        val remainingText = textToProcess.substring(currentPos)
-
-                        // Apply current formatting to remaining text
-                        if (boldActive && italicActive) {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
-                                append(remainingText)
-                            }
                         } else if (boldActive) {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                append(remainingText)
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.Yellow)) {
+                                append(textBefore)
                             }
                         } else if (italicActive) {
                             withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                                append(remainingText)
+                                append(textBefore)
                             }
                         } else {
-                            append(remainingText)
+                            append(textBefore)
+                        }
+                    }
+
+                    // Update the current position based on marker type
+                    if (marker.type == "bold") {
+                        currentPos = marker.position + 2 // Skip past "**"
+                    } else {
+                        currentPos = marker.position + 1 // Skip past "*"
+                    }
+
+                    // Process the marker - update formatting state
+                    if (marker.type == "bold") {
+                        if (marker.isStart) {
+                            boldActive = true
+                            formattingStack.add("bold")
+                        } else {
+                            boldActive = false
+                            // Remove the last "bold" from the stack
+                            val lastBoldIndex = formattingStack.lastIndexOf("bold")
+                            if (lastBoldIndex != -1) {
+                                formattingStack.removeAt(lastBoldIndex)
+                            }
+                        }
+                    } else if (marker.type == "italic") {
+                        if (marker.isStart) {
+                            italicActive = true
+                            formattingStack.add("italic")
+                        } else {
+                            italicActive = false
+                            // Remove the last "italic" from the stack
+                            val lastItalicIndex = formattingStack.lastIndexOf("italic")
+                            if (lastItalicIndex != -1) {
+                                formattingStack.removeAt(lastItalicIndex)
+                            }
                         }
                     }
                 }
-            } else {
-                withStyle(appliedStyle) {
-                    append(textSegment)
+
+                // Append any remaining text after the last marker
+                if (currentPos < textToProcess.length) {
+                    val remainingText = textToProcess.substring(currentPos)
+
+                    // Apply current formatting to remaining text
+                    if (boldActive && italicActive) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
+                            append(remainingText)
+                        }
+                    } else if (boldActive) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append(remainingText)
+                        }
+                    } else if (italicActive) {
+                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                            append(remainingText)
+                        }
+                    } else {
+                        append(remainingText)
+                    }
                 }
             }
         }

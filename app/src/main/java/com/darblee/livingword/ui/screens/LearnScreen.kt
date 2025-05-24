@@ -54,7 +54,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -488,38 +490,32 @@ fun LearnScreen(
                         }
                         // Determine if the text field should be considered "empty" for placeholder logic
                         val showPlaceholder = textToShow.isEmpty() && placeholderText.isNotEmpty()
+                        val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+                        val newBaseStyle = SpanStyle(color = baseTextColor)
 
 
-                        // NOTE: Currently read-only. If editing is desired, change readOnly and implement
-                        // onValueChange to update a state (potentially local state first, then save to VM).
-                        BasicTextField(
-                            value = textToShow,
-                            onValueChange = { /* Read-only */ },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(aiResponseScrollState), // Make scrollable
-                            readOnly = true, // Set to false to allow editing
-                            textStyle = LocalTextStyle.current.copy(
-                                color = if (hasError) MaterialTheme.colorScheme.error else LocalContentColor.current
-                            ), // Use error color if needed
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), // Cursor style
-                            decorationBox = { innerTextField ->
-                                // Show placeholder only when appropriate
-                                if (showPlaceholder) {
-                                    Text(
-                                        placeholderText,
-                                        style = LocalTextStyle.current.copy(
-                                            color = LocalContentColor.current.copy(alpha = 0.5f)
-                                        )
-                                    )
-                                }
-                                // Render the actual text field input area
-                                // only if not showing the placeholder OR if text is not empty
-                                if (!showPlaceholder || textToShow.isNotEmpty()) {
-                                    innerTextField()
-                                }
-                            }
-                        )
+                        val scriptureAnnotatedText = buildAnnotatedStringForTts(
+                            fullText = textToShow,
+                            isTargeted = false,
+                            highlightSentenceIndex = 0,
+                            isSpeaking = false,
+                            isPaused = false,
+                            baseStyle = newBaseStyle,
+                            highlightStyle = SpanStyle(
+                                background = MaterialTheme.colorScheme.primaryContainer,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            ))
+
+                        Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
+                            Text(
+                                text = scriptureAnnotatedText,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+
+                            )
+                        }
                     }
                 }
                 // --- End Key Take-Away Box ---
