@@ -601,7 +601,8 @@ fun LabeledOutlinedBox(
             text = label,
             style = MaterialTheme.typography.labelMedium, // Or labelSmall/labelLarge
             color = MaterialTheme.colorScheme.primary, // Or onSurfaceVariant
-            modifier = Modifier.padding(bottom = 4.dp) // Space between label and box
+            modifier = Modifier.padding(bottom = 4.dp), // Space between label and box
+            fontSize = 15.sp
         )
         Box(
             modifier = Modifier

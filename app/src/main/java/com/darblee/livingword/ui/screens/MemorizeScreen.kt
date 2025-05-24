@@ -60,7 +60,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemorizeScreen(
@@ -95,6 +94,15 @@ fun MemorizeScreen(
 
     // State to control scripture visibility
     var isScriptureVisible by remember { mutableStateOf(false) } // Added state
+
+
+    val initialHardcodedTopics = listOf(
+        "topic1",
+        "love",
+    )
+
+    // var topics by remember { mutableStateOf(emptyList<String>()) }
+    var topics by remember { mutableStateOf(initialHardcodedTopics) }
 
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
@@ -340,90 +348,12 @@ fun MemorizeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             LabeledOutlinedBox(
-                label = "Scripture",
+                label = "Memorized Verse",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.3f) // Adjusted weight for visibility toggle
-                    .heightIn(min = 100.dp) // Ensure enough height for button and text
+                    .heightIn(min = 30.dp) // Ensure enough height for status bar, text box, and button
             ) {
-                Column(
-                    modifier = Modifier
-                        .border(5.dp, Color.Black, RoundedCornerShape(4.dp))
-                        .padding(8.dp)
-                        .fillMaxSize()
-                )
-                {
-                    if (isScriptureVisible) {
-                        BasicTextField(
-                            value = verse?.scripture ?: "Loading...",
-                            onValueChange = { /* Read-only */ },
-                            modifier = Modifier
-                                .height(120.dp)
-                                .fillMaxWidth()
-                                .verticalScroll(scriptureScrollState)
-                                .padding(8.dp) // Add some padding inside
-                                .clickable { /* Do nothing */ },
-                            readOnly = true,
-                            textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            minLines = 6, // Consider if these min/max lines are still needed or adjust
-                            maxLines = 6
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .height(120.dp)
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) // Opaque box
-                                .clickable { isScriptureVisible = true } // Click to reveal
-                                .padding(8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Click to reveal scripture verse",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-
-                    Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            onClick = { isScriptureVisible = true },
-                            enabled = !isScriptureVisible
-                        )
-                        {
-                            Text(text = "Reveal")
-                        }
-                        Button(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            onClick = { isScriptureVisible = false },
-                            enabled = isScriptureVisible
-                        ) {
-                            Text(text = "Hide")
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LabeledOutlinedBox(
-                label = "Memorized Verse",
-                modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
-            ) {
-                Column(modifier = Modifier.padding(8.dp)) {
+                Column(modifier = Modifier.padding(4.dp)) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -452,8 +382,8 @@ fun MemorizeScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f) // Allow text field to take available space
                             .focusRequester(focusRequester)
+                            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(4.dp))
                             .onFocusChanged { focusState -> // Update focus state here
                                 isMemorizedTextFieldFocused = focusState.isFocused
                             },
@@ -461,7 +391,7 @@ fun MemorizeScreen(
                             // Display combinedDisplayAnnotatedText as placeholder if you want to see partial text preview
                             // However, this makes the placeholder an AnnotatedString.
                             // A simpler placeholder:
-                            Text(text = "Type or speak to add text...", style = TextStyle(color = Color.Gray.copy(alpha = 0.5f)))
+                            Text(text = "Type or speak (🎤) to add text...", style = TextStyle(color = Color.Gray.copy(alpha = 0.5f)))
                             // If you want the gray partial text to appear IN the text field itself,
                             // the value of OutlinedTextField would need to be `combinedDisplayAnnotatedText` (or similar).
                             // But then `onValueChange` would give you this combined text, complicating manual typing.
@@ -476,8 +406,9 @@ fun MemorizeScreen(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         ),
-                        minLines = 6, // Adjusted min/max lines
-                        maxLines = 8  // Adjusted min/max lines
+                        shape = RoundedCornerShape(4.dp),
+                        minLines = 4, // Adjusted min/max lines
+                        maxLines = 4  // Adjusted min/max lines
                     )
 
                     Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
@@ -511,12 +442,11 @@ fun MemorizeScreen(
                             containerColor = if (isListening)
                                 MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
                             else
-                                MaterialTheme.colorScheme.primaryContainer
+                                MaterialTheme.colorScheme.primary
                         ) {
                             Icon(
-                                imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
+                                imageVector = if (isListening) Icons.Filled.MicOff  else Icons.Default.Mic,
                                 contentDescription = if (isListening) "Stop listening" else "Start listening",
-                                tint = if (isListening) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
 
@@ -536,15 +466,15 @@ fun MemorizeScreen(
                                 .weight(1f)
                                 .height(48.dp),
                             containerColor = if ((memorizedTextFieldValue.text + partialText).isNotEmpty()) { // Use the combined text
-                                MaterialTheme.colorScheme.secondaryContainer
+                                MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                             }
                         ) {
                             Text(
                                 "Clear",
                                 color = if ((memorizedTextFieldValue.text + partialText).isNotEmpty()) {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                    MaterialTheme.colorScheme.onPrimary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 }
@@ -562,15 +492,15 @@ fun MemorizeScreen(
                                 .weight(1f)
                                 .height(48.dp),
                             containerColor = if ((memorizedTextFieldValue.text + partialText).length >= 5) { // Use the combined text
-                                MaterialTheme.colorScheme.tertiaryContainer
+                                MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                             }
                         ) {
                             Text(
                                 "Evaluate",
                                 color = if ((memorizedTextFieldValue.text + partialText).length >= 5) {
-                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                    MaterialTheme.colorScheme.onPrimary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 }
@@ -614,6 +544,139 @@ fun MemorizeScreen(
                         )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LabeledOutlinedBox(
+                label = "Scripture",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 30.dp) // Ensure enough height for button and text
+            ) {
+                Column(modifier = Modifier.padding(4.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outline,
+                                RoundedCornerShape(4.dp)
+                            )
+                            .padding(4.dp)
+                            .fillMaxWidth()
+                            .height(100.dp)
+                    )
+                    {
+                        if (isScriptureVisible) {
+                            BasicTextField(
+                                value = verse?.scripture ?: "Loading...",
+                                onValueChange = { /* Read-only */ },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(scriptureScrollState)
+                                    .padding(8.dp) // Add some padding inside
+                                    .clickable { /* Do nothing */ },
+                                readOnly = true,
+                                textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                minLines = 4,
+                                maxLines = 4
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) // Opaque box
+                                    .clickable { isScriptureVisible = true } // Click to reveal
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Click to reveal scripture verse",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            onClick = { isScriptureVisible = true },
+                            enabled = !isScriptureVisible,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        {
+                            Text(text = "Reveal")
+                        }
+                        Button(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            onClick = { isScriptureVisible = false },
+                            enabled = isScriptureVisible,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(text = "Hide")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val topicScrollState = rememberScrollState()
+
+            LabeledOutlinedBox(
+                label = "Topics (${topics.count()} items)",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 25.dp, max = 80.dp) // Ensure enough height for button and text
+            ) {
+                if (topics.isNotEmpty()) {
+
+                    Column (
+                        modifier = Modifier
+                            .heightIn(max = 80.dp) // Set maximum height
+                            .verticalScroll(topicScrollState) // Enable vertical scrolling
+                    ) {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
+                            verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                        )
+                        {
+                            topics.forEach { topic ->
+                                // Display each topic as a chip
+
+                                SuggestionChip(
+                                    onClick = { },
+                                    label = { Text(topic) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LabeledOutlinedBox(
+                label = "Score",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 25.dp) // Ensure enough height for button and text
+            ) {
+                Text(text = "Accuracy score will be displayed here after you submit \"evaluate\" button",
+                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) )
             }
         }
     }
