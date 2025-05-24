@@ -4,9 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.darblee.livingword.BibleVerseT
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.GenerateContentResponse
-import com.google.ai.client.generativeai.type.generationConfig
+import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AiServiceResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,23 +20,8 @@ import kotlinx.serialization.json.Json
 import java.io.IOException
 import java.net.URL
 import java.net.URLEncoder
-import com.darblee.livingword.BuildConfig // Assuming BuildConfig is correctly configured
+import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.SnackBarController
-
-
-/**
- * Represents a single item for learning, combining scripture, AI insights, and topics.
- * This structure will be used when saving data to the database.
- */
-data class ContentItem(
-    val book: String,
-    val chapter: String,
-    val startVerse: Int,
-    val endVerse: Int,
-    val scripture: String,
-    val aiResponse: String,
-    val topics: List<String>
-)
 
 /**
  * Represents the JSON structure expected from the ESV API.
@@ -76,178 +60,124 @@ class LearnViewModel() : ViewModel() {
         val isLoading: Boolean = false
     )
 
-    // Private mutable state flow
     private val _state = MutableStateFlow(LearnScreenState())
-    // Public immutable state flow exposed to the UI
     val state: StateFlow<LearnScreenState> = _state.asStateFlow()
 
-    // Keep track of the current fetching job to allow cancellation
     private var fetchDataJob: Job? = null
 
-    // --- API Keys and Configuration ---
-    // Retrieve API keys from BuildConfig (ensure these are properly configured)
     private val esvApiKey = BuildConfig.ESV_BIBLE_API_KEY
-    private val geminiApiKey = BuildConfig.GEMINI_API_KEY
 
-    // Configure Json parser (Consider using dependency injection for this)
     private val jsonParser = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    // Initialize Gemini Model (Consider using dependency injection)
-    private val generativeModel: GenerativeModel? = initializeGeminiModel()
+    // Initialize GeminiAIService
+    private val geminiService: GeminiAIService = GeminiAIService()
 
-    /**
-     * Initializes the Gemini GenerativeModel, handling potential errors.
-     * Returns the initialized model or null if initialization fails or key is missing.
-     */
-    private fun initializeGeminiModel(): GenerativeModel? {
-        return try {
-            if (geminiApiKey.isNotBlank()) {
-                GenerativeModel(
-                    modelName = "gemini-1.5-flash", // Or your desired model
-                    apiKey = geminiApiKey,
-                    generationConfig = generationConfig {
-                        temperature = 0.7f // Adjust creativity as needed
-                    }
+    init {
+        // Check Gemini service initialization status and update state if there's an error
+        if (!geminiService.isInitialized()) {
+            val initError = geminiService.getInitializationError()
+            _state.update {
+                it.copy(
+                    aiResponseError = initError,
+                    // If the error is specifically "Failed to initialize AI Model", set generalError
+                    generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) initError else null
                 )
-            } else {
-                Log.w("LearnViewModel", "Gemini API Key is missing or invalid.")
-                // Update state immediately with the error if key is missing
-                _state.update { it.copy(aiResponseError = "Gemini API Key missing. Cannot get take-away.") }
-                null
             }
-        } catch (e: Exception) {
-            Log.e("LearnViewModel", "Error initializing GenerativeModel", e)
-            // Update state immediately with the initialization error
-            _state.update { it.copy(generalError = "Failed to initialize AI Model.") }
-            null
         }
     }
 
-    /**
-     * Updates the selected topics in the state.
-     * Placeholder for future logic to fetch content based on topics.
-     *
-     * @param selectedTopics List of topic names selected by the user.
-     */
     fun updateSelectedTopics(selectedTopics: List<String>) {
-
         selectedTopics.forEach {
             Log.i("LearnViewModel", "Topic: $it")
         }
-
         _state.update { currentState ->
             currentState.copy(
                 selectedTopics = selectedTopics,
-                // Optionally reset verse data when topics change?
-                // selectedVerse = null, scriptureText = "", keyTakeAwayText = "", ...
-                // isTopicContentLoading = true // Start loading topic content if implemented
-                isContentSaved = false, // Reset saved state when topics change
+                isContentSaved = false,
             )
         }
-        // TODO: Implement fetching content based on selected topics if needed
-        // fetchContentForTopics(selectedTopics)
     }
 
-    // Mark content as saved to the database
-    // This function will be called from BibleVerseViewModel after successful save,
-    // It also start to display content is save message
     fun contentSavedSuccessfully(newVerseId: Long) {
-        _state.update { it.copy(
-            selectedTopics = emptyList(),
-
-            // Clear other relevant fields after successful save if needed
-            selectedVerse = null,
-            scriptureText = "",
-            aiResponseText = "",
-
-            isContentSaved = true,
-            newlySavedVerseId = newVerseId, // Store the ID
-            isLoading = false, // Stop any loading indicators
-
-        ) }
+        _state.update {
+            it.copy(
+                selectedTopics = emptyList(),
+                selectedVerse = null,
+                scriptureText = "",
+                aiResponseText = "",
+                isContentSaved = true,
+                newlySavedVerseId = newVerseId,
+                isLoading = false,
+            )
+        }
         viewModelScope.launch {
             SnackBarController.showMessage("Verse is saved")
         }
     }
 
-    /**
-     * Clears the currently displayed verse, scripture, take-away, and related errors/loading states.
-     * Preserves errors related to API key or model initialization.
-     */
     fun clearVerseData() {
-        fetchDataJob?.cancel() // Cancel any ongoing fetch for the previous verse
+        fetchDataJob?.cancel()
         _state.update { currentState ->
+            val geminiInitError = if (!geminiService.isInitialized()) geminiService.getInitializationError() else null
             currentState.copy(
                 selectedVerse = null,
                 scriptureText = "",
                 aiResponseText = "",
-                selectedTopics = emptyList(), // Also clear topics when clearing verse
+                selectedTopics = emptyList(),
                 isScriptureLoading = false,
                 aiResponseLoading = false,
                 scriptureError = null,
-                // Preserve API key/init error, clear other take-away errors
-                aiResponseError = currentState.aiResponseError?.takeIf { it.contains("API Key") || it.contains("initialize") },
-                generalError = currentState.generalError?.takeIf { it.contains("AI Model") }, // Preserve init error
-                isContentSaved = false, // Reset saved state
+                aiResponseError = geminiInitError, // Reflect current Gemini init status
+                generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) geminiInitError else null,
+                isContentSaved = false,
                 newlySavedVerseId = null,
             )
         }
     }
 
-    /**
-     * Sets the selected verse and triggers fetching scripture and AI response data.
-     * Cancels any previous fetch operation.
-     *
-     * @param verse The BibleVerse selected by the user, or null to clear.
-     */
     fun setSelectedVerseAndFetchData(verse: BibleVerseT?) {
         if (verse == null) {
             clearVerseData()
             return
         }
 
-        // Avoid re-fetching if the exact same verse is already selected and loaded without errors
         val currentState = _state.value
+        val geminiReady = geminiService.isInitialized()
+        val geminiInitError = if (!geminiReady) geminiService.getInitializationError() else null
+
+        // Avoid re-fetching if the exact same verse is already selected and loaded without errors
         if (verse == currentState.selectedVerse &&
             currentState.scriptureText.isNotEmpty() && currentState.scriptureError == null &&
-            (currentState.aiResponseText.isNotEmpty() || currentState.aiResponseError != null || generativeModel == null) // Also check take-away state
+            (currentState.aiResponseText.isNotEmpty() || currentState.aiResponseError != null || !geminiReady)
         ) {
             Log.d("LearnViewModel", "Verse $verse already loaded. Skipping fetch.")
-            // If take-away had an error before (and model exists), maybe retry?
-            if (generativeModel != null && currentState.aiResponseText.isEmpty() && currentState.aiResponseError != null && !currentState.aiResponseLoading) {
+            // If AI response had an error before (and model exists), maybe retry?
+            if (geminiReady && currentState.aiResponseText.isEmpty() && currentState.aiResponseError != null && !currentState.aiResponseLoading) {
                 Log.d("LearnViewModel", "Retrying AI response fetch for $verse.")
                 fetchKeyTakeAwayOnly(verse)
             }
             return
         }
 
-        // Cancel any previous job before starting a new one
         fetchDataJob?.cancel()
 
-        // Update state to indicate loading
         _state.update {
             it.copy(
                 selectedVerse = verse,
                 isScriptureLoading = true,
-                // Start AI response loading only if the model was initialized successfully
-                aiResponseLoading = generativeModel != null,
-
-                scriptureText = "Loading Scripture...", // Placeholder text
-                // Set AI Response placeholder or existing init/key error
-                aiResponseText = if (generativeModel != null) "Getting AI Response ..." else (it.aiResponseError ?: ""),
-                scriptureError = null, // Clear previous errors
-                aiResponseError = if (generativeModel != null) null else it.aiResponseError, // Clear previous errors only if model exists
-                generalError = null, // Clear previous general errors
-                isContentSaved = false, // Reset saved state for new verse
+                aiResponseLoading = geminiReady, // Start AI loading only if service is initialized
+                scriptureText = "Loading Scripture...",
+                aiResponseText = if (geminiReady) "Getting AI Response ..." else (geminiInitError ?: ""),
+                scriptureError = null,
+                aiResponseError = if (geminiReady) null else geminiInitError, // Clear previous errors only if Gemini is ready
+                generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) geminiInitError else null,
+                isContentSaved = false,
             )
         }
 
-        // Launch a new coroutine for fetching data
         fetchDataJob = viewModelScope.launch {
-            // Fetch scripture first
             val scriptureResult = fetchScriptureInternal(verse)
 
-            // Update state with scripture result (success or error)
             _state.update {
                 it.copy(
                     isScriptureLoading = false,
@@ -256,74 +186,84 @@ class LearnViewModel() : ViewModel() {
                 )
             }
 
-            // If scripture fetch was successful and the AI model is available, fetch the take-away
-            if (scriptureResult.isSuccess && generativeModel != null) {
+            if (scriptureResult.isSuccess && geminiReady) {
                 val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
-                val takeAwayResult = getKeyTakeAwayInternal(generativeModel, verseRef)
-
-                // Update state with take-away result (success or error)
-                _state.update {
-                    it.copy(
-                        aiResponseLoading = false,
-                        aiResponseText = if (takeAwayResult.isSuccess) takeAwayResult.getOrDefault("") else "",
-                        aiResponseError = if (takeAwayResult.isFailure) takeAwayResult.exceptionOrNull()?.message else null
-                    )
+                // Call the GeminiAIService
+                when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
+                    is AiServiceResult.Success -> {
+                        _state.update {
+                            it.copy(
+                                aiResponseLoading = false,
+                                aiResponseText = takeAwayResult.data,
+                                aiResponseError = null
+                            )
+                        }
+                    }
+                    is AiServiceResult.Error -> {
+                        _state.update {
+                            it.copy(
+                                aiResponseLoading = false,
+                                aiResponseText = "", // Clear text on error
+                                aiResponseError = takeAwayResult.message
+                            )
+                        }
+                    }
                 }
-            } else if (generativeModel != null) {
-                // Scripture fetch failed, but model exists. Update take-away loading state and potentially set an error.
+            } else if (geminiReady) { // Scripture fetch failed, but Gemini service was ready.
                 _state.update {
                     it.copy(
                         aiResponseLoading = false,
-                        // Optionally clear take-away text or set a specific error
-                        // keyTakeAwayText = "",
                         aiResponseError = it.aiResponseError ?: "Cannot fetch take-away due to scripture error."
                     )
                 }
-            } else {
-                // Model doesn't exist, ensure loading is false
+            } else { // Gemini service not ready, ensure loading is false
                 _state.update { it.copy(aiResponseLoading = false) }
             }
         }
     }
 
-    /**
-     * Fetches only the key take-away for the given verse.
-     * Used internally for retrying if the initial attempt failed.
-     */
     private fun fetchKeyTakeAwayOnly(verse: BibleVerseT) {
-        if (generativeModel == null) {
-            // If the model is null (likely due to init/key error), don't attempt to fetch
-            Log.w("LearnViewModel", "Skipping take-away retry as GenerativeModel is null.")
-            _state.update { it.copy(aiResponseLoading = false) } // Ensure loading is off
+        if (!geminiService.isInitialized()) {
+            Log.w("LearnViewModel", "Skipping take-away retry as GeminiAIService is not initialized.")
+            _state.update {
+                it.copy(
+                    aiResponseLoading = false,
+                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() // Ensure init error is shown
+                )
+            }
             return
         }
 
-        // Update state to show loading for take-away
         _state.update { it.copy(aiResponseLoading = true, aiResponseError = null, aiResponseText = "Getting key take-away...") }
 
         val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
 
-        // Launch coroutine specifically for take-away fetch
         viewModelScope.launch {
-            val takeAwayResult = getKeyTakeAwayInternal(generativeModel, verseRef)
-            _state.update {
-                it.copy(
-                    aiResponseLoading = false,
-                    aiResponseText = if (takeAwayResult.isSuccess) takeAwayResult.getOrDefault("") else "",
-                    aiResponseError = if (takeAwayResult.isFailure) takeAwayResult.exceptionOrNull()?.message else null
-                )
+            // Call the GeminiAIService
+            when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
+                is AiServiceResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            aiResponseLoading = false,
+                            aiResponseText = takeAwayResult.data,
+                            aiResponseError = null
+                        )
+                    }
+                }
+                is AiServiceResult.Error -> {
+                    _state.update {
+                        it.copy(
+                            aiResponseLoading = false,
+                            aiResponseText = "", // Clear text on error
+                            aiResponseError = takeAwayResult.message
+                        )
+                    }
+                }
             }
         }
     }
 
-    // --- Internal API Fetching Functions ---
-
-    /**
-     * Fetches scripture from the ESV API. Runs on the IO dispatcher.
-     * Returns a Result object containing the scripture text or an exception.
-     */
     private suspend fun fetchScriptureInternal(verse: BibleVerseT): Result<String> {
-        // Ensure API key is present
         if (esvApiKey.isBlank()) {
             Log.e("LearnViewModel", "ESV API Key is missing.")
             return Result.failure(Exception("Error: ESV API Key is missing."))
@@ -331,26 +271,21 @@ class LearnViewModel() : ViewModel() {
 
         return withContext(Dispatchers.IO) {
             try {
-                // Construct query and URL
                 val encodedBook = URLEncoder.encode(verse.book, "UTF-8")
                 val passage = "$encodedBook ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
                 val urlString = "https://api.esv.org/v3/passage/text/?q=$passage&include-passage-references=false&include-verse-numbers=false&include-footnotes=false&include-headings=false"
                 val url = URL(urlString)
 
-                // Open connection and make request
                 val connection = url.openConnection()
                 connection.setRequestProperty("Authorization", "Token $esvApiKey")
-                // Set reasonable timeouts
-                connection.connectTimeout = 10000 // 10 seconds
-                connection.readTimeout = 10000 // 10 seconds
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
                 connection.connect()
 
-                // Read and parse response
                 val responseText = connection.getInputStream().bufferedReader().use { it.readText() }
                 Log.d("LearnViewModel", "Raw ESV API Response: $responseText")
                 val apiResponse = jsonParser.decodeFromString<EsvApiResponse>(responseText)
 
-                // Extract passage, trim, and remove suffix
                 val passageText = apiResponse.passages?.joinToString("\n")?.trim()
                     ?: return@withContext Result.failure(Exception("Error: Passage not found in ESV response."))
 
@@ -374,37 +309,7 @@ class LearnViewModel() : ViewModel() {
         }
     }
 
-    /**
-     * Calls the Gemini API to get a key take-away.
-     * Returns a Result object containing the take-away text or an exception.
-     */
-    private suspend fun getKeyTakeAwayInternal(model: GenerativeModel, verseRef: String): Result<String> {
-        // The Gemini SDK likely handles its own dispatchers, but wrap if needed.
-        // return withContext(Dispatchers.IO) { ... }
-        return try {
-            val prompt = "Tell me the key take-away for $verseRef"
-            Log.d("LearnViewModel", "Sending prompt to Gemini: \"$prompt\"")
-
-            // Call the Gemini API
-            val response: GenerateContentResponse = model.generateContent(prompt)
-            val responseText = response.text
-
-            Log.d("LearnViewModel", "Gemini Response: $responseText")
-
-            if (responseText != null) {
-                Result.success(responseText)
-            } else {
-                Result.failure(Exception("Error: Received empty response from AI."))
-            }
-
-        } catch (e: Exception) {
-            // Catch more specific exceptions from the Gemini SDK if possible
-            Log.e("LearnViewModel", "Error calling Gemini API: ${e.message}", e)
-            Result.failure(Exception("Error: Could not get take-away from AI (${e.javaClass.simpleName}).", e))
-        }
-    }
-
-    fun resetNavigationState() { // Call this after navigation
+    fun resetNavigationState() {
         _state.update {
             it.copy(newlySavedVerseId = null, isContentSaved = false)
         }
