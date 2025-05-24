@@ -529,23 +529,31 @@ fun LearnScreen(
                 if (state.selectedTopics.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp)) // Space before topics box
 
+                    val topicScrollState = rememberScrollState()
+                    var topicLabel = "Selected Topic"
+                    if (state.selectedTopics.size > 1) topicLabel = "${state.selectedTopics.count()} Selected Topics"
+
                     LabeledOutlinedBox(
-                        label = "Selected Topics",
-                        modifier = Modifier.fillMaxWidth()
+                        label = topicLabel,
+                        modifier = Modifier.fillMaxWidth().height(100.dp)
                         // Adjust height as needed, e.g., .heightIn(min = 56.dp)
                     ) {
-                        // Use FlowRow to allow chips to wrap to the next line
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
-                            verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                        Column (
+                            modifier = Modifier.verticalScroll(topicScrollState) // Enable vertical scrolling
                         ) {
-                            state.selectedTopics.forEach { topic ->
-                                // Display each topic as a read-only chip
-                                SuggestionChip(
-                                    onClick = { /* Read-only, do nothing on click */ },
-                                    label = { Text(topic) },
-                                )
+                            // Use FlowRow to allow chips to wrap to the next line
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
+                                verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                            ) {
+                                state.selectedTopics.forEach { topic ->
+                                    // Display each topic as a read-only chip
+                                    SuggestionChip(
+                                        onClick = { /* Read-only, do nothing on click */ },
+                                        label = { Text(topic) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -555,7 +563,7 @@ fun LearnScreen(
 
             if (readyToSave(state) && !state.isContentSaved)
             {
-                Spacer(modifier = Modifier.height(16.dp)) // Space before the button
+                Spacer(modifier = Modifier.height(8.dp)) // Space before the button
                 Button(
                     onClick = {
                         bibleViewModel.saveNewVerse(

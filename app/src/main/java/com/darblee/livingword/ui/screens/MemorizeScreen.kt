@@ -632,10 +632,13 @@ fun MemorizeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+
             val topicScrollState = rememberScrollState()
+            var topicLabel = "Topic"
+            if (topics.size > 1) topicLabel = "${topics.count()} Topics"
 
             LabeledOutlinedBox(
-                label = "Topics (${topics.count()} items)",
+                label = topicLabel,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 25.dp, max = 80.dp) // Ensure enough height for button and text

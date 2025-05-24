@@ -502,18 +502,27 @@ fun VerseDetailScreen(
             Spacer(modifier = Modifier.height(8.dp)) // Space between "Key Take-away" box and "topic" box
 
             // --- Topics Box ---
+
+            val topicScrollState = rememberScrollState()
+
+            var topicLabel = "Topic"
+            if (editedTopics.size > 1) topicLabel = "${editedTopics.count()} Topics"
             LabeledOutlinedBox(
-                label = "Topics",
+                label = topicLabel,
                 modifier = Modifier
                     .fillMaxWidth()
             ) {
                 // Use FlowRow to allow chips to wrap to the next line
                 if ((inEditMode) || (processEditTopics)) {
-                    Column {
+                    Column (
+                        modifier = Modifier
+                            .heightIn(max = (48 * 2).dp) // Set maximum height
+                            .verticalScroll(topicScrollState) // Enable vertical scrolling
+                    ) {
                         FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
-                            verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                            horizontalArrangement = Arrangement.spacedBy(2.dp), // Space between chips horizontally
+                            verticalArrangement = Arrangement.spacedBy(2.dp) // Space between rows of chips
                         ) {
                             editedTopics.forEach { topic ->
                                 // Display each topic as a chip
