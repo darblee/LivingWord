@@ -404,15 +404,6 @@ class LearnViewModel() : ViewModel() {
         }
     }
 
-    fun handleSaveError(errorMessage: String) {
-        _state.update {
-            it.copy(
-                generalError = errorMessage,
-                isLoading = false // Stop loading indicators
-            )
-        }
-    }
-
     fun resetNavigationState() { // Call this after navigation
         _state.update {
             it.copy(newlySavedVerseId = null, isContentSaved = false)

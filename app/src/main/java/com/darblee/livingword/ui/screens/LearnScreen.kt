@@ -91,7 +91,6 @@ fun LearnScreen(
 
     // Remember scroll states for the text fields (UI concern)
     val scriptureScrollState = rememberScrollState()
-    val aiResponseScrollState = rememberScrollState()
 
     // --- Handle Navigation Results ---
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -479,17 +478,8 @@ fun LearnScreen(
                         val hasError = state.aiResponseError != null
                         val isEmpty =
                             textToShow.isEmpty() && !hasError && state.selectedVerse != null
-                        val placeholderText = when {
-                            state.selectedVerse == null -> "AI insights appear after selecting a verse..."
-                            // Specific placeholder if AI model failed init or key missing
-                            state.aiResponseError?.contains("API Key") == true -> "Gemini API Key missing."
-                            state.aiResponseError?.contains("initialize AI Model") == true -> "AI Model failed to initialize."
-                            hasError -> "" // Other errors shown directly
-                            isEmpty -> " " // Use space if empty after load
-                            else -> ""
-                        }
+
                         // Determine if the text field should be considered "empty" for placeholder logic
-                        val showPlaceholder = textToShow.isEmpty() && placeholderText.isNotEmpty()
                         val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
                         val newBaseStyle = SpanStyle(color = baseTextColor)
 

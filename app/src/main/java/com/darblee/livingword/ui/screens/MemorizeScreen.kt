@@ -82,7 +82,7 @@ fun MemorizeScreen(
      * produceState block will cancel its current coroutine (if any) and re-launch the producer
      * lambda with the new verseID. This is crucial for re-fetching data when an identifier
      * changes (e.g., user navigates to a different verse).
-     * 
+     *
      */
     var topics: List<String>? by remember { mutableStateOf(emptyList<String>()) }
     val verseItemState = produceState<BibleVerse?>(initialValue = null, verseID) {
