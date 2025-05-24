@@ -67,6 +67,29 @@ fun MemorizeScreen(
     bibleViewModel: BibleVerseViewModel,
     verseID: Long
 ) {
+    /**
+     * We need to access topics (list of strings) that is fetched asynchronously
+     * UI reacts to changes in the fetch data (topics).
+     * Re-fetching data when verseID changes.
+     * This potentially allowing the topics to be modified independently elsewhere if needed.
+     *
+     * produceState: This is a Composable function designed to convert non-Compose state
+     * (often from asynchronous operations like network calls or database queries) into Compose
+     * State. It launches a coroutine when it enters the composition and can update its
+     * value over time.
+     *
+     * verseID: This is a key. If the value of verseID changes between recompositions, the
+     * produceState block will cancel its current coroutine (if any) and re-launch the producer
+     * lambda with the new verseID. This is crucial for re-fetching data when an identifier
+     * changes (e.g., user navigates to a different verse).
+     * 
+     */
+    var topics: List<String>? by remember { mutableStateOf(emptyList<String>()) }
+    val verseItemState = produceState<BibleVerse?>(initialValue = null, verseID) {
+        value = bibleViewModel.getVerseById(verseID)
+    }
+    topics = verseItemState.value?.topics
+
     var verse by remember { mutableStateOf<BibleVerse?>(null) }
     var memorizedTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     val coroutineScope = rememberCoroutineScope()
@@ -94,15 +117,6 @@ fun MemorizeScreen(
 
     // State to control scripture visibility
     var isScriptureVisible by remember { mutableStateOf(false) } // Added state
-
-
-    val initialHardcodedTopics = listOf(
-        "topic1",
-        "love",
-    )
-
-    // var topics by remember { mutableStateOf(emptyList<String>()) }
-    var topics by remember { mutableStateOf(initialHardcodedTopics) }
 
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
@@ -632,10 +646,9 @@ fun MemorizeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-
             val topicScrollState = rememberScrollState()
             var topicLabel = "Topic"
-            if (topics.size > 1) topicLabel = "${topics.count()} Topics"
+            topics?.size?.let { if (it > 1) topicLabel = "${topics?.count()} Topics" }
 
             LabeledOutlinedBox(
                 label = topicLabel,
@@ -643,8 +656,9 @@ fun MemorizeScreen(
                     .fillMaxWidth()
                     .heightIn(min = 25.dp, max = 80.dp) // Ensure enough height for button and text
             ) {
-                if (topics.isNotEmpty()) {
+                if (topics?.isNotEmpty() == true) {
 
+                    Log.i("MemorizedScreen", "Printing topics")
                     Column (
                         modifier = Modifier
                             .heightIn(max = 80.dp) // Set maximum height
@@ -656,8 +670,9 @@ fun MemorizeScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
                         )
                         {
-                            topics.forEach { topic ->
+                            (topics as Iterable<String>).forEach { topic ->
                                 // Display each topic as a chip
+                                Log.i("MemorizedScreen", "Topics: $topic")
 
                                 SuggestionChip(
                                     onClick = { },
@@ -666,6 +681,8 @@ fun MemorizeScreen(
                             }
                         }
                     }
+                } else {
+                    Log.i("MemorizedScreen", "Empty topics")
                 }
 
             }
