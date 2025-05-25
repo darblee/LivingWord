@@ -6,7 +6,6 @@ import com.google.ai.client.generativeai.type.GenerateContentResponse
 import com.google.ai.client.generativeai.type.generationConfig
 import com.darblee.livingword.BuildConfig
 
-
 /**
  * Sealed class to represent the result of an AI service call,
  * allowing for structured success or error handling.
@@ -88,6 +87,48 @@ class GeminiAIService() {
             // Call the Gemini API
             val response: GenerateContentResponse = generativeModel!!.generateContent(prompt) // Safe call due to the check above
             val responseText = response.text
+
+            Log.d("GeminiAIService", "Gemini Response: $responseText")
+
+            if (responseText != null) {
+                AiServiceResult.Success(responseText)
+            } else {
+                AiServiceResult.Error("Received empty response from AI.")
+            }
+        } catch (e: Exception) {
+            Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
+            AiServiceResult.Error("Could not get take-away from AI (${e.javaClass.simpleName}).", e)
+        }
+    }
+
+    /**
+     * Fetches a memorization score for the given Bible verse reference from the Gemini API.
+     *
+     * @param verseRef The Bible verse reference (e.g., "John 3:16-17").
+     * @param memorizedText for the memorized text.
+     * @return [AiServiceResult.Success] with the take-away text, or [AiServiceResult.Error] if an issue occurs.
+     */
+    suspend fun getMemorizedScore(verseRef: String, memorizedText: String): AiServiceResult<String> {
+        if (generativeModel == null) {
+            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized.")
+        }
+
+        return try {
+            val prompt: String = """
+            Provide % score of memorized text for Bible verse $verseRef. Score is based on contextual accuracy and less on direct quote.
+            Respond in the following format:
+            {
+            "Score" : integer between 0 to 100,
+            "Explanation": "This is sample text"
+            }
+            Here is the memorized text:
+            $memorizedText
+            """
+            Log.d("GeminiAIService", "Sending memorized score prompt to Gemini: \"$prompt\"")
+
+            // Call the Gemini API
+            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt) // Safe call due to the check above
+            val responseText = (response.text)?.trimIndent()
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
 

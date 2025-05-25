@@ -59,6 +59,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.darblee.livingword.BibleVerseT
+import com.darblee.livingword.domain.model.MemorizeVerseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +70,9 @@ fun MemorizeScreen(
     bibleViewModel: BibleVerseViewModel,
     verseID: Long
 ) {
+    val memorizedViewModel : MemorizeVerseViewModel = viewModel()
+    val state by memorizedViewModel.state.collectAsStateWithLifecycle()
+
     /**
      * We need to access topics (list of strings) that is fetched asynchronously
      * UI reacts to changes in the fetch data (topics).
@@ -117,6 +123,9 @@ fun MemorizeScreen(
 
     // State to control scripture visibility
     var isScriptureVisible by remember { mutableStateOf(false) } // Added state
+
+    // State to control the visibility of the score dialog
+    var showScoreDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
@@ -249,6 +258,13 @@ fun MemorizeScreen(
 
         coroutineScope.launch {
             verse = bibleViewModel.getVerseById(verseID)
+        }
+    }
+
+    // LaunchedEffect to observe changes in score and AI response text to show the dialog
+    LaunchedEffect(state.score, state.aiResponseText, state.aiResponseLoading) {
+        if (state.aiResponseLoading || (state.score >= 0)) {
+            showScoreDialog = true
         }
     }
 
@@ -500,6 +516,18 @@ fun MemorizeScreen(
                                 val textToEvaluate = memorizedTextFieldValue.text + partialText // Consider combined text
                                 if (textToEvaluate.length >= 5) {
                                     Log.i("Memorize Screen", "Do the evaluation with text: $textToEvaluate")
+                                    if (verse != null) {
+                                        val verseInfo = BibleVerseT(
+                                            book = verse!!.book,
+                                            chapter = verse!!.chapter,
+                                            startVerse = verse!!.startVerse,
+                                            endVerse = verse!!.endVerse
+                                        )
+                                        memorizedViewModel.fetchMemorizedScore(
+                                            verseInfo,
+                                            textToEvaluate
+                                        )
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -684,19 +712,67 @@ fun MemorizeScreen(
                 } else {
                     Log.i("MemorizedScreen", "Empty topics")
                 }
-
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LabeledOutlinedBox(
-                label = "Score",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 25.dp) // Ensure enough height for button and text
-            ) {
-                Text(text = "Accuracy score will be displayed here after you submit \"evaluate\" button",
-                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) )
+            // Dialog to display score and AI explanation
+            if (showScoreDialog) {
+                AlertDialog(
+                    modifier = Modifier.padding(8.dp),
+                    onDismissRequest = {
+                        // Only allow dismiss if not loading, or handle dismiss during loading appropriately
+                        if (!state.aiResponseLoading) {
+                            showScoreDialog = false
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = if (state.aiResponseLoading) "Calculating Score..." else "Score: ${state.score}",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(), // Ensure column takes width for centering
+                            horizontalAlignment = Alignment.CenterHorizontally // Center content if needed
+                        ) {
+                            if (state.aiResponseLoading) {
+                                CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
+                            } else {
+                                OutlinedTextField(
+                                    value = state.aiResponseText.toString(),
+                                    onValueChange = {}, // Read-only
+                                    readOnly = true,
+                                    label = { Text("Explanation") },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 100.dp, max = 400.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    textStyle = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        if (!state.aiResponseLoading) { // Show OK button only when not loading
+                            TextButton(onClick = { showScoreDialog = false }) {
+                                Text("OK")
+                            }
+                        }
+                    },
+                    dismissButton = { // Optionally, provide a dismiss button if needed during loading
+                        if (state.aiResponseLoading) {
+                            TextButton(onClick = {
+                                // Handle cancel/dismiss during loading if necessary
+                                // e.g., memorizedViewModel.cancelScoreCalculation()
+                                showScoreDialog = false // For now, just dismiss
+                            }) {
+                                Text("Cancel")
+                            }
+                        }
+                    },
+                )
             }
         }
     }
@@ -707,8 +783,6 @@ fun MemorizeScreen(
         }
     }
 }
-
-// Removed startSpeechRecognition as it's unused. startListening is used.
 
 private fun startListening(context: Context, speechRecognizer: SpeechRecognizer?) {
     if (speechRecognizer == null) {
