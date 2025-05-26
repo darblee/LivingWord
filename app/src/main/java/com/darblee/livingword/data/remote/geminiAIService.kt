@@ -115,11 +115,14 @@ class GeminiAIService() {
 
         return try {
             val prompt: String = """
-            Provide % score of memorized text for Bible verse $verseRef. Score is based on contextual accuracy and less on direct quote.
+            Provide % scores of memorized text for Bible verse $verseRef. 
+            "Direct Quote Score" is based on direct quote accuracy.
+            "Context Score" is based on contextual accuracy.
             Respond in the following format:
             {
-            "Score" : integer between 0 to 100,
-            "Explanation": "This is sample text"
+             "DirectQuoteScore" : integer between 0 to 100,
+             "ContextScore" : integer between 0 to 100,
+             "Explanation": "This is sample text"
             }
             Here is the memorized text:
             $memorizedText

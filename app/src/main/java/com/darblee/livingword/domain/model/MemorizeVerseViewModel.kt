@@ -16,7 +16,8 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 data class ScoreData(
-    val Score: Int,
+    val DirectQuoteScore: Int,
+    val ContextScore: Int,
     val Explanation: String
 )
 
@@ -32,9 +33,10 @@ class MemorizeVerseViewModel() : ViewModel(){
         val isTopicContentLoading: Boolean = false, // Loading state for topic-based content
 
         // State for the currently displayed single verse
-        val score: Int = -1,
+        val directQuoteScore: Int = -1,
+        val contextScore: Int = -1,
         val verse: BibleVerseT? = null,
-        val aiResponseText : String? = null,
+        val aiExplanationText : String? = null,
         val aiResponseLoading: Boolean = false,
         val aiResponseError: String? = null,
         val generalError: String? = null, // For other errors like Gemini init
@@ -58,7 +60,7 @@ class MemorizeVerseViewModel() : ViewModel(){
             return
         }
 
-        _state.update { it.copy(aiResponseLoading = true, aiResponseError = null, aiResponseText = "Getting score ...") }
+        _state.update { it.copy(aiResponseLoading = true, aiResponseError = null, aiExplanationText = "Getting score ...") }
 
         val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
 
@@ -67,8 +69,9 @@ class MemorizeVerseViewModel() : ViewModel(){
             _state.update {
                 it.copy(
                     aiResponseLoading = true,
-                    score = -1,
-                    aiResponseText = null,
+                    directQuoteScore = -1,
+                    contextScore = -1,
+                    aiExplanationText = null,
                     aiResponseError = null
                 )
             }
@@ -88,8 +91,9 @@ class MemorizeVerseViewModel() : ViewModel(){
                         _state.update {
                             it.copy(
                                 aiResponseLoading = false,
-                                score = scoreData.Score,
-                                aiResponseText = scoreData.Explanation,
+                                directQuoteScore = scoreData.DirectQuoteScore,
+                                contextScore = scoreData.ContextScore,
+                                aiExplanationText = scoreData.Explanation,
                                 aiResponseError = null
                             )
                         }
@@ -101,8 +105,9 @@ class MemorizeVerseViewModel() : ViewModel(){
                         _state.update {
                             it.copy(
                                 aiResponseLoading = false,
-                                score = -1,
-                                aiResponseText = null,
+                                directQuoteScore = -1,
+                                contextScore = -1,
+                                aiExplanationText = null,
                                 aiResponseError = "Unable to parse AI response"
                             )
                         }
@@ -112,8 +117,9 @@ class MemorizeVerseViewModel() : ViewModel(){
                     _state.update {
                         it.copy(
                             aiResponseLoading = false,
-                            score = -1,
-                            aiResponseText = "", // Clear score on error
+                            directQuoteScore = -1,
+                            contextScore = -1,
+                            aiExplanationText = "", // Clear score on error
                             aiResponseError = memorizedScoreResult.message
                         )
                     }

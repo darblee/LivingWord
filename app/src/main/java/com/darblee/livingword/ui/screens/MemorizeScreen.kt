@@ -17,10 +17,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack // Import ArrowBack icon
 import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -61,7 +59,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.BibleVerseT
 import com.darblee.livingword.domain.model.MemorizeVerseViewModel
@@ -265,8 +262,8 @@ fun MemorizeScreen(
     }
 
     // LaunchedEffect to observe changes in score and AI response text to show the dialog
-    LaunchedEffect(state.score, state.aiResponseText, state.aiResponseLoading) {
-        if (state.aiResponseLoading || (state.score >= 0)) {
+    LaunchedEffect(state.contextScore, state.aiExplanationText, state.aiResponseLoading) {
+        if (state.aiResponseLoading || (state.contextScore >= 0)) {
             showScoreDialog = true
         }
     }
@@ -381,7 +378,7 @@ fun MemorizeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             LabeledOutlinedBox(
-                label = "Memorized Verse",
+                label = "Memorized Verse (with context)",
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 30.dp) // Ensure enough height for status bar, text box, and button
@@ -440,8 +437,8 @@ fun MemorizeScreen(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         ),
                         shape = RoundedCornerShape(4.dp),
-                        minLines = 4, // Adjusted min/max lines
-                        maxLines = 4  // Adjusted min/max lines
+                        minLines = 5, // Adjusted min/max lines
+                        maxLines = 5  // Adjusted min/max lines
                     )
 
                     Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
@@ -629,8 +626,8 @@ fun MemorizeScreen(
                                 readOnly = true,
                                 textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                minLines = 4,
-                                maxLines = 4
+                                minLines = 5,
+                                maxLines = 5
                             )
                         } else {
                             Box(
@@ -756,7 +753,7 @@ fun MemorizeScreen(
                     },
                     title = {
                         Text(
-                            text = if (state.aiResponseLoading) "Calculating Score..." else "Score: ${state.score}",
+                            text = if (state.aiResponseLoading) "Calculating Score..." else "Contextual Score: ${state.contextScore}\nDirect Quote Score: ${state.directQuoteScore}",
                             style = MaterialTheme.typography.titleLarge
                         )
                     },
@@ -786,7 +783,7 @@ fun MemorizeScreen(
                                         )
                                 ) {
                                     BasicTextField(
-                                        value = state.aiResponseText.toString(),
+                                        value = state.aiExplanationText.toString(),
                                         onValueChange = {}, // Read-only
                                         readOnly = true,
                                         modifier = Modifier
