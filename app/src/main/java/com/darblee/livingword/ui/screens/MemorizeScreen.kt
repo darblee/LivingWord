@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack // Import ArrowBack icon
 import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
@@ -59,6 +60,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.BibleVerseT
 import com.darblee.livingword.domain.model.MemorizeVerseViewModel
@@ -167,7 +170,7 @@ fun MemorizeScreen(
                         // For safety, let's assume if an error occurs, we might not want to auto-restart
                         // unless explicitly started again by the user or a more robust logic.
                         // For now, sticking to original logic of restarting if it *was* listening:
-                        // if (isListening) { // This might be problematic if isListening was set to false right above
+                        // if (isListening) { startListening(speechRecognizer) } -> this `isListening` would be stale.
                         // To robustly restart, the FAB should set a "userWantsToListen" state.
                         // Or, simply attempt restart if not a "final" error.
                         // Let's re-evaluate: if an error occurs, stop. User can restart.
@@ -421,7 +424,7 @@ fun MemorizeScreen(
                             // Display combinedDisplayAnnotatedText as placeholder if you want to see partial text preview
                             // However, this makes the placeholder an AnnotatedString.
                             // A simpler placeholder:
-                            Text(text = "Type or speak (🎤) to add text...", style = TextStyle(color = Color.Gray.copy(alpha = 0.5f)))
+                            Text(text = "Type or speak (🎤) ...", style = TextStyle(color = Color.Gray.copy(alpha = 0.5f)))
                             // If you want the gray partial text to appear IN the text field itself,
                             // the value of OutlinedTextField would need to be `combinedDisplayAnnotatedText` (or similar).
                             // But then `onValueChange` would give you this combined text, complicating manual typing.
@@ -474,10 +477,15 @@ fun MemorizeScreen(
                             else
                                 MaterialTheme.colorScheme.primary
                         ) {
-                            Icon(
-                                imageVector = if (isListening) Icons.Filled.MicOff  else Icons.Default.Mic,
-                                contentDescription = if (isListening) "Stop listening" else "Start listening",
-                            )
+                            if (isListening) {
+                                Icon(
+                                    imageVector =  Icons.Filled.MicOff,
+                                    contentDescription = "Start listening",
+                                )
+                            } else {
+                                Text(text = "🎤", fontSize = 20.sp)
+                            }
+
                         }
 
                         FloatingActionButton(
@@ -714,7 +722,27 @@ fun MemorizeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp)) // Space before the new button
+
+            // New Button to navigate back
+            Button(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back to detail screen",
+                    modifier = Modifier.size(ButtonDefaults.IconSize)
+                )
+                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                Text("back to detail screen")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp)) // Space after new button (optional)
+
 
             // Dialog to display score and AI explanation
             if (showScoreDialog) {
