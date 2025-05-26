@@ -734,23 +734,43 @@ fun MemorizeScreen(
                     },
                     text = {
                         Column(
-                            modifier = Modifier.fillMaxWidth(), // Ensure column takes width for centering
-                            horizontalAlignment = Alignment.CenterHorizontally // Center content if needed
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally // Center progress indicator
                         ) {
                             if (state.aiResponseLoading) {
                                 CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
                             } else {
-                                OutlinedTextField(
-                                    value = state.aiResponseText.toString(),
-                                    onValueChange = {}, // Read-only
-                                    readOnly = true,
-                                    label = { Text("Explanation") },
+                                // Explanation Label
+                                Text(
+                                    text = "Explanation",
+                                    style = MaterialTheme.typography.labelMedium, // Or your preferred style
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                                )
+                                // Box with border for the TextField
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .heightIn(min = 100.dp, max = 400.dp)
-                                        .verticalScroll(rememberScrollState()),
-                                    textStyle = MaterialTheme.typography.bodyMedium
-                                )
+                                        .border(
+                                            1.dp,
+                                            MaterialTheme.colorScheme.outline, // Use theme color for border
+                                            RoundedCornerShape(4.dp)
+                                        )
+                                ) {
+                                    BasicTextField(
+                                        value = state.aiResponseText.toString(),
+                                        onValueChange = {}, // Read-only
+                                        readOnly = true,
+                                        modifier = Modifier
+                                            .fillMaxSize() // Fill the box
+                                            .padding(8.dp) // Inner padding for text
+                                            .verticalScroll(rememberScrollState()),
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                            color = LocalContentColor.current // Ensure text color is appropriate
+                                        ),
+                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary) // Not visible for readOnly
+                                    )
+                                }
                             }
                         }
                     },
