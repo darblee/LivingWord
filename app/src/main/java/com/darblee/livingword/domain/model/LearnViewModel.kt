@@ -50,13 +50,13 @@ class LearnViewModel() : ViewModel() {
 
     private val esvBibleLookupService: ESVBibleLookupService = ESVBibleLookupService()
 
-    // Initialize GeminiAIService
-    private val geminiService: GeminiAIService = GeminiAIService()
+    // Use the GeminiAIService object directly
+    private val geminiService = GeminiAIService // Changed from: GeminiAIService()
 
     init {
         // Check Gemini service initialization status and update state if there's an error
-        if (!geminiService.isInitialized()) {
-            val initError = geminiService.getInitializationError()
+        if (!geminiService.isInitialized()) { // Access directly
+            val initError = geminiService.getInitializationError() // Access directly
             _state.update {
                 it.copy(
                     aiResponseError = initError,

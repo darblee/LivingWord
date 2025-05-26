@@ -182,16 +182,6 @@ fun VerseDetailScreen(
         }
     }
 
-    // Effect to reset edited values if verseItem changes and we are not in edit mode
-    LaunchedEffect(verseItem, inEditMode) {
-        if (!inEditMode) {
-            verseItem?.let {
-                editedAiResponse = it.aiResponse
-                editedTopics = it.topics
-                newContentNeedToBeSaved = false // Reset flag as content matches source
-            }
-        }
-    }
 
     // --- Handle Navigation Results ---
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -601,26 +591,33 @@ fun VerseDetailScreen(
                         if (inEditMode) {
                             if (newContentNeedToBeSaved) { // Check if there are actual changes to save
                                 verseItem?.let {
-                                    // Perform save operation
-                                    if (processEditTopics) editedTopics = selectedTopics
-
-                                    bibleViewModel.updateVerse(
-                                        verseItem.copy(
-                                            aiResponse = editedAiResponse,
-                                            topics = editedTopics  // Use the latest editedTopics
-                                        )
-                                    )
-
                                     snackBarScope.launch {
-                                        SnackBarController.showMessage("Verse is saved")
-                                    }
+                                        // Perform save operation
+                                        if (processEditTopics) editedTopics = selectedTopics
 
-                                    // The following will trigger display save content and
-                                    // do final clean-up for these flags:
-                                    //  - inEditingMode will set to false
-                                    //  - processEditTopic will set to false
-                                    //  - isUpdatedContent will be set to false
-                                    exitEditMode()
+                                        Log.i(
+                                            "VerseDetailScreen",
+                                            "Passing in take away text to BibleVIewModel : $editedAiResponse"
+                                        )
+                                        bibleViewModel.updateVerse(
+                                            verseItem.copy(
+                                                aiResponse = editedAiResponse,
+                                                topics = editedTopics  // Use the latest editedTopics
+                                            )
+                                        )
+
+                                        // Since updateVerse is a suspend function, it will not return until
+                                        // verse has been updated in database.
+                                        // Now, we cam  notify user and do cleam-up
+
+                                        SnackBarController.showMessage("Verse is saved")
+
+                                        // Do final clean-up for these flags:
+                                        //  - inEditingMode will set to false
+                                        //  - processEditTopic will set to false
+                                        //  - isUpdatedContent will be set to false
+                                        exitEditMode()
+                                    }
                                 }
                             } else {
                                 exitEditMode() // No changes, just exit edit mode

@@ -475,9 +475,6 @@ fun LearnScreen(
                     } else {
                         // Display take-away text or error message from ViewModel state
                         val textToShow = state.aiResponseError ?: state.aiResponseText
-                        val hasError = state.aiResponseError != null
-                        val isEmpty =
-                            textToShow.isEmpty() && !hasError && state.selectedVerse != null
 
                         // Determine if the text field should be considered "empty" for placeholder logic
                         val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }

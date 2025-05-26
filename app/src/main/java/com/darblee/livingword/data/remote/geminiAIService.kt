@@ -16,12 +16,12 @@ sealed class AiServiceResult<out T> {
 }
 
 /**
- * Service class for interacting with the Gemini AI API.
- *
+ * Service object for interacting with the Gemini AI API.
+ * Implemented as a singleton.
  */
-class GeminiAIService() {
+object GeminiAIService { // Changed from "class GeminiAIService()" to "object GeminiAIService"
 
-    val apiKey = BuildConfig.GEMINI_API_KEY
+    private val apiKey = BuildConfig.GEMINI_API_KEY // Made private as it's an internal detail
 
     private var generativeModel: GenerativeModel? = null
     private var initializationErrorMessage: String? = null
@@ -114,7 +114,7 @@ class GeminiAIService() {
         }
 
         return try {
-            val prompt: String = """
+            val prompt = """
             Provide % scores of memorized text for Bible verse $verseRef. 
             "Direct Quote Score" is based on direct quote accuracy.
             "Context Score" is based on contextual accuracy.

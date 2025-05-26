@@ -87,7 +87,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
-    fun updateVerse(bibleVerse: BibleVerse) {
+    suspend fun updateVerse(bibleVerse: BibleVerse) {
         viewModelScope.launch {
             repository.updateVerse(bibleVerse)
         }

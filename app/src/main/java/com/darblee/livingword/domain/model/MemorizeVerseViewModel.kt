@@ -46,15 +46,29 @@ class MemorizeVerseViewModel() : ViewModel(){
     private val _state = MutableStateFlow(MemorizedVerseScreenState())
     val state: StateFlow<MemorizedVerseScreenState> = _state.asStateFlow()
 
-    private val geminiService: GeminiAIService = GeminiAIService()
+    // Use the GeminiAIService object directly
+    private val geminiService = GeminiAIService // Changed from: GeminiAIService()
+
+    // Optional: Add init block to check Gemini initialization if needed for this ViewModel specifically
+    init {
+        if (!geminiService.isInitialized()) { // Access directly
+            val initError = geminiService.getInitializationError() // Access directly
+            _state.update {
+                it.copy(
+                    aiResponseError = initError,
+                    generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) initError else null
+                )
+            }
+        }
+    }
 
     fun fetchMemorizedScore(verse: BibleVerseT, memorizedText: String) {
-        if (!geminiService.isInitialized()) {
+        if (!geminiService.isInitialized()) { // Access directly
             Log.w("MemorizedVerseViewModel", "Skipping memorized score retry as GeminiAIService is not initialized.")
             _state.update {
                 it.copy(
                     aiResponseLoading = false,
-                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() // Ensure init error is shown
+                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() // Access directly
                 )
             }
             return
