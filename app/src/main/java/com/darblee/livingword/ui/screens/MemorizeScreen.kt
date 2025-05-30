@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.TextRange
@@ -97,14 +96,21 @@ fun MemorizeScreen(
     topics = verseItemState.value?.topics
 
     var verse by remember { mutableStateOf<BibleVerse?>(null) }
-    var memorizedTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+    var directQuoteTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+    var contextTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     val coroutineScope = rememberCoroutineScope()
-    var partialText by remember { mutableStateOf("") }
+
+    var directQuotePartialText by remember { mutableStateOf("") }
+    var contextPartialText by remember { mutableStateOf("") }
+
     var isListening by remember { mutableStateOf(false) }
-    var processDeletingMemorizedText by remember { mutableStateOf(false) }
+    var processDeletingDirectQuoteText by remember { mutableStateOf(false) }
+    var processDeletingContextText by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val speechRecognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
+    val directQuoteSpeechRecognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
+    val contextSpeechRecognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
+
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -115,11 +121,14 @@ fun MemorizeScreen(
     }
 
     var isSpeechRecognitionAvailable by remember { mutableStateOf(false) }
-    val memorizedTextBoxScrollState = rememberScrollState()
+    val directQuoteTextBoxScrollState = rememberScrollState()
+    val contextTextBoxScrollState = rememberScrollState()
+
     val focusRequester = remember { FocusRequester() }
 
-    // State to track if the memorized text field is focused
-    var isMemorizedTextFieldFocused by remember { mutableStateOf(false) }
+    // State to track if the text field is focused or not
+    var isDirectQuoteTextFieldFocused by remember { mutableStateOf(false) }
+    var isContextTextFieldFocused by remember { mutableStateOf(false) }
 
     // State to control scripture visibility
     var isScriptureVisible by remember { mutableStateOf(false) } // Added state
@@ -134,27 +143,27 @@ fun MemorizeScreen(
             return@LaunchedEffect
         }
 
-        speechRecognizer.setRecognitionListener(object : RecognitionListener {
+        directQuoteSpeechRecognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
-                Log.d("Speech", "Ready for speech")
+                Log.d("Speech", "Ready for Direct Quote speech")
                 isListening = true
             }
 
             override fun onBeginningOfSpeech() {
-                Log.d("Speech", "Beginning of speech")
+                Log.d("Speech", "Beginning of Direct Quote speech")
             }
 
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
-                Log.d("Speech", "End of speech")
+                Log.d("Speech", "End of Direct Quote speech")
                 // isListening = false; // Optionally set to false, or let onError/onResults handle continuous listening
             }
 
             override fun onError(error: Int) {
                 Log.e("Speech", "Error: $error")
                 isListening = false
-                partialText = ""
+                directQuotePartialText = ""
                 if (error != SpeechRecognizer.ERROR_NO_MATCH &&
                     error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT &&
                     error != SpeechRecognizer.ERROR_CLIENT && // Avoid loop on some persistent client errors
@@ -179,24 +188,24 @@ fun MemorizeScreen(
             }
 
             override fun onResults(results: Bundle?) {
-                val recognizedTextList = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                Log.d("Speech", "Results: $recognizedTextList")
-                if (!recognizedTextList.isNullOrEmpty()) {
-                    val newRecognizedText = recognizedTextList[0]
-                    val currentTextInField = memorizedTextFieldValue.text
-                    val currentSelectionInField = memorizedTextFieldValue.selection
+                val recognizedDirectQuoteTextList = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                Log.d("Speech", "Results: $recognizedDirectQuoteTextList")
+                if (!recognizedDirectQuoteTextList.isNullOrEmpty()) {
+                    val newRecognizedText = recognizedDirectQuoteTextList[0]
+                    val currentTextInField = directQuoteTextFieldValue.text
+                    val currentSelectionInField = directQuoteTextFieldValue.selection
 
                     val newFullText: String
                     val newCursorPosition: Int
 
-                    if (isMemorizedTextFieldFocused) {
+                    if (isDirectQuoteTextFieldFocused) {
                         // Field is focused: Insert at current cursor position
                         val cursorPosition = currentSelectionInField.start
                         val textBeforeCursor = currentTextInField.substring(0, cursorPosition)
                         val textAfterCursor = currentTextInField.substring(cursorPosition)
 
                         val processedText = processNewText(newRecognizedText, textBeforeCursor)
-                        val finalText = processPunctuation(processedText, textBeforeCursor) // existingText in processPunctuation is unused
+                        val finalText = processPunctuation(processedText) // existingText in processPunctuation is unused
 
                         val textToInsert = if (textBeforeCursor.isEmpty() || textBeforeCursor.endsWith(" ") || textBeforeCursor.endsWith("\n")) {
                             finalText
@@ -208,7 +217,7 @@ fun MemorizeScreen(
                     } else {
                         // Field is NOT focused: Append to the end of the current text
                         val processedText = processNewText(newRecognizedText, currentTextInField) // Context for capitalization is the whole current text
-                        val finalText = processPunctuation(processedText, currentTextInField) // existingText in processPunctuation is unused
+                        val finalText = processPunctuation(processedText) // existingText in processPunctuation is unused
 
                         val textToAppend = if (currentTextInField.isEmpty() || currentTextInField.endsWith(" ") || currentTextInField.endsWith("\n")) {
                             finalText
@@ -219,37 +228,173 @@ fun MemorizeScreen(
                         newCursorPosition = newFullText.length // Cursor at the very end
                     }
 
-                    memorizedTextFieldValue = TextFieldValue(
+                    directQuoteTextFieldValue = TextFieldValue(
                         text = newFullText,
                         selection = TextRange(newCursorPosition)
                     )
-                    partialText = "" // Clear partial text as we have final results
+                    directQuotePartialText = "" // Clear partial text as we have final results
                 }
                 // Continue listening if still desired (isListening reflects the state before results)
                 if (isListening) {
-                    startListening(context, speechRecognizer)
+                    startListening(context, directQuoteSpeechRecognizer)
                 } else {
-                    partialText = "" // Ensure partial text is cleared if listening stopped during results
+                    directQuotePartialText = "" // Ensure partial text is cleared if listening stopped during results
                 }
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
-                val recognizedTextList =
+                val recognizedDirectQuoteTextList =
                     partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!recognizedTextList.isNullOrEmpty()) {
-                    val newPartialRecognizedText = recognizedTextList[0]
-                    val currentCommittedText = memorizedTextFieldValue.text
-                    val currentSelection = memorizedTextFieldValue.selection
+                if (!recognizedDirectQuoteTextList.isNullOrEmpty()) {
+                    val newPartialRecognizedText = recognizedDirectQuoteTextList[0]
+                    val currentCommittedDirectQuoteText = directQuoteTextFieldValue.text
+                    val currentDirectQuoteSelection = directQuoteTextFieldValue.selection
 
                     // Determine context for processing partial text based on focus
-                    val contextForProcessing: String = if (isMemorizedTextFieldFocused) {
-                        currentCommittedText.substring(0, currentSelection.start)
+                    val textForProcessing: String = if (isDirectQuoteTextFieldFocused) {
+                        currentCommittedDirectQuoteText.substring(0, currentDirectQuoteSelection.start)
                     } else {
-                        currentCommittedText // When not focused, context is the entire current text
+                        currentCommittedDirectQuoteText // When not focused, context is the entire current text
                     }
 
-                    val processedText = processNewText(newPartialRecognizedText, contextForProcessing)
-                    partialText = processPunctuation(processedText, contextForProcessing) // existingText in processPunctuation is unused
+                    val processedText = processNewText(newPartialRecognizedText, textForProcessing)
+                    directQuotePartialText = processPunctuation(processedText) // existingText in processPunctuation is unused
+                }
+            }
+
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        coroutineScope.launch {
+            verse = bibleViewModel.getVerseById(verseID)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
+        if (!isSpeechRecognitionAvailable) {
+            Log.e("MemorizeScreen", "Speech recognition is not available")
+            return@LaunchedEffect
+        }
+
+        contextSpeechRecognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                Log.d("Speech", "Ready for Context speech")
+                isListening = true
+            }
+
+            override fun onBeginningOfSpeech() {
+                Log.d("Speech", "Beginning of Context speech")
+            }
+
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {
+                Log.d("Speech", "End of Context speech")
+                // isListening = false; // Optionally set to false, or let onError/onResults handle continuous listening
+            }
+
+            override fun onError(error: Int) {
+                Log.e("Speech", "Error: $error")
+                isListening = false
+                contextPartialText = ""
+                if (error != SpeechRecognizer.ERROR_NO_MATCH &&
+                    error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT &&
+                    error != SpeechRecognizer.ERROR_CLIENT && // Avoid loop on some persistent client errors
+                    error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS
+                ) {
+                    coroutineScope.launch {
+                        delay(1000)
+                        // Check isListening again, user might have stopped it manually
+                        // However, original code implies it should restart if it was listening.
+                        // For safety, let's assume if an error occurs, we might not want to auto-restart
+                        // unless explicitly started again by the user or a more robust logic.
+                        // For now, sticking to original logic of restarting if it *was* listening:
+                        // if (isListening) { startListening(speechRecognizer) } -> this `isListening` would be stale.
+                        // To robustly restart, the FAB should set a "userWantsToListen" state.
+                        // Or, simply attempt restart if not a "final" error.
+                        // Let's re-evaluate: if an error occurs, stop. User can restart.
+                        // The original code had:
+                        // if (isListening) { startListening(speechRecognizer) } -> this `isListening` would be stale.
+                        // For now, let's not auto-restart on error to prevent error loops. User can tap mic again.
+                    }
+                }
+            }
+
+            override fun onResults(results: Bundle?) {
+                val recognizedContextTextList = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                Log.d("Speech", "Results: $recognizedContextTextList")
+                if (!recognizedContextTextList.isNullOrEmpty()) {
+                    val newRecognizedText = recognizedContextTextList[0]
+                    val currentTextInField = contextTextFieldValue.text
+
+                    val currentSelectionInField = contextTextFieldValue.selection
+
+                    val newFullText: String
+                    val newCursorPosition: Int
+
+                    if (isContextTextFieldFocused) {
+
+                        // Field is focused: Insert at current cursor position
+                        val cursorPosition = currentSelectionInField.start
+                        val textBeforeCursor = currentTextInField.substring(0, cursorPosition)
+                        val textAfterCursor = currentTextInField.substring(cursorPosition)
+
+                        val processedText = processNewText(newRecognizedText, textBeforeCursor)
+                        val finalText = processPunctuation(processedText) // existingText in processPunctuation is unused
+
+                        val textToInsert = if (textBeforeCursor.isEmpty() || textBeforeCursor.endsWith(" ") || textBeforeCursor.endsWith("\n")) {
+                            finalText
+                        } else {
+                            " $finalText"
+                        }
+                        newFullText = textBeforeCursor + textToInsert + textAfterCursor
+                        newCursorPosition = (textBeforeCursor + textToInsert).length
+                    } else {
+                        // Field is NOT focused: Append to the end of the current text
+                        val processedText = processNewText(newRecognizedText, currentTextInField) // Context for capitalization is the whole current text
+                        val finalText = processPunctuation(processedText) // existingText in processPunctuation is unused
+
+                        val textToAppend = if (currentTextInField.isEmpty() || currentTextInField.endsWith(" ") || currentTextInField.endsWith("\n")) {
+                            finalText
+                        } else {
+                            " $finalText"
+                        }
+                        newFullText = currentTextInField + textToAppend
+                        newCursorPosition = newFullText.length // Cursor at the very end
+                    }
+
+                    contextTextFieldValue = TextFieldValue(
+                        text = newFullText,
+                        selection = TextRange(newCursorPosition)
+                    )
+                    contextPartialText = "" // Clear partial text as we have final results
+                }
+                // Continue listening if still desired (isListening reflects the state before results)
+                if (isListening) {
+                    startListening(context, contextSpeechRecognizer)
+                } else {
+                    contextPartialText = "" // Ensure partial text is cleared if listening stopped during results
+                }
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                val recognizedContextTextList =
+                    partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!recognizedContextTextList.isNullOrEmpty()) {
+                    val newPartialRecognizedText = recognizedContextTextList[0]
+                    val currentCommittedContextText = contextTextFieldValue.text
+                    val currentContextSelection = contextTextFieldValue.selection
+
+                    // Determine context for processing partial text based on focus
+                    val textForProcessing: String = if (isContextTextFieldFocused) {
+                        currentCommittedContextText.substring(0, currentContextSelection.start)
+                    } else {
+                        currentCommittedContextText // When not focused, context is the entire current text
+                    }
+
+                    val processedText = processNewText(newPartialRecognizedText, textForProcessing)
+                    contextPartialText = processPunctuation(processedText) // existingText in processPunctuation is unused
                 }
             }
 
@@ -268,13 +413,13 @@ fun MemorizeScreen(
         }
     }
 
-    // Combine memorized text and partial text for display or for enabling buttons
-    val combinedDisplayAnnotatedText = remember(memorizedTextFieldValue, partialText, isMemorizedTextFieldFocused) {
+    // Combine direct quote text and partial text for display or for enabling buttons
+    val combinedDirectQuoteDisplayAnnotatedText = remember(directQuoteTextFieldValue, directQuotePartialText, isDirectQuoteTextFieldFocused) {
         buildAnnotatedString {
-            val currentText = memorizedTextFieldValue.text
-            val selection = memorizedTextFieldValue.selection
+            val currentText = directQuoteTextFieldValue.text
+            val selection = directQuoteTextFieldValue.selection
 
-            if (isMemorizedTextFieldFocused) {
+            if (isDirectQuoteTextFieldFocused) {
                 // Focused: Show partial text at cursor
                 val cursorPosition = selection.start
                 val textBeforeCursor = currentText.substring(0, cursorPosition)
@@ -282,24 +427,23 @@ fun MemorizeScreen(
 
                 if (textBeforeCursor.isNotEmpty()) append(textBeforeCursor)
 
-                if (partialText.isNotEmpty()) {
+                if (directQuotePartialText.isNotEmpty()) {
                     val needsSpaceBefore = textBeforeCursor.isNotEmpty() &&
                             !textBeforeCursor.endsWith(" ") && !textBeforeCursor.endsWith("\n") &&
-                            !partialText.startsWith(".") && !partialText.startsWith("?") && !partialText.startsWith("!")
+                            !directQuotePartialText.startsWith(".") && !directQuotePartialText.startsWith("?") && !directQuotePartialText.startsWith("!")
                     if (needsSpaceBefore) append(" ")
-                    withStyle(style = SpanStyle(color = Color.Gray)) { append(partialText) }
+                    withStyle(style = SpanStyle(color = Color.Gray)) { append(directQuotePartialText) }
                 }
 
                 if (textAfterCursor.isNotEmpty()) {
                     // Check if partial text already ends with a character that implies a following space,
                     // or if textAfterCursor starts with a space.
-                    val partialEndsWithSpaceLike = partialText.endsWith(" ") || partialText.endsWith("\n")
+                    val partialEndsWithSpaceLike = directQuotePartialText.endsWith(" ") || directQuotePartialText.endsWith("\n")
                     val textAfterStartsWithSpaceLike = textAfterCursor.startsWith(" ") || textAfterCursor.startsWith("\n")
-                    val needsSpaceAfter = partialText.isNotEmpty() && !partialEndsWithSpaceLike &&
+                    val needsSpaceAfter = directQuotePartialText.isNotEmpty() && !partialEndsWithSpaceLike &&
                             !textAfterStartsWithSpaceLike &&
                             !textAfterCursor.startsWith(".") && !textAfterCursor.startsWith("?") && !textAfterCursor.startsWith("!") &&
-                            !partialText.endsWith(".") && !partialText.endsWith("?") && !partialText.endsWith("!")
-
+                            !directQuotePartialText.endsWith(".") && !directQuotePartialText.endsWith("?") && !directQuotePartialText.endsWith("!")
 
                     if (needsSpaceAfter) append(" ")
                     append(textAfterCursor)
@@ -307,20 +451,73 @@ fun MemorizeScreen(
             } else {
                 // Not focused: Show partial text appended at the end
                 append(currentText)
-                if (partialText.isNotEmpty()) {
+                if (directQuotePartialText.isNotEmpty()) {
                     val needsSpaceBefore = currentText.isNotEmpty() &&
                             !currentText.endsWith(" ") && !currentText.endsWith("\n") &&
-                            !partialText.startsWith(".") && !partialText.startsWith("?") && !partialText.startsWith("!")
+                            !directQuotePartialText.startsWith(".") && !directQuotePartialText.startsWith("?") && !directQuotePartialText.startsWith("!")
                     if (needsSpaceBefore) append(" ")
-                    withStyle(style = SpanStyle(color = Color.Gray)) { append(partialText) }
+                    withStyle(style = SpanStyle(color = Color.Gray)) { append(directQuotePartialText) }
                 }
             }
         }
     }
+    LaunchedEffect(combinedDirectQuoteDisplayAnnotatedText.text) {
+        if (combinedDirectQuoteDisplayAnnotatedText.text.isNotEmpty()) {
+            directQuoteTextBoxScrollState.animateScrollTo(directQuoteTextBoxScrollState.maxValue)
+        }
+    }
 
-    LaunchedEffect(combinedDisplayAnnotatedText.text) {
-        if (combinedDisplayAnnotatedText.text.isNotEmpty()) {
-            memorizedTextBoxScrollState.animateScrollTo(memorizedTextBoxScrollState.maxValue)
+    // Combine Context text and partial text for display or for enabling buttons
+    val combinedContextDisplayAnnotatedText = remember(contextTextFieldValue, contextPartialText, isContextTextFieldFocused) {
+        buildAnnotatedString {
+            val currentText = contextTextFieldValue.text
+            val selection = contextTextFieldValue.selection
+
+            if (isContextTextFieldFocused) {
+                // Focused: Show partial text at cursor
+                val cursorPosition = selection.start
+                val textBeforeCursor = currentText.substring(0, cursorPosition)
+                val textAfterCursor = currentText.substring(cursorPosition)
+
+                if (textBeforeCursor.isNotEmpty()) append(textBeforeCursor)
+
+                if (contextPartialText.isNotEmpty()) {
+                    val needsSpaceBefore = textBeforeCursor.isNotEmpty() &&
+                            !textBeforeCursor.endsWith(" ") && !textBeforeCursor.endsWith("\n") &&
+                            !contextPartialText.startsWith(".") && !contextPartialText.startsWith("?") && !contextPartialText.startsWith("!")
+                    if (needsSpaceBefore) append(" ")
+                    withStyle(style = SpanStyle(color = Color.Gray)) { append(contextPartialText) }
+                }
+
+                if (textAfterCursor.isNotEmpty()) {
+                    // Check if partial text already ends with a character that implies a following space,
+                    // or if textAfterCursor starts with a space.
+                    val partialEndsWithSpaceLike = contextPartialText.endsWith(" ") || contextPartialText.endsWith("\n")
+                    val textAfterStartsWithSpaceLike = textAfterCursor.startsWith(" ") || textAfterCursor.startsWith("\n")
+                    val needsSpaceAfter = contextPartialText.isNotEmpty() && !partialEndsWithSpaceLike &&
+                            !textAfterStartsWithSpaceLike &&
+                            !textAfterCursor.startsWith(".") && !textAfterCursor.startsWith("?") && !textAfterCursor.startsWith("!") &&
+                            !contextPartialText.endsWith(".") && !contextPartialText.endsWith("?") && !contextPartialText.endsWith("!")
+
+                    if (needsSpaceAfter) append(" ")
+                    append(textAfterCursor)
+                }
+            } else {
+                // Not focused: Show partial text appended at the end
+                append(currentText)
+                if (contextPartialText.isNotEmpty()) {
+                    val needsSpaceBefore = currentText.isNotEmpty() &&
+                            !currentText.endsWith(" ") && !currentText.endsWith("\n") &&
+                            !contextPartialText.startsWith(".") && !contextPartialText.startsWith("?") && !contextPartialText.startsWith("!")
+                    if (needsSpaceBefore) append(" ")
+                    withStyle(style = SpanStyle(color = Color.Gray)) { append(contextPartialText) }
+                }
+            }
+        }
+    }
+    LaunchedEffect(combinedContextDisplayAnnotatedText.text) {
+        if (combinedContextDisplayAnnotatedText.text.isNotEmpty()) {
+            contextTextBoxScrollState.animateScrollTo(contextTextBoxScrollState.maxValue)
         }
     }
 
@@ -381,67 +578,338 @@ fun MemorizeScreen(
                 label = "Memorized Verse (with context)",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 30.dp) // Ensure enough height for status bar, text box, and button
+                    .heightIn(min = 30.dp)
             ) {
                 Column(modifier = Modifier.padding(4.dp)) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 1.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isListening)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else
-                                MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Text(
-                            text = if (isListening) "🎤 Listening..." else "⏸️ Not listening",
-                            modifier = Modifier.padding(4.dp).fillMaxWidth(), // Added fillMaxWidth
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                    DisplayListeningStatus(isListening)
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedTextField(
-                        value = memorizedTextFieldValue,
-                        onValueChange = { newValue ->
-                            memorizedTextFieldValue = newValue
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(4.dp))
-                            .onFocusChanged { focusState -> // Update focus state here
-                                isMemorizedTextFieldFocused = focusState.isFocused
-                            },
-                        placeholder = {
-                            // Display combinedDisplayAnnotatedText as placeholder if you want to see partial text preview
-                            // However, this makes the placeholder an AnnotatedString.
-                            // A simpler placeholder:
-                            Text(text = "Type or speak (🎤) ...", style = TextStyle(color = Color.Gray.copy(alpha = 0.5f)))
-                            // If you want the gray partial text to appear IN the text field itself,
-                            // the value of OutlinedTextField would need to be `combinedDisplayAnnotatedText` (or similar).
-                            // But then `onValueChange` would give you this combined text, complicating manual typing.
-                            // The current setup keeps `memorizedTextFieldValue` for actual committed text,
-                            // and `partialText` is separate. The `combinedDisplayAnnotatedText` is for other UI logic (buttons).
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                            imeAction = ImeAction.Default
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        ),
-                        shape = RoundedCornerShape(4.dp),
-                        minLines = 5, // Adjusted min/max lines
-                        maxLines = 5  // Adjusted min/max lines
-                    )
+                    // Direct Quote: This Row arranges the TextField and the Button Column side-by-side
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top // Align items to the top of the Row
+                    ) {
+                        // OutlinedTextField takes 80% of the width
+                        // Replace both OutlinedTextField instances with this structure:
 
-                    Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
+                        Box(
+                            modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
+                        ) {
+                            // Text field with border
+                            BasicTextField(
+                                value = directQuoteTextFieldValue,
+                                onValueChange = { newValue ->
+                                    directQuoteTextFieldValue = newValue
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .border(
+                                        width = if (isDirectQuoteTextFieldFocused) 2.dp else 1.dp,
+                                        color = if (isDirectQuoteTextFieldFocused)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.outline,
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(12.dp) // Internal padding
+                                    .focusRequester(focusRequester)
+                                    .onFocusChanged { focusState ->
+                                        isDirectQuoteTextFieldFocused = focusState.isFocused
+                                    },
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = ImeAction.Default
+                                ),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        if (directQuoteTextFieldValue.text.isEmpty()) {
+                                            Text(
+                                                text = "Type or speak (🎤) ...",
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                ),
+                                                modifier = Modifier.padding(top = 20.dp) // Move placeholder down to avoid label overlap
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier.padding(top = if (directQuoteTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
+                                        ) {
+                                            innerTextField()
+                                        }
+                                    }
+                                }
+                            )
+
+                            // Overlapping label positioned at top-left corner on the border
+                            Text(
+                                text = "Direct Quote",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isDirectQuoteTextFieldFocused)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
+                                        shape = RoundedCornerShape(2.dp)
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp)) // Spacing between TextField and Button Column
+
+                        // This Column takes 20% of the width and stacks the buttons vertically
+                        Column(
+                            modifier = Modifier
+                                .weight(0.2f) // Takes 20% of the width
+                                .padding(start = 4.dp), // Optional: adjust as needed
+                            horizontalAlignment = Alignment.CenterHorizontally, // Centers buttons if they don't fill width
+                            // verticalArrangement arranges the buttons within this column.
+                            // spacedBy adds space between the buttons vertically.
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+
+                            FloatingActionButton(
+                                onClick = {
+                                    if (!hasPermission) {
+                                        Log.w("MemorizeScreen", "Record audio permission not granted.")
+                                        // TODO: Implement permission request flow if not already present elsewhere
+                                        return@FloatingActionButton
+                                    }
+
+                                    if (isListening) {
+                                        stopListening(directQuoteSpeechRecognizer)
+                                        isListening = false // Manually update state
+                                        directQuotePartialText = ""    // Clear partial text when explicitly stopping
+                                    } else {
+                                        // Request focus to the text field when starting to listen? Optional.
+                                        // focusRequester.requestFocus()
+                                        startListening(context, directQuoteSpeechRecognizer)
+                                        // isListening will be set to true in onReadyForSpeech
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(35.dp),
+                                containerColor = if (isListening)
+                                    MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
+                                else
+                                    MaterialTheme.colorScheme.primary
+                            ) {
+                                if (isListening) {
+                                    Icon(
+                                        imageVector =  Icons.Filled.MicOff,
+                                        contentDescription = "Start listening",
+                                    )
+                                } else {
+                                    Text(text = "🎤", fontSize = 20.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+
+                            FloatingActionButton(
+                                onClick = {
+                                    val textToCheck = directQuoteTextFieldValue.text + directQuotePartialText // Consider combined text
+                                    if (textToCheck.isNotEmpty()) {
+                                        if (textToCheck.length < 10) {
+                                            directQuoteTextFieldValue = TextFieldValue("")
+                                            directQuotePartialText = ""
+                                        } else {
+                                            processDeletingDirectQuoteText = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(35.dp),
+                                containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) { // Use the combined text
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                }
+                            ) {
+                                Text(
+                                    "Clear",
+                                    color = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp)) // Spacer after the Row
+
+                    // Context: This Row arranges the TextField and the Button Column side-by-side
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top // Align items to the top of the Row
+                    ) {
+                        // OutlinedTextField takes 80% of the width
+                        Box(
+                            modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
+                        ) {
+                            // Text field with border
+                            BasicTextField(
+                                value = contextTextFieldValue,
+                                onValueChange = { newValue ->
+                                    contextTextFieldValue = newValue
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .border(
+                                        width = if (isContextTextFieldFocused) 2.dp else 1.dp,
+                                        color = if (isContextTextFieldFocused)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.outline,
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(12.dp) // Internal padding
+                                    .focusRequester(focusRequester)
+                                    .onFocusChanged { focusState ->
+                                        isContextTextFieldFocused = focusState.isFocused
+                                    },
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = ImeAction.Default
+                                ),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        if (contextTextFieldValue.text.isEmpty()) {
+                                            Text(
+                                                text = "Type or speak (🎤) ...",
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                ),
+                                                modifier = Modifier.padding(top = 20.dp) // Move placeholder down to avoid label overlap
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier.padding(top = if (contextTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
+                                        ) {
+                                            innerTextField()
+                                        }
+                                    }
+                                }
+                            )
+
+                            // Overlapping label positioned at top-left corner on the border
+                            Text(
+                                text = "Context",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isContextTextFieldFocused)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
+                                        shape = RoundedCornerShape(2.dp)
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp)) // Spacing between TextField and Button Column
+
+                        // This Column takes 20% of the width and stacks the buttons vertically
+                        Column(
+                            modifier = Modifier
+                                .weight(0.2f) // Takes 20% of the width
+                                .padding(start = 4.dp), // Optional: adjust as needed
+                            horizontalAlignment = Alignment.CenterHorizontally, // Centers buttons if they don't fill width
+                            // verticalArrangement arranges the buttons within this column.
+                            // spacedBy adds space between the buttons vertically.
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+
+                            FloatingActionButton(
+                                onClick = {
+                                    if (!hasPermission) {
+                                        Log.w("MemorizeScreen", "Record audio permission not granted.")
+                                        // TODO: Implement permission request flow if not already present elsewhere
+                                        return@FloatingActionButton
+                                    }
+
+                                    if (isListening) {
+                                        stopListening(contextSpeechRecognizer)
+                                        isListening = false // Manually update state
+                                        contextPartialText = ""    // Clear partial text when explicitly stopping
+                                    } else {
+                                        // Request focus to the text field when starting to listen? Optional.
+                                        // focusRequester.requestFocus()
+                                        startListening(context, contextSpeechRecognizer)
+                                        // isListening will be set to true in onReadyForSpeech
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(35.dp),
+                                containerColor = if (isListening)
+                                    MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
+                                else
+                                    MaterialTheme.colorScheme.primary
+                            ) {
+                                if (isListening) {
+                                    Icon(
+                                        imageVector =  Icons.Filled.MicOff,
+                                        contentDescription = "Start listening",
+                                    )
+                                } else {
+                                    Text(text = "🎤", fontSize = 20.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+
+                            FloatingActionButton(
+                                onClick = {
+                                    val textToCheck = contextTextFieldValue.text + contextPartialText // Consider combined text
+                                    if (textToCheck.isNotEmpty()) {
+                                        if (textToCheck.length < 10) {
+                                            contextTextFieldValue = TextFieldValue("")
+                                            contextPartialText = ""
+                                        } else {
+                                            processDeletingContextText = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(35.dp),
+                                containerColor = if ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) { // Use the combined text
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                }
+                            ) {
+                                Text(
+                                    "Clear",
+                                    color = if ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp)) // Spacer after the Row
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -449,78 +917,11 @@ fun MemorizeScreen(
                     ) {
                         FloatingActionButton(
                             onClick = {
-                                if (!hasPermission) {
-                                    Log.w("MemorizeScreen", "Record audio permission not granted.")
-                                    // TODO: Implement permission request flow if not already present elsewhere
-                                    return@FloatingActionButton
-                                }
+                                val directQuoteToEvaluate = directQuoteTextFieldValue.text + directQuotePartialText // Consider combined text
+                                val contextToEvaluate = contextTextFieldValue.text + contextPartialText // Consider combined text
 
-                                if (isListening) {
-                                    stopListening(speechRecognizer)
-                                    isListening = false // Manually update state
-                                    partialText = ""    // Clear partial text when explicitly stopping
-                                } else {
-                                    // Request focus to the text field when starting to listen? Optional.
-                                    // focusRequester.requestFocus()
-                                    startListening(context, speechRecognizer)
-                                    // isListening will be set to true in onReadyForSpeech
-                                }
-                            },
-                            Modifier
-                                .weight(1f)
-                                .height(48.dp), // Slightly increased height for better tap target
-                            containerColor = if (isListening)
-                                MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
-                            else
-                                MaterialTheme.colorScheme.primary
-                        ) {
-                            if (isListening) {
-                                Icon(
-                                    imageVector =  Icons.Filled.MicOff,
-                                    contentDescription = "Start listening",
-                                )
-                            } else {
-                                Text(text = "🎤", fontSize = 20.sp)
-                            }
-
-                        }
-
-                        FloatingActionButton(
-                            onClick = {
-                                val textToCheck = memorizedTextFieldValue.text + partialText // Consider combined text
-                                if (textToCheck.isNotEmpty()) {
-                                    if (textToCheck.length < 10) {
-                                        memorizedTextFieldValue = TextFieldValue("")
-                                        partialText = ""
-                                    } else {
-                                        processDeletingMemorizedText = true
-                                    }
-                                }
-                            },
-                            Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            containerColor = if ((memorizedTextFieldValue.text + partialText).isNotEmpty()) { // Use the combined text
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                            }
-                        ) {
-                            Text(
-                                "Clear",
-                                color = if ((memorizedTextFieldValue.text + partialText).isNotEmpty()) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                }
-                            )
-                        }
-
-                        FloatingActionButton(
-                            onClick = {
-                                val textToEvaluate = memorizedTextFieldValue.text + partialText // Consider combined text
-                                if (textToEvaluate.length >= 5) {
-                                    Log.i("Memorize Screen", "Do the evaluation with text: $textToEvaluate")
+                                if (directQuoteToEvaluate.length >= 5) {
+                                    Log.i("Memorize Screen", "Do the evaluation with text: $directQuoteToEvaluate")
                                     if (verse != null) {
                                         val verseInfo = BibleVerseRef(
                                             book = verse!!.book,
@@ -530,7 +931,8 @@ fun MemorizeScreen(
                                         )
                                         memorizedViewModel.fetchMemorizedScore(
                                             verseInfo,
-                                            textToEvaluate
+                                            directQuoteToEvaluate,
+                                            contextToEvaluate
                                         )
                                     }
                                 }
@@ -538,7 +940,7 @@ fun MemorizeScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp),
-                            containerColor = if ((memorizedTextFieldValue.text + partialText).length >= 5) { // Use the combined text
+                            containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) { // Use the combined text
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
@@ -546,7 +948,7 @@ fun MemorizeScreen(
                         ) {
                             Text(
                                 "Evaluate",
-                                color = if ((memorizedTextFieldValue.text + partialText).length >= 5) {
+                                color = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) {
                                     MaterialTheme.colorScheme.onPrimary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -565,17 +967,17 @@ fun MemorizeScreen(
                         )
                     }
 
-                    if (processDeletingMemorizedText) {
+                    if (processDeletingDirectQuoteText) {
                         AlertDialog(
-                            onDismissRequest = { processDeletingMemorizedText = false },
-                            title = { Text("Confirm Erase") },
-                            text = { Text("Are you sure you want to clear this?") },
+                            onDismissRequest = { processDeletingDirectQuoteText = false },
+                            title = { Text("Confirm Erase Direct Quote") },
+                            text = { Text("Are you sure you want to clear direct quote?") },
                             confirmButton = {
                                 TextButton(
                                     onClick = {
-                                        memorizedTextFieldValue = TextFieldValue("")
-                                        partialText = ""
-                                        processDeletingMemorizedText = false
+                                        directQuoteTextFieldValue = TextFieldValue("")
+                                        directQuotePartialText = ""
+                                        processDeletingDirectQuoteText = false
                                     }
                                 ) {
                                     Text("Clear")
@@ -583,7 +985,33 @@ fun MemorizeScreen(
                             },
                             dismissButton = {
                                 TextButton(
-                                    onClick = { processDeletingMemorizedText = false }
+                                    onClick = { processDeletingDirectQuoteText = false }
+                                ) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
+
+                    if (processDeletingContextText) {
+                        AlertDialog(
+                            onDismissRequest = { processDeletingContextText = false },
+                            title = { Text("Confirm Erase Context Info") },
+                            text = { Text("Are you sure you want to clear context info?") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        contextTextFieldValue = TextFieldValue("")
+                                        contextPartialText = ""
+                                        processDeletingContextText = false
+                                    }
+                                ) {
+                                    Text("Clear")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { processDeletingContextText = false }
                                 ) {
                                     Text("Cancel")
                                 }
@@ -677,48 +1105,6 @@ fun MemorizeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val topicScrollState = rememberScrollState()
-            var topicLabel = "Topic"
-            topics?.size?.let { if (it > 1) topicLabel = "${topics?.count()} Topics" }
-
-            LabeledOutlinedBox(
-                label = topicLabel,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 25.dp, max = 80.dp) // Ensure enough height for button and text
-            ) {
-                if (topics?.isNotEmpty() == true) {
-
-                    Log.i("MemorizedScreen", "Printing topics")
-                    Column (
-                        modifier = Modifier
-                            .heightIn(max = 80.dp) // Set maximum height
-                            .verticalScroll(topicScrollState) // Enable vertical scrolling
-                    ) {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
-                            verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
-                        )
-                        {
-                            (topics as Iterable<String>).forEach { topic ->
-                                // Display each topic as a chip
-                                Log.i("MemorizedScreen", "Topics: $topic")
-
-                                SuggestionChip(
-                                    onClick = { },
-                                    label = { Text(topic) }
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    Log.i("MemorizedScreen", "Empty topics")
-                }
-            }
-
             Spacer(modifier = Modifier.height(16.dp)) // Space before the new button
 
             // New Button to navigate back
@@ -739,7 +1125,6 @@ fun MemorizeScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp)) // Space after new button (optional)
-
 
             // Dialog to display score and AI explanation
             if (showScoreDialog) {
@@ -769,7 +1154,9 @@ fun MemorizeScreen(
                                 Text(
                                     text = "Explanation",
                                     style = MaterialTheme.typography.labelMedium, // Or your preferred style
-                                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 4.dp)
                                 )
                                 // Box with border for the TextField
                                 Box(
@@ -824,8 +1211,33 @@ fun MemorizeScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            speechRecognizer.destroy()
+            directQuoteSpeechRecognizer.destroy()
+            contextSpeechRecognizer.destroy()
         }
+    }
+}
+
+@Composable
+private fun DisplayListeningStatus(isListening: Boolean) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isListening)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Text(
+            text = if (isListening) "🎤 Listening..." else "⏸️ Not listening",
+            modifier = Modifier
+                .padding(4.dp)
+                .fillMaxWidth(), // Added fillMaxWidth
+            fontSize = 16.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -881,7 +1293,7 @@ private fun processNewText(newText: String, existingText: String): String {
     }
 }
 
-private fun processPunctuation(text: String, existingTextContext: String): String {
+private fun processPunctuation(text: String): String {
     // existingTextContext is not used in the current implementation of processPunctuation
     // It was in the signature but not the body.
     val trimmedInputText = text.trim() // Trim the incoming text first
@@ -930,7 +1342,6 @@ private fun processPunctuation(text: String, existingTextContext: String): Strin
 
     return processedText
 }
-
 
 @Preview(showBackground = true)
 @Composable

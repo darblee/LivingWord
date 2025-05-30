@@ -62,7 +62,7 @@ class MemorizeVerseViewModel() : ViewModel(){
         }
     }
 
-    fun fetchMemorizedScore(verse: BibleVerseRef, memorizedText: String) {
+    fun fetchMemorizedScore(verse: BibleVerseRef, memorizedText: String, contextToEvaluate: String) {
         if (!geminiService.isInitialized()) { // Access directly
             Log.w("MemorizedVerseViewModel", "Skipping memorized score retry as GeminiAIService is not initialized.")
             _state.update {
