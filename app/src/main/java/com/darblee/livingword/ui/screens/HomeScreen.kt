@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer // Import SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Church
@@ -124,49 +125,16 @@ fun ProcessMorningPrayer(
         }
     }
 
-    // UI Elements
     Column(
-        // Apply modifier from parent (e.g., fillMaxWidth(0.9f) in portrait)
-        // Then add internal padding and scrolling
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 20.dp) // Internal padding for content
-            .verticalScroll(scrollState)
-
-            // --- Start of pointerInput ---
-            .pointerInput(Unit) { // Use Unit key: doesn't depend on external factors here
-                detectTapGestures(
-                    onDoubleTap = { offset -> // offset is position, not needed here
-                        Log.d("TTS_UI", "Double tap detected.")
-                        if (isTtsInitialized) {
-                            Log.d("TTS_UI", "Calling ViewModel to restart...")
-                            viewModel.restartSingleText(textToSpeak)
-                        } else {
-                            Log.w("TTS_UI", "Double tap, but TTS not initialized.")
-                            Toast.makeText(context, "TTS not ready", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onTap = { offset -> // offset is position, not needed here
-                        Log.d("TTS_UI", "Single tap detected on text.")
-                        if (!isTtsInitialized) {
-                            Log.w("TTS_UI", "Tap, but TTS not initialized.")
-                            Toast.makeText(context, "TTS initializing...", Toast.LENGTH_SHORT).show()
-                            return@detectTapGestures // Exit if not ready
-                        }
-                        // Call the centralized toggle function in ViewModel
-                        // This function handles the logic for play/pause/resume based on current state
-                        Log.d("TTS_UI", "Calling ViewModel toggle function...")
-                        viewModel.togglePlayPauseResumeSingleText(textToSpeak)
-                    }
-                    // Add onLongPress etc. here if needed later
-                )
-            },
-        // --- End of pointerInput ---
-
-        // Keep content centered if width is constrained
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Display the potentially highlighted text
-        Text(annotatedText, style = MaterialTheme.typography.bodyLarge) // Apply a base style
+        // Wrap the Text composable with SelectionContainer
+        SelectionContainer {
+            Text(annotatedText, style = MaterialTheme.typography.bodyLarge) // Apply a base style
+        }
     }
 }
 
