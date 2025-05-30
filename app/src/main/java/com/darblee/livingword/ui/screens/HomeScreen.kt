@@ -405,25 +405,44 @@ private fun DisplayPlayPauseIcon(
         },
         modifier = Modifier
             .size(48.dp) // Adjust icon size as needed
-            .clickable( // Make the icon clickable
-                enabled = isTtsInitialized, // Only enable if TTS is ready
-                onClickLabel = "Toggle Play Pause", // Accessibility label for action
-                onClick = {
-                    // Action to perform on click
-                    Log.d("TTS_UI", "Icon clicked.")
-                    if (!isTtsInitialized) {
-                        // Inform user if TTS isn't ready
-                        Toast.makeText(
-                            context,
-                            "TTS initializing...",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        // Call the centralized toggle function in ViewModel
-                        viewModel.togglePlayPauseResumeSingleText(textToSpeak)
+            .pointerInput(Unit) { // Added pointerInput for double-tap
+                detectTapGestures(
+                    onTap = {
+                        // Action to perform on single click
+                        Log.d("TTS_UI", "Icon single-tapped.")
+                        if (!isTtsInitialized) {
+                            // Inform user if TTS isn't ready
+                            Toast
+                                .makeText(
+                                    context,
+                                    "TTS initializing...",
+                                    Toast.LENGTH_SHORT
+                                )
+                                .show()
+                        } else {
+                            // Call the centralized toggle function in ViewModel
+                            viewModel.togglePlayPauseResumeSingleText(textToSpeak)
+                        }
+                    },
+                    onDoubleTap = {
+                        Log.d("TTS_UI", "Icon double-tapped.")
+                        if (!isTtsInitialized) {
+                            Toast
+                                .makeText(
+                                    context,
+                                    "TTS initializing...",
+                                    Toast.LENGTH_SHORT
+                                )
+                                .show()
+                        } else {
+                            // Call restart function, passing the text
+                            Log.d("TTS_UI", "Calling ViewModel to restart from icon double-tap...")
+                            viewModel.restartSingleText(textToSpeak)
+                        }
                     }
-                }
-            )
+                )
+            }
+        // Removed the .clickable modifier as its functionality is now handled by detectTapGestures
     )
 }
 
