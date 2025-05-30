@@ -3,7 +3,7 @@ package com.darblee.livingword.domain.model
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.darblee.livingword.BibleVerseT
+import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +25,7 @@ data class ScoreData(
 class MemorizeVerseViewModel() : ViewModel(){
 
     /**
-     * Represents the UI state for the LearnScreen.
+     * Represents the UI state for the NewVerse screen.
      */
     data class MemorizedVerseScreenState(
         // State related to topic selection for the *current* item
@@ -35,7 +35,7 @@ class MemorizeVerseViewModel() : ViewModel(){
         // State for the currently displayed single verse
         val directQuoteScore: Int = -1,
         val contextScore: Int = -1,
-        val verse: BibleVerseT? = null,
+        val verse: BibleVerseRef? = null,
         val aiExplanationText : String? = null,
         val aiResponseLoading: Boolean = false,
         val aiResponseError: String? = null,
@@ -62,7 +62,7 @@ class MemorizeVerseViewModel() : ViewModel(){
         }
     }
 
-    fun fetchMemorizedScore(verse: BibleVerseT, memorizedText: String) {
+    fun fetchMemorizedScore(verse: BibleVerseRef, memorizedText: String) {
         if (!geminiService.isInitialized()) { // Access directly
             Log.w("MemorizedVerseViewModel", "Skipping memorized score retry as GeminiAIService is not initialized.")
             _state.update {

@@ -257,13 +257,13 @@ fun HomeScreen(navController: NavController) {
                     icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
                 )
                 NavigationBarItem(
-                    selected = currentScreen == Screen.MeditateScreen,
-                    onClick = { navController.navigate(Screen.MeditateScreen) },
-                    label = { Text("Meditate") },
+                    selected = currentScreen == Screen.AllVersesScreen,
+                    onClick = { navController.navigate(Screen.AllVersesScreen) },
+                    label = { Text("All Verses") },
                     icon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Meditate",
+                            contentDescription = "Review all verses",
                             modifier = Modifier.size(24.dp)
                         )
                     }

@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.darblee.livingword.BibleVerseRef
 
 @Entity(tableName = "BibleVerse_Items")
 @TypeConverters(Converters::class)
@@ -36,6 +37,18 @@ class Converters {
 }
 
 fun verseReference(verseItem: BibleVerse): String
+{
+    val book = verseItem.book
+    val chapter = verseItem.chapter
+    val startVerse = verseItem.startVerse
+    val endVerse = verseItem.endVerse
+    if (startVerse == endVerse) {
+        return ("$book $chapter:$startVerse")
+    }
+    return ("$book $chapter:$startVerse-$endVerse")
+}
+
+fun verseReferenceT(verseItem: BibleVerseRef): String
 {
     val book = verseItem.book
     val chapter = verseItem.chapter

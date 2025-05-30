@@ -1,6 +1,7 @@
 package com.darblee.livingword.ui.screens
 
 
+import android.util.Log
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,32 +26,35 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.darblee.livingword.BibleVerseT
+import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.Global
 import com.darblee.livingword.Global.VERSE_RESULT_KEY
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleData
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun GetEndVerseNumberScreen(
     navController: NavHostController,
     book: String,
     chapter: Int,
-    startVerse: Int
+    startVerse: Int,
 ) {
     val scrollState = rememberScrollState() // Scroll state for take-away BasicTextField
 
@@ -65,37 +69,96 @@ fun GetEndVerseNumberScreen(
             // Top Row for "Get Verse: ..." text, left-aligned
             Row(
                 modifier = Modifier.fillMaxWidth(), // Take full width
-                horizontalArrangement = Arrangement.Start // Align content to the left
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Box(
+                    modifier = Modifier
+                        .clickable(
+                            onClick = {
+                                Log.i("GetEndVerseNumberScreen", "Trying to navigate to book")
+                                navController.navigate(route = Screen.GetBookScreen)
+                            },
+                            role = Role.Button, // For accessibility
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        )
+                ) {
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
+                            append("$book ")
+                        }
+                    }
+                    Text(text = annotatedString)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clickable(
+                            onClick = {
+                                Log.i("GetEndVerseNumberScreen", "Trying to navigate to chapter")
+                                navController.navigate(route = Screen.GetChapterScreen(book = book))
+                            },
+                            role = Role.Button, // For accessibility
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        )
+                    // .padding(horizontal = 4.dp) // Deliberately no padding here
+                ) {
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
+                            append("$chapter ")
+                        }
+                    }
+                    Text(text = annotatedString)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clickable(
+                            onClick = {
+                                Log.i("GetEndVerseNumberScreen", "Trying to navigate to start verse")
+                                navController.navigate(route = Screen.GetStartVerseNumberScreen(book = book, chapter = chapter))
+                                      },
+                            role = Role.Button, // For accessibility
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        )
+                    // .padding(horizontal = 4.dp) // Deliberately no padding here
+                ) {
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
+                            append("[ $startVerse")
+                        }
+                    }
+                    Text(text = annotatedString)
+                }
+
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(
-                            style = SpanStyle(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
-                        ) {
-                            append("Verse:  ")
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                fontWeight = FontWeight.Thin,
-                                fontSize = 15.sp
-                            )
-                        ) {
-                            append("$book $chapter [$startVerse - ")
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                fontWeight = FontWeight.Thin,
-                                fontSize = 15.sp,
-                                color = LocalContentColor.current.copy(alpha = 0.5f)  // Set alpha for 50% transparency
-                            )
-                        ) {
-                            append(" Verse]")
+                    withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle().copy(
+                            color = LocalContentColor.current.copy(alpha = 0.5f)  // Set alpha for 50% transparency
+                        )) {
+                            append("- Verse]")
                         }
                     }
                 )
+
+                // Spacer to push the button to the right
+                Spacer(modifier = Modifier.weight(1f))
+
+                Button(
+                    onClick = {
+                        navController.popBackStack(
+                            route = Screen.NewVerseScreen, // Destination to pop up to
+                            inclusive = false
+                        )
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                )
+                {
+                    Text("Cancel") // Shortened text
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp)) // Space before divider
@@ -119,12 +182,9 @@ fun GetEndVerseNumberScreen(
                         BibleData.getVersesForBookChapter(book, chapter, startVerse)
                     }
 
-                // Screen Title
-                Text(
-                    text = "Select Ending Verse",
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Text("Select Ending Verse", style = MaterialTheme.typography.headlineMedium)
+
+                Spacer(modifier = Modifier.height(8.dp)) // Add space between sections
 
                 // Grid for displaying verse buttons
                 if (verses.isNotEmpty()) {
@@ -142,7 +202,7 @@ fun GetEndVerseNumberScreen(
                             VerseButton(verse = verse) { selectedVerse ->
                                 // --- Pass Result Back ---
                                 // 1. Create the result data object
-                                val result = BibleVerseT(
+                                val result = BibleVerseRef(
                                     book = book,
                                     chapter = chapter,
                                     startVerse = startVerse,
@@ -150,19 +210,19 @@ fun GetEndVerseNumberScreen(
                                 )
 
                                 val resultJson =
-                                    Json.encodeToString(BibleVerseT.serializer(), result)
+                                    Json.encodeToString(BibleVerseRef.serializer(), result)
 
                                 // 2. Get the SavedStateHandle of the *destination* screen (TopicScreen)
                                 //    This requires TopicScreen to be on the back stack.
                                 //    Use the correct Screen object from the updated navigation package
-                                val learnScreenBackStackEntry =
-                                    navController.getBackStackEntry(Screen.LearnScreen)
-                                val learnScreenSavedStateHandle =
-                                    learnScreenBackStackEntry.savedStateHandle
+                                val NewVerseScreenBackStackEntry =
+                                    navController.getBackStackEntry(Screen.NewVerseScreen)
+                                val NewVerseScreenSavedStateHandle =
+                                    NewVerseScreenBackStackEntry.savedStateHandle
 
                                 // 3. Set the result in the destination's SavedStateHandle
                                 //    Make sure VERSE_RESULT_KEY is defined consistently (e.g., in AllVersesScreen.kt)
-                                learnScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson // VERSE_RESULT_KEY needs to be accessible here or defined globally
+                                NewVerseScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson // VERSE_RESULT_KEY needs to be accessible here or defined globally
 
 
                                 // 4. Pop the back stack up To (but not including) the TopicScreen.
@@ -170,7 +230,7 @@ fun GetEndVerseNumberScreen(
                                 //    SavedStateHandle observer.
                                 //    Use the correct Screen object from the updated navigation package
                                 navController.popBackStack(
-                                    route = Screen.LearnScreen, // Destination to pop up to
+                                    route = Screen.NewVerseScreen, // Destination to pop up to
                                     inclusive = false    // Keep TopicScreen on the stack
                                 )
                                 // --- Result Passing End ---
@@ -192,11 +252,7 @@ fun GetEndVerseNumberScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
-                        onClick = {
-                            navController.popBackStack(
-                                route = Screen.LearnScreen, // Destination to pop up to
-                                inclusive = false
-                            )                        },
+                        onClick = { navController.navigate(route = Screen.GetBookScreen) },
                         shape = RoundedCornerShape(8.dp),
                         modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
                         contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
@@ -206,18 +262,30 @@ fun GetEndVerseNumberScreen(
                             contentDescription = null, // Description is implied by text now
                             modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
                         )
-                        Text("Learn") // Shortened text
+                        Text("Select Book") // Shortened text
+                    }
+
+                    Button(
+                        onClick = { navController.navigate(route = Screen.GetChapterScreen(book = book)) },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
+                        contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null, // Description is implied by text now
+                            modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
+                        )
+                        Text("Select Chapter") // Shortened text
                     }
 
                     Button(
                         onClick = {
-                            navController.popBackStack(
-                                route = Screen.GetBookScreen, // Destination to pop up to
-                                inclusive = false
-                            )
+                            Log.i("GetEndVerseNumberScreen", "Trying to navigate to start verse")
+                            navController.navigate(route = Screen.GetStartVerseNumberScreen(book = book, chapter = chapter))
                         },
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
+                //        modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
                         contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
                     ) {
                         Icon(
@@ -225,44 +293,7 @@ fun GetEndVerseNumberScreen(
                             contentDescription = null, // Description is implied by text now
                             modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
                         )
-                        Text("Book") // Shortened text
-                    }
-
-                    Button(
-                        onClick = {
-                            navController.popBackStack(
-                                route = Screen.GetChapterScreen(book = book), // Destination to pop up to
-                                inclusive = false
-                            )
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
-                        contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null, // Description is implied by text now
-                            modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
-                        )
-                        Text("Chapter") // Shortened text
-                    }
-
-                    Button(
-                        onClick = {
-                            navController.popBackStack(
-                                route = Screen.GetStartVerseNumberScreen(book = book, chapter = chapter),
-                                inclusive = false)
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
-                        contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null, // Description is implied by text now
-                            modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
-                        )
-                        Text("Start Verse") // Shortened text
+                        Text("Select Starting Verse") // Shortened text
                     }
                 }
             }

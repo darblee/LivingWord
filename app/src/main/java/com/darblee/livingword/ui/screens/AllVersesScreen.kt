@@ -37,13 +37,15 @@ import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 
+// TODO: Add BackPress handler to navigate back to home. See logic in New Verse Screen.
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllVersesScreen(navController: NavController, bibleViewModel: BibleVerseViewModel) {
 
     val allVerses by bibleViewModel.allVerses.collectAsState()
 
-    var currentScreen by remember { mutableStateOf(Screen.MeditateScreen) }
+    var currentScreen by remember { mutableStateOf(Screen.AllVersesScreen) }
 
     Scaffold(
         topBar = {
@@ -63,13 +65,13 @@ fun AllVersesScreen(navController: NavController, bibleViewModel: BibleVerseView
                     icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
                 )
                 NavigationBarItem(
-                    selected = currentScreen == Screen.MeditateScreen,
-                    onClick = { navController.navigate(Screen.MeditateScreen) },
-                    label = { Text("Meditate") },
+                    selected = currentScreen == Screen.AllVersesScreen,
+                    onClick = { navController.navigate(Screen.AllVersesScreen) },
+                    label = { Text("All Verses") },
                     icon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Meditate",
+                            contentDescription = "Review all verses",
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -91,6 +93,10 @@ fun AllVersesScreen(navController: NavController, bibleViewModel: BibleVerseView
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Button(onClick = { navController.navigate(Screen.NewVerseScreen) }) {
+                Text("Add new verse...")
+            }
+
             if (allVerses.isEmpty()) {
                 Text("No verses added yet.", style = MaterialTheme.typography.bodyMedium)
             } else {
@@ -100,9 +106,6 @@ fun AllVersesScreen(navController: NavController, bibleViewModel: BibleVerseView
                         Spacer(modifier = Modifier.height(2.dp))
                     }
                 }
-            }
-            Button(onClick = { navController.navigate(Screen.LearnScreen) }) {
-                Text("Add new verse...")
             }
         }
     }

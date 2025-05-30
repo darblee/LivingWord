@@ -83,16 +83,54 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.unit.sp
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.SnackBarController
+import com.darblee.livingword.data.BibleData.removePassageRef
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.verseReference
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.domain.model.TTS_OperationMode
 import com.darblee.livingword.domain.model.VerseDetailSequencePart
+
+// Helper extension function to append text with verse number styling
+fun AnnotatedString.Builder.appendWithVerseStyling(
+    text: String,
+    style: SpanStyle // This is the base style (e.g., from TTS highlight, markdown)
+) {
+    val passageNumberRegex = Regex("""\[(\d+)]""")
+    var lastIndex = 0
+    passageNumberRegex.findAll(text).forEach { matchResult ->
+        // Append text before the verse number with the current style
+        if (matchResult.range.first > lastIndex) {
+            withStyle(style) {
+                append(text.substring(lastIndex, matchResult.range.first))
+            }
+        }
+        // Append the verse number itself (digits only) with red subscript style
+        // This style overrides the incoming 'style' for the verse number part.
+        withStyle(
+            style = SpanStyle(
+                color = Color.Red,
+                fontSize = 10.sp,
+                baselineShift = BaselineShift.Superscript,
+                fontWeight = FontWeight.Bold)
+        ) {
+            append(matchResult.groupValues[1]) // Append only the number, not the brackets
+        }
+        lastIndex = matchResult.range.last + 1
+    }
+    // Append remaining text after the last verse number with the current style
+    if (lastIndex < text.length) {
+        withStyle(style) {
+            append(text.substring(lastIndex))
+        }
+    }
+}
 
 // Enum to track which text block is targeted for single TTS playback in this screen
 enum class VerseDetailSingleTtsTarget { NONE, SCRIPTURE, AI_RESPONSE }
@@ -287,12 +325,12 @@ fun VerseDetailScreen(
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { navController.navigate(Screen.MeditateScreen) },
-                    label = { Text("Meditate") },
+                    onClick = { navController.navigate(Screen.AllVersesScreen) },
+                    label = { Text("All Verses") },
                     icon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Meditate",
+                            contentDescription = "Review all verses",
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -321,83 +359,72 @@ fun VerseDetailScreen(
                 modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
             ) {
                 // Scripture Box
-                if (inEditMode) {
-                    BasicTextField(
-                        value = scriptureTextContent,
-                        onValueChange = { /* Read-only */ },
-                        modifier = Modifier.fillMaxSize().verticalScroll(scriptureScrollState),
-                        readOnly = true,
-                        textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    )
-                } else {
-                    val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+                val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
 
-                    // Determine if scripture should be highlighted (either single TTS or sequence TTS)
-                    val isScriptureTargetedForTts =
-                        (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
-                                (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.SCRIPTURE)
+                // Determine if scripture should be highlighted (either single TTS or sequence TTS)
+                val isScriptureTargetedForTts =
+                    (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
+                            (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.SCRIPTURE)
 
-                    val scriptureAnnotatedText = buildAnnotatedStringForTts(
-                        fullText = scriptureTextContent,
-                        isTargeted = isScriptureTargetedForTts,
-                        highlightSentenceIndex = currentTtsSentenceIndex,
-                        isSpeaking = isTtsSpeaking,
-                        isPaused = isTtsPaused,
-                        baseStyle = SpanStyle(color = baseTextColor),
-                        highlightStyle = SpanStyle(
-                            background = MaterialTheme.colorScheme.primaryContainer,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                    )
+                val scriptureAnnotatedText = buildAnnotatedStringForTTS(
+                    fullText = scriptureTextContent,
+                    isTargeted = isScriptureTargetedForTts,
+                    highlightSentenceIndex = currentTtsSentenceIndex,
+                    isSpeaking = isTtsSpeaking,
+                    isPaused = isTtsPaused,
+                    baseStyle = SpanStyle(color = baseTextColor),
+                    highlightStyle = SpanStyle(
+                        background = MaterialTheme.colorScheme.primaryContainer,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                )
 
-                    Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
-                        Text(
-                            text = scriptureAnnotatedText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
-                                            if (isTtsInitialized && scriptureTextContent.isNotBlank()) {
-                                                scriptureDropdownMenuOffset = touchOffset // Store the touch position
-                                                showScriptureDropdownMenu = true
-                                            }
+                Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
+                    Text(
+                        text = scriptureAnnotatedText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
+                                        if (isTtsInitialized && scriptureTextContent.isNotBlank()) {
+                                            scriptureDropdownMenuOffset = touchOffset // Store the touch position
+                                            showScriptureDropdownMenu = true
                                         }
-                                    )
-                                }
-                        )
-
-                        // Approximate height of a single menu item plus some padding
-                        val menuItemVerticalShift = 300.dp
-
-                        DropdownMenu(
-                            expanded = showScriptureDropdownMenu,
-                            onDismissRequest = { showScriptureDropdownMenu = false },
-                            offset = DpOffset(
-                                x = with(localDensity) { scriptureDropdownMenuOffset.x.toDp() },
-                                y = with(localDensity) { scriptureDropdownMenuOffset.y.toDp() } - menuItemVerticalShift
-                            )
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Read from beginning") },
-                                onClick = {
-                                    showScriptureDropdownMenu = false
-                                    if (isTtsInitialized && scriptureTextContent.isNotBlank()) {
-                                        activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
-                                        // Stop any other TTS (like sequence) before starting this single text
-                                        if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
-                                            ttsViewModel.stopAllSpeaking()
-                                        }
-                                        ttsViewModel.restartSingleText(scriptureTextContent)
                                     }
+                                )
+                            }
+                    )
+
+                    // Approximate height of a single menu item plus some padding
+                    val menuItemVerticalShift = 300.dp
+
+                    DropdownMenu(
+                        expanded = showScriptureDropdownMenu,
+                        onDismissRequest = { showScriptureDropdownMenu = false },
+                        offset = DpOffset(
+                            x = with(localDensity) { scriptureDropdownMenuOffset.x.toDp() },
+                            y = with(localDensity) { scriptureDropdownMenuOffset.y.toDp() } - menuItemVerticalShift
+                        )
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Read from beginning") },
+                            onClick = {
+                                showScriptureDropdownMenu = false
+                                if (isTtsInitialized && scriptureTextContent.isNotBlank()) {
+                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
+                                    // Stop any other TTS (like sequence) before starting this single text
+                                    if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
+                                        ttsViewModel.stopAllSpeaking()
+                                    }
+                                    ttsViewModel.restartSingleText(scriptureTextContent.removePassageRef())
                                 }
-                            )
-                        }
-                    }
+                            }
+                        )
                 }
+            }
             }
 
             Spacer(modifier = Modifier.height(8.dp)) // Space between boxes
@@ -427,7 +454,7 @@ fun VerseDetailScreen(
                         (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
                                 (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.AI_RESPONSE)
 
-                    val aiResponseAnnotatedText = buildAnnotatedStringForTts(
+                    val aiResponseAnnotatedText = buildAnnotatedStringForTTS(
                         fullText = editedAiResponse,
                         isTargeted = isAiResponseTargetedForTts,
                         highlightSentenceIndex = currentTtsSentenceIndex,
@@ -695,7 +722,7 @@ fun VerseDetailScreen(
                                                 val textToToggle = if (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE) {
                                                     editedAiResponse
                                                 } else {
-                                                    scriptureTextContent
+                                                    scriptureTextContent.removePassageRef()
                                                 }
                                                 ttsViewModel.togglePlayPauseResumeSingleText(textToToggle)
                                             }
@@ -712,7 +739,7 @@ fun VerseDetailScreen(
                                                 if (scripture.isNotBlank()) { // Ensure there's scripture to read
                                                     activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                                     ttsViewModel.startVerseDetailSequence(
-                                                        scripture = scripture,
+                                                        scripture = scripture.removePassageRef(),
                                                         aiResponse = aiTakeaway,
                                                         verseItem = verseItem
                                                     )
@@ -743,7 +770,7 @@ fun VerseDetailScreen(
                                 if (isTtsInitialized && verseItem != null) {
                                     activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                     ttsViewModel.startVerseDetailSequence(
-                                        scripture = verseItem.scripture,
+                                        scripture = verseItem.scripture.removePassageRef(),
                                         aiResponse = verseItem.aiResponse,
                                         verseItem = verseItem
                                     )
@@ -760,7 +787,7 @@ fun VerseDetailScreen(
                                 if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
                                     ttsViewModel.stopAllSpeaking()
                                 }
-                                ttsViewModel.restartSingleText(scriptureTextContent) // Use restart to ensure clean start
+                                ttsViewModel.restartSingleText(scriptureTextContent.removePassageRef()) // Use restart to ensure clean start
                             }
                         )
 
@@ -830,18 +857,20 @@ fun VerseDetailScreen(
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                bibleViewModel.deleteVerse(verseItem)
-
                                 snackBarScope.launch {
-                                    SnackBarController.showMessage("Verse is deleted")
-                                }
+                                    bibleViewModel.deleteVerse(verseItem)
 
-                                // The following will do the clean-up for these flags
-                                //  - inEditingMode will set to false
-                                //  - processDeletion will set to false
-                                //  - isUpdatedContent will be set to false
-                                exitEditMode() // Should navigate away or clear verse after deletion
-                                navController.navigate(Screen.MeditateScreen)
+                                    // NOTE: deleteVerse() is a suspend call. Ii will wait
+                                    // until delete operation is completed before reaching here.
+                                    SnackBarController.showMessage("Verse is deleted")
+
+                                    // The following will do the clean-up for these flags
+                                    //  - inEditingMode will set to false
+                                    //  - processDeletion will set to false
+                                    //  - isUpdatedContent will be set to false
+                                    exitEditMode() // Should navigate away or clear verse after deletion
+                                    navController.navigate(Screen.AllVersesScreen)
+                                }
                             }
                         ) {
                             Text("Delete")
@@ -899,40 +928,35 @@ fun VerseDetailScreen(
 
 // Helper function to build AnnotatedString with potential TTS highlighting & Markdown
 @Composable
-internal fun buildAnnotatedStringForTts(
+internal fun buildAnnotatedStringForTTS(
     fullText: String,
     isTargeted: Boolean,
     highlightSentenceIndex: Int,
     isSpeaking: Boolean,
     isPaused: Boolean,
-    baseStyle: SpanStyle,
-    highlightStyle: SpanStyle,
+    baseStyle: SpanStyle, // Base style for normal text (includes color from theme)
+    highlightStyle: SpanStyle, // Style for highlighted TTS sentence
 ): AnnotatedString {
 
+    // This text is what splitIntoSentences will work on. It includes [N].
     val textToProcess = fullText.replace(".**", "**.")
 
     val sentences = remember(textToProcess, Locale.getDefault()){
         splitIntoSentences(textToProcess, Locale.getDefault())
     }
 
-    // This list will store the start and end indices of each sentence within the original text.
     val sentenceRanges = remember(textToProcess, sentences) {
         val ranges = mutableListOf<IntRange>()
         var currentSearchStart = 0
         sentences.forEach { sentence ->
-            // Find the sentence in the original text, ignoring leading/trailing whitespace
             val startIndex = textToProcess.indexOf(sentence.trim(), currentSearchStart)
             if (startIndex != -1) {
                 val endIndex = startIndex + sentence.trim().length - 1
                 ranges.add(IntRange(startIndex, endIndex))
-                currentSearchStart = endIndex + 1 // Start searching for the next sentence after this one
+                currentSearchStart = endIndex + 1
             } else {
-                // Fallback for cases where sentence might not be found exactly (e.g., due to split differences)
-                // This might happen if BreakIterator splits differently than how it appears in the raw text.
-                // For simplicity, we'll just advance search start. A more robust solution might involve
-                // more complex string matching.
-                currentSearchStart += sentence.length // Just advance by expected length
-                ranges.add(IntRange(0, -1)) // Add an invalid range to maintain index
+                currentSearchStart += sentence.length
+                ranges.add(IntRange(0, -1)) // Invalid range
             }
         }
         ranges
@@ -941,19 +965,19 @@ internal fun buildAnnotatedStringForTts(
     return buildAnnotatedString {
         var currentTextIndex = 0
         while (currentTextIndex < textToProcess.length) {
-            var appliedStyle = baseStyle
-            var textSegment = ""
+            var styleForCurrentSegment = baseStyle // Default to baseStyle
+            var textSegmentToFormat = ""
             var foundSentence = false
 
-            // Find which sentence this currentTextIndex falls into
+            // Determine if the current part of the text falls within a sentence to be highlighted
             for (i in sentences.indices) {
                 if (i < sentenceRanges.size && sentenceRanges[i].first <= currentTextIndex && currentTextIndex <= sentenceRanges[i].last) {
                     val shouldHighlightThisSentence = isTargeted &&
                             ((isSpeaking && !isPaused && i == highlightSentenceIndex) ||
                                     (isPaused && i == highlightSentenceIndex))
 
-                    appliedStyle = if (shouldHighlightThisSentence) highlightStyle else baseStyle
-                    textSegment = textToProcess.substring(currentTextIndex, sentenceRanges[i].last + 1)
+                    styleForCurrentSegment = if (shouldHighlightThisSentence) highlightStyle else baseStyle
+                    textSegmentToFormat = textToProcess.substring(currentTextIndex, sentenceRanges[i].last + 1)
                     currentTextIndex = sentenceRanges[i].last + 1
                     foundSentence = true
                     break
@@ -961,9 +985,7 @@ internal fun buildAnnotatedStringForTts(
             }
 
             if (!foundSentence) {
-                // If currentTextIndex is not part of any tracked sentence, it's likely whitespace or
-                // a newline that BreakIterator ignored, or text before the first sentence.
-                // Find the next sentence start or the end of the string.
+                // Text is not part of a tracked sentence (e.g., whitespace between sentences)
                 var nextSentenceStart = textToProcess.length
                 for (i in sentences.indices) {
                     if (i < sentenceRanges.size && sentenceRanges[i].first > currentTextIndex) {
@@ -971,154 +993,81 @@ internal fun buildAnnotatedStringForTts(
                         break
                     }
                 }
-                textSegment = textToProcess.substring(currentTextIndex, nextSentenceStart)
+                textSegmentToFormat = textToProcess.substring(currentTextIndex, nextSentenceStart)
                 currentTextIndex = nextSentenceStart
+                styleForCurrentSegment = baseStyle // Non-sentence parts use base style
             }
 
-            withStyle(appliedStyle) {
-                // Process bullet points for paragraphs starting with "* "
-                val lines = textSegment.split("\n")
-                val processedSegment = lines.joinToString("\n") { line ->
-                    if (line.trim().startsWith("* ")) {
-                        "• " + line.trim().substring(2)
-                    } else {
-                        line
+            // Process bullet points first
+            val lines = textSegmentToFormat.split("\n")
+            val segmentWithBulletsHandled = lines.joinToString("\n") { line ->
+                if (line.trim().startsWith("* ")) {
+                    "• " + line.trim().substring(2)
+                } else {
+                    line
+                }
+            }
+
+            // Now, apply markdown (bold/italic) and verse number styling to segmentWithBulletsHandled
+            // The `styleForCurrentSegment` (from TTS highlighting) is the base for these further stylings.
+
+            data class Marker(val position: Int, val isStart: Boolean, val type: String) // "bold" or "italic"
+            val markers = mutableListOf<Marker>()
+
+            val boldRegex = Regex("""\*\*""")
+            boldRegex.findAll(segmentWithBulletsHandled).forEach { match ->
+                val position = match.range.first
+                val previousMarkersCount = boldRegex.findAll(segmentWithBulletsHandled.substring(0, position)).count()
+                markers.add(Marker(position, previousMarkersCount % 2 == 0, "bold"))
+            }
+
+            val italicRegex = Regex("""\*(?!\*)""") // Negative lookahead for single *
+            italicRegex.findAll(segmentWithBulletsHandled).forEach { match ->
+                val position = match.range.first
+                // Ensure this '*' is not part of a '**'
+                val isPartOfBold = segmentWithBulletsHandled.substring(position, minOf(position + 2, segmentWithBulletsHandled.length)) == "**" ||
+                        (position > 0 && segmentWithBulletsHandled.substring(position - 1, position + 1) == "**")
+                if (!isPartOfBold) {
+                    val previousItalicMarkersCount = italicRegex.findAll(segmentWithBulletsHandled.substring(0, position)).count {
+                        val pos = it.range.first
+                        val isItselfPartOfBold = segmentWithBulletsHandled.substring(pos, minOf(pos + 2, segmentWithBulletsHandled.length)) == "**" ||
+                                (pos > 0 && segmentWithBulletsHandled.substring(pos - 1, pos + 1) == "**")
+                        !isItselfPartOfBold // Count only standalone italics
                     }
+                    markers.add(Marker(position, previousItalicMarkersCount % 2 == 0, "italic"))
+                }
+            }
+            val sortedMarkers = markers.sortedBy { it.position }
+
+            var currentPosInSegment = 0
+            var isBoldActive = false
+            var isItalicActive = false
+
+            for (marker in sortedMarkers) {
+                if (marker.position > currentPosInSegment) {
+                    val textPart = segmentWithBulletsHandled.substring(currentPosInSegment, marker.position)
+                    var finalStyleForPart = styleForCurrentSegment // Start with TTS style
+                    if (isBoldActive) finalStyleForPart = finalStyleForPart.merge(SpanStyle(fontWeight = FontWeight.Bold))
+                    if (isItalicActive) finalStyleForPart = finalStyleForPart.merge(SpanStyle(fontStyle = FontStyle.Italic))
+                    appendWithVerseStyling(textPart, finalStyleForPart) // Handles verse numbers within this part
                 }
 
-                val textToProcess = processedSegment
-
-                // Completely rewritten approach to handle both bold and italic formatting
-                // This approach ensures consistent handling of all formatting instances
-
-                // Step 1: Create a list of all formatting markers with their positions and types
-                data class Marker(val position: Int, val isStart: Boolean, val type: String)
-                val markers = mutableListOf<Marker>()
-
-                // Find all bold markers (**) and add them to the list
-                val boldRegex = Regex("""\*\*""")
-                boldRegex.findAll(textToProcess).forEach { match ->
-                    val position = match.range.first
-                    // Count the number of ** before this position to determine if it's even (start) or odd (end)
-                    val previousMarkers = boldRegex.findAll(textToProcess.substring(0, position)).count()
-                    val isStart = previousMarkers % 2 == 0
-                    markers.add(Marker(position, isStart, "bold"))
+                if (marker.type == "bold") {
+                    isBoldActive = marker.isStart
+                    currentPosInSegment = marker.position + 2 // Skip "**"
+                } else { // italic
+                    isItalicActive = marker.isStart
+                    currentPosInSegment = marker.position + 1 // Skip "*"
                 }
+            }
 
-                // Find all italic markers (*) that are not part of bold markers
-                val italicRegex = Regex("""\*(?!\*)""")
-                italicRegex.findAll(textToProcess).forEach { match ->
-                    val position = match.range.first
-                    // Check if this * is part of a ** (bold marker)
-                    val isBoldMarker = textToProcess.substring(position, minOf(position + 2, textToProcess.length)) == "**" ||
-                            (position > 0 && textToProcess.substring(position - 1, position + 1) == "**")
-
-                    if (!isBoldMarker) {
-                        // Count previous standalone * markers to determine if start or end
-                        val previousMarkers = italicRegex.findAll(textToProcess.substring(0, position)).count {
-                            val pos = it.range.first
-                            val isPartOfBold = textToProcess.substring(pos, minOf(pos + 2, textToProcess.length)) == "**" ||
-                                    (pos > 0 && textToProcess.substring(pos - 1, pos + 1) == "**")
-                            !isPartOfBold
-                        }
-                        val isStart = previousMarkers % 2 == 0
-                        markers.add(Marker(position, isStart, "italic"))
-                    }
-                }
-
-                // Sort markers by position
-                val sortedMarkers = markers.sortedBy { it.position }
-
-                // Step 2: Process the text using the markers
-                var currentPos = 0
-                var boldActive = false
-                var italicActive = false
-
-                // Create stacks to track active formatting
-                val formattingStack = mutableListOf<String>() // "bold" or "italic"
-
-                // Break down text into segments and process each with appropriate formatting
-                for (i in sortedMarkers.indices) {
-                    val marker = sortedMarkers[i]
-
-                    // Append text before this marker with current formatting
-                    if (marker.position > currentPos) {
-                        val textBefore = textToProcess.substring(currentPos, marker.position)
-
-                        // Apply current formatting
-                        if (boldActive && italicActive) {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, color=Color.Yellow)) {
-                                append(textBefore)
-                            }
-                        } else if (boldActive) {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.Yellow)) {
-                                append(textBefore)
-                            }
-                        } else if (italicActive) {
-                            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                                append(textBefore)
-                            }
-                        } else {
-                            append(textBefore)
-                        }
-                    }
-
-                    // Update the current position based on marker type
-                    if (marker.type == "bold") {
-                        currentPos = marker.position + 2 // Skip past "**"
-                    } else {
-                        currentPos = marker.position + 1 // Skip past "*"
-                    }
-
-                    // Process the marker - update formatting state
-                    if (marker.type == "bold") {
-                        if (marker.isStart) {
-                            boldActive = true
-                            formattingStack.add("bold")
-                        } else {
-                            boldActive = false
-                            // Remove the last "bold" from the stack
-                            val lastBoldIndex = formattingStack.lastIndexOf("bold")
-                            if (lastBoldIndex != -1) {
-                                formattingStack.removeAt(lastBoldIndex)
-                            }
-                        }
-                    } else if (marker.type == "italic") {
-                        if (marker.isStart) {
-                            italicActive = true
-                            formattingStack.add("italic")
-                        } else {
-                            italicActive = false
-                            // Remove the last "italic" from the stack
-                            val lastItalicIndex = formattingStack.lastIndexOf("italic")
-                            if (lastItalicIndex != -1) {
-                                formattingStack.removeAt(lastItalicIndex)
-                            }
-                        }
-                    }
-                }
-
-                // Append any remaining text after the last marker
-                if (currentPos < textToProcess.length) {
-                    val remainingText = textToProcess.substring(currentPos)
-
-                    // Apply current formatting to remaining text
-                    if (boldActive && italicActive) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
-                            append(remainingText)
-                        }
-                    } else if (boldActive) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append(remainingText)
-                        }
-                    } else if (italicActive) {
-                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                            append(remainingText)
-                        }
-                    } else {
-                        append(remainingText)
-                    }
-                }
+            // Append any remaining text after the last marker in the current segment
+            if (currentPosInSegment < segmentWithBulletsHandled.length) {
+                val remainingTextPart = segmentWithBulletsHandled.substring(currentPosInSegment)
+                var finalStyleForPart = styleForCurrentSegment // Start with TTS style
+                if (isBoldActive) finalStyleForPart = finalStyleForPart.merge(SpanStyle(fontWeight = FontWeight.Bold))
+                if (isItalicActive) finalStyleForPart = finalStyleForPart.merge(SpanStyle(fontStyle = FontStyle.Italic))
+                appendWithVerseStyling(remainingTextPart, finalStyleForPart) // Handles verse numbers
             }
         }
     }

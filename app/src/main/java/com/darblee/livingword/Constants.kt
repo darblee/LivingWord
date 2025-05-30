@@ -16,7 +16,6 @@ internal object Global {
     const val BUTTON_HEIGHT = 30
     val SMALL_ACTION_BUTTON_MODIFIER = Modifier.height(40.dp).width(80.dp)
     val SMALL_ACTION_BUTTON_PADDING = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-    const val VERSE_RESULT_KEY = "selectedVerseResult" // Key to transfer saveStateHandle info from GetEndVerseNumberScreen to LearnScreen
+    const val VERSE_RESULT_KEY = "selectedVerseResult" // Key to transfer saveStateHandle info from GetEndVerseNumberScreen to NewVerseScreen
     const val TOPIC_SELECTION_RESULT_KEY = "selected_topics_result"   // Key to transfer saveStateHandle info from TopicSelectionScreen to LearnScreen
 }
-

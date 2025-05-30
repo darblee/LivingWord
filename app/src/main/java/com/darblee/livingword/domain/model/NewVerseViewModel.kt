@@ -3,7 +3,7 @@ package com.darblee.livingword.domain.model
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.darblee.livingword.BibleVerseT
+import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.ESVBibleLookupService
@@ -19,18 +19,18 @@ import kotlinx.coroutines.launch
  * ViewModel for the Learn Screen, responsible for managing state and fetching data for a
  * single verse display.
  */
-class LearnViewModel() : ViewModel() {
+class NewVerseViewModel() : ViewModel() {
 
     /**
      * Represents the UI state for the LearnScreen.
      */
-    data class LearnScreenState(
+    data class NewVerseScreenState(
         // State related to topic selection for the *current* item
         val selectedTopics: List<String> = emptyList(),
         val isTopicContentLoading: Boolean = false, // Loading state for topic-based content
 
         // State for the currently displayed single verse
-        val selectedVerse: BibleVerseT? = null,
+        val selectedVerse: BibleVerseRef? = null,
         val scriptureText: String = "",
         val aiResponseText: String = "",
         val isScriptureLoading: Boolean = false,
@@ -43,8 +43,8 @@ class LearnViewModel() : ViewModel() {
         val isLoading: Boolean = false
     )
 
-    private val _state = MutableStateFlow(LearnScreenState())
-    val state: StateFlow<LearnScreenState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(NewVerseScreenState())
+    val state: StateFlow<NewVerseScreenState> = _state.asStateFlow()
 
     private var fetchDataJob: Job? = null
 
@@ -116,7 +116,7 @@ class LearnViewModel() : ViewModel() {
         }
     }
 
-    fun setSelectedVerseAndFetchData(verse: BibleVerseT?) {
+    fun setSelectedVerseAndFetchData(verse: BibleVerseRef?) {
         if (verse == null) {
             clearVerseData()
             return
@@ -203,7 +203,7 @@ class LearnViewModel() : ViewModel() {
         }
     }
 
-    private fun fetchKeyTakeAwayOnly(verse: BibleVerseT) {
+    private fun fetchKeyTakeAwayOnly(verse: BibleVerseRef) {
         if (!geminiService.isInitialized()) {
             Log.w("LearnViewModel", "Skipping take-away retry as GeminiAIService is not initialized.")
             _state.update {

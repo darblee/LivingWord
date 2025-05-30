@@ -25,6 +25,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.darblee.livingword.Screen
+import com.darblee.livingword.data.BibleData.removePassageRef
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.verseReference
 
@@ -47,7 +48,7 @@ fun VerseCard(verseItem: BibleVerse, navController: NavController) {
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = Color.Cyan)) {
                         append(verseReference(verseItem))
                     }
-                    append(" " + verseItem.scripture)
+                    append(" " + (verseItem.scripture).removePassageRef())
                 },
                 modifier = Modifier
                     .fillMaxWidth() // Use fillMaxWidth

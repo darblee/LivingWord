@@ -1,14 +1,19 @@
 package com.darblee.livingword.ui.screens
 
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,13 +41,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
@@ -67,37 +69,75 @@ fun GetStartVerseNumberScreen(
             // Top Row for "Get Verse: ..." text, left-aligned
             Row(
                 modifier = Modifier.fillMaxWidth(), // Take full width
-                horizontalArrangement = Arrangement.Start // Align content to the left
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Box(
+                    modifier = Modifier
+                        .clickable(
+                            onClick = {
+                                Log.i("GetStartVerseNUmberScreen", "Navigate Book")
+                                navController.navigate(route = Screen.GetBookScreen)
+                            },
+                            role = Role.Button, // For accessibility
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        )
+                    // .padding(horizontal = 4.dp) // Deliberately no padding here
+                ) {
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
+                            append("$book ")
+                        }
+                    }
+                    Text(text = annotatedString)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clickable(
+                            onClick = {
+                                Log.i("GetVerseNUmberScreen", "Navigate chapter")
+                                navController.navigate(route = Screen.GetChapterScreen(book = book))
+                            },
+                            role = Role.Button, // For accessibility
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        )
+                    // .padding(horizontal = 4.dp) // Deliberately no padding here
+                ) {
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
+                            append("$chapter ")
+                        }
+                    }
+                    Text(text = annotatedString)
+                }
+
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(
-                            style = SpanStyle(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
-                        ) {
-                            append("Verse:  ")
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                fontWeight = FontWeight.Thin,
-                                fontSize = 15.sp
-                            )
-                        ) {
-                            append("$book $chapter")
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                fontWeight = FontWeight.Thin,
-                                fontSize = 15.sp,
-                                color = LocalContentColor.current.copy(alpha = 0.5f)  // Set alpha for 50% transparency
-                            )
-                        ) {
+                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle().copy(
+                            color = LocalContentColor.current.copy(alpha = 0.5f)  // Set alpha for 50% transparency
+                        )) {
                             append(" [Verse - Verse]")
                         }
                     }
                 )
+                // Spacer to push the button to the right
+                Spacer(modifier = Modifier.weight(1f))
+
+                Button(
+                    onClick = {
+                        navController.popBackStack(
+                            route = Screen.NewVerseScreen, // Destination to pop up to
+                            inclusive = false
+                        )
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                )
+                {
+                    Text("Cancel") // Shortened text
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp)) // Space before divider
@@ -121,12 +161,9 @@ fun GetStartVerseNumberScreen(
                         BibleData.getVersesForBookChapter(book, chapter)
                     }
 
-                // Screen Title
-                Text(
-                    text = "Select Starting Verse",
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Text("Select Starting Verse", style = MaterialTheme.typography.headlineMedium)
+
+                Spacer(modifier = Modifier.height(8.dp)) // Add space between sections
 
                 // Grid for displaying verse buttons
                 if (verses.isNotEmpty()) {
@@ -169,25 +206,6 @@ fun GetStartVerseNumberScreen(
                     Button(
                         onClick = {
                             navController.popBackStack(
-                                route = Screen.LearnScreen, // Destination to pop up to
-                                inclusive = false
-                            )
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
-                        contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null, // Description is implied by text now
-                            modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
-                        )
-                        Text("Learn") // Shortened text
-                    }
-
-                    Button(
-                        onClick = {
-                            navController.popBackStack(
                                 route = Screen.GetBookScreen, // Destination to pop up to
                                 inclusive = false
                             )
@@ -201,7 +219,7 @@ fun GetStartVerseNumberScreen(
                             contentDescription = null, // Description is implied by text now
                             modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
                         )
-                        Text("Book") // Shortened text
+                        Text("Select Book") // Shortened text
                     }
 
                     Button(
@@ -220,7 +238,7 @@ fun GetStartVerseNumberScreen(
                             contentDescription = null, // Description is implied by text now
                             modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
                         )
-                        Text("Chapter") // Shortened text
+                        Text("Select Chapter") // Shortened text
                     }
                 }
             }
@@ -241,13 +259,9 @@ fun VerseButton(verse: Int, onClick: (Int) -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), // Make button transparent// Adjust padding
     ) {
-        ProvideTextStyle(
-            value = TextStyle(
-                fontSize = 21.sp,
-                color = Color.White
-            )
-        ) {
-            Text(text = verse.toString())
+        ProvideTextStyle(value = MaterialTheme.typography.labelLarge)
+        {
+            Text(text = verse.toString(), color = MaterialTheme.colorScheme.primary)
         }
     }
 }

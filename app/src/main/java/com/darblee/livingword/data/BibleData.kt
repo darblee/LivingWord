@@ -193,4 +193,9 @@ object BibleData {
         // Generate the list starting from startVerse up to the total count
         return (startVerse..count).toList()
     }
+
+    // Helper function to clean scripture text for TTS by removing bracketed verse numbers
+    fun String.removePassageRef(): String {
+        return this.replace(Regex("""\[\d+]\s?"""), "") // Removes "[N]" and an optional space after it
+    }
 }

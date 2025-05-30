@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.darblee.livingword.BibleVerseT
+import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.data.AppDatabase
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRepository
@@ -30,11 +30,11 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     }
 
     fun saveNewVerse(
-        verse: BibleVerseT,
+        verse: BibleVerseRef,
         scripture: String,
         aiResponse: String,
         topics: List<String>,
-        learnViewModel: LearnViewModel? = null
+        newVerseViewModel: NewVerseViewModel? = null
     ) {
         viewModelScope.launch {
             try {
@@ -47,7 +47,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                     aiResponse = aiResponse,
                     topics = topics
                 )
-                learnViewModel?.contentSavedSuccessfully(newVerseID)
+                newVerseViewModel?.contentSavedSuccessfully(newVerseID)
             } catch (e: Exception) {
                 // Log the exception
                 Log.e("BibleVerseViewModel", "Error saving verse with topics: ${e.message}", e)
@@ -56,12 +56,12 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                 // You might need to add a specific function in LearnViewModel for this.
                 // For example: learnViewModel?.handleSaveError(e.message ?: "Unknown error during save")
                 // For now, let's assume LearnViewModel's generalError can be used or you'll add a specific handler.
-                learnViewModel?.updateGeneralError("Failed to save content: ${e.localizedMessage}")
+                newVerseViewModel?.updateGeneralError("Failed to save content: ${e.localizedMessage}")
             }
         }
     }
 
-    private fun LearnViewModel?.updateGeneralError(string: String) {
+    private fun NewVerseViewModel?.updateGeneralError(string: String) {
 
     }
 
@@ -81,16 +81,12 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
-    fun deleteVerse(bibleVerse: BibleVerse) {
-        viewModelScope.launch {
-            repository.deleteVerse(bibleVerse)
-        }
+    suspend fun deleteVerse(bibleVerse: BibleVerse) {
+        repository.deleteVerse(bibleVerse)
     }
 
     suspend fun updateVerse(bibleVerse: BibleVerse) {
-        viewModelScope.launch {
-            repository.updateVerse(bibleVerse)
-        }
+        repository.updateVerse(bibleVerse)
     }
 
     /**

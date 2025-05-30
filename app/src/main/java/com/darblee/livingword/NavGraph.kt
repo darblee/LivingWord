@@ -25,7 +25,7 @@ import com.darblee.livingword.ui.screens.GetChapterScreen
 import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
 import com.darblee.livingword.ui.screens.GetStartVerseNumberScreen
 import com.darblee.livingword.ui.screens.HomeScreen
-import com.darblee.livingword.ui.screens.LearnScreen
+import com.darblee.livingword.ui.screens.AddNewVerseScreen
 import com.darblee.livingword.ui.screens.MemorizeScreen
 import com.darblee.livingword.ui.screens.ShowVerseByTopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
@@ -38,7 +38,7 @@ import kotlinx.serialization.Serializable
  * Marked as Serializable to be passed via SavedStateHandle.
  */
 @Serializable
-data class BibleVerseT(
+data class BibleVerseRef(
     val book: String,
     val chapter: Int,
     val startVerse: Int,
@@ -52,10 +52,10 @@ sealed class Screen {
     data object Home : Screen() // Use data object for screens without arguments
 
     @Serializable
-    data object MeditateScreen : Screen()
+    data object AllVersesScreen : Screen()
 
     @Serializable
-    data object LearnScreen : Screen()
+    data object NewVerseScreen : Screen()
 
     @Serializable
     data object GetBookScreen : Screen()
@@ -124,7 +124,7 @@ fun SetUpNavGraph(
             HomeScreen(navController = navController)
         }
         // Define the Topic Screen destination
-        composable<Screen.MeditateScreen> {
+        composable<Screen.AllVersesScreen> {
             AllVersesScreen(navController = navController, bibleViewModel = bibleViewModel)
         }
         // Define the Prayer Screen destination.
@@ -132,8 +132,8 @@ fun SetUpNavGraph(
             ShowVerseByTopicScreen(navController = navController, bibleViewModel = bibleViewModel)
         }
 
-        composable<Screen.LearnScreen> {
-            LearnScreen(navController = navController, bibleViewModel = bibleViewModel)
+        composable<Screen.NewVerseScreen> {
+            AddNewVerseScreen(navController = navController, bibleViewModel = bibleViewModel)
         }
 
         composable<Screen.GetBookScreen> {

@@ -3,30 +3,40 @@ package com.darblee.livingword.ui.screens
 
 import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
@@ -62,22 +72,34 @@ fun GetBookScreen(navController: NavHostController) {
             // Top Row for "Get Verse: ..." text, left-aligned
             Row(
                 modifier = Modifier.fillMaxWidth(), // Take full width
-                horizontalArrangement = Arrangement.Start // Align content to the left
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp)) {
-                            append("Verse:  ")
-                        }
-                        withStyle(style = SpanStyle(
-                            fontWeight = FontWeight.Thin,
-                            fontSize = 15.sp,
+                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle().copy(
                             color = LocalContentColor.current.copy(alpha = 0.5f)  // Set alpha for 50% transparency
                         )) {
                             append("[Book] [Chapter] [Verse - Verse]") // Non-bold part
                         }
                     }
                 )
+
+                // Spacer to push the button to the right
+                Spacer(modifier = Modifier.weight(1f))
+
+                Button(
+                    onClick = {
+                        navController.popBackStack(
+                            route = Screen.NewVerseScreen, // Destination to pop up to
+                            inclusive = false
+                        )
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                )
+                {
+                    Text("Cancel") // Shortened text
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp)) // Space before divider
@@ -96,14 +118,7 @@ fun GetBookScreen(navController: NavHostController) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp) // Adjusted spacing
             ) {
-                Text(
-                    "Old Testament",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp
-                    )
-                )
+                Text("Old Testament", style = MaterialTheme.typography.headlineMedium)
 
                 val verticalSpacing = 15 // Use a fixed vertical spacing
 
@@ -130,14 +145,7 @@ fun GetBookScreen(navController: NavHostController) {
 
                 Spacer(modifier = Modifier.height(4.dp)) // Add space between sections
 
-                Text(
-                    "New Testament",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp
-                    )
-                )
+                Text("New Testament", style = MaterialTheme.typography.headlineMedium)
 
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
@@ -160,24 +168,6 @@ fun GetBookScreen(navController: NavHostController) {
                         }
                     }
                 )
-
-                Button(onClick = {
-                    navController.popBackStack(
-                        route = Screen.LearnScreen, // Destination to pop up to
-                        inclusive = false
-                    )
-                },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
-                    contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null, // Description is implied by text now
-                        modifier = Modifier.size(ButtonDefaults.IconSize) // Use default icon size
-                    )
-                    Text("Learn")
-                }
             }
         }
     }
@@ -203,13 +193,8 @@ private fun bookButton(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), // Make button transparent
     ) {
-        ProvideTextStyle(
-            value = TextStyle(
-                fontSize = 21.sp,
-                color = buttonColor // Set text color based on logic
-            )
-        ) {
-            // Display the abbreviation from BookInfo
+        ProvideTextStyle(value = MaterialTheme.typography.labelLarge.copy(color = buttonColor))
+        {
             Text(bookInfo.abbreviation)
         }
     }

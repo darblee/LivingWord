@@ -60,7 +60,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.darblee.livingword.BibleVerseT
+import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.domain.model.MemorizeVerseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -348,8 +348,8 @@ fun MemorizeScreen(
                     icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
                 )
                 NavigationBarItem(
-                    selected = currentScreen == Screen.MeditateScreen,
-                    onClick = { navController.navigate(Screen.MeditateScreen) },
+                    selected = currentScreen == Screen.AllVersesScreen,
+                    onClick = { navController.navigate(Screen.AllVersesScreen) },
                     label = { Text("Meditate") },
                     icon = {
                         Icon(
@@ -522,7 +522,7 @@ fun MemorizeScreen(
                                 if (textToEvaluate.length >= 5) {
                                     Log.i("Memorize Screen", "Do the evaluation with text: $textToEvaluate")
                                     if (verse != null) {
-                                        val verseInfo = BibleVerseT(
+                                        val verseInfo = BibleVerseRef(
                                             book = verse!!.book,
                                             chapter = verse!!.chapter,
                                             startVerse = verse!!.startVerse,

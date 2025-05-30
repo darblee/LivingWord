@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.Global
+import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.TopicSelectionViewModel
 import kotlinx.serialization.builtins.ListSerializer
@@ -119,7 +120,10 @@ fun TopicSelectionScreen(
                     prevScreenSavedStateHandle[Global.TOPIC_SELECTION_RESULT_KEY] = resultJson
 
                     // 4. Pop back stack to previous screen
-                    navController.popBackStack()
+                    navController.popBackStack(
+                        route = Screen.NewVerseScreen, // Destination to pop up to
+                        inclusive = false
+                    )
                 } else {
                     Log.e("TopicSelectionScreen", "No previous screen found on back stack.")
                     // Handle error or navigate to a default screen
