@@ -18,8 +18,9 @@ import kotlinx.serialization.json.Json
 data class ScoreData(
     val DirectQuoteScore: Int,
     val ContextScore: Int,
-    val Explanation: String
-)
+    val DirectQuoteExplanation: String,
+    val ContextExplanation: String,
+    )
 
 
 class MemorizeVerseViewModel() : ViewModel(){
@@ -36,7 +37,8 @@ class MemorizeVerseViewModel() : ViewModel(){
         val directQuoteScore: Int = -1,
         val contextScore: Int = -1,
         val verse: BibleVerseRef? = null,
-        val aiExplanationText : String? = null,
+        val aiDirectQuoteExplanationText : String? = null,
+        val aiContextExplanationText : String? = null,
         val aiResponseLoading: Boolean = false,
         val aiResponseError: String? = null,
         val generalError: String? = null, // For other errors like Gemini init
@@ -62,9 +64,9 @@ class MemorizeVerseViewModel() : ViewModel(){
         }
     }
 
-    fun fetchMemorizedScore(verse: BibleVerseRef, memorizedText: String, contextToEvaluate: String) {
+    fun fetchMemorizedScore(verse: BibleVerseRef, directQuoteToEvaluate: String, contextToEvaluate: String) {
         if (!geminiService.isInitialized()) { // Access directly
-            Log.w("MemorizedVerseViewModel", "Skipping memorized score retry as GeminiAIService is not initialized.")
+            Log.w("MemorizedVerseViewModel", "Skipping score retry as GeminiAIService is not initialized.")
             _state.update {
                 it.copy(
                     aiResponseLoading = false,
@@ -74,7 +76,7 @@ class MemorizeVerseViewModel() : ViewModel(){
             return
         }
 
-        _state.update { it.copy(aiResponseLoading = true, aiResponseError = null, aiExplanationText = "Getting score ...") }
+        _state.update { it.copy(aiResponseLoading = true, aiResponseError = null, aiDirectQuoteExplanationText = "Getting score ...") }
 
         val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
 
@@ -85,12 +87,13 @@ class MemorizeVerseViewModel() : ViewModel(){
                     aiResponseLoading = true,
                     directQuoteScore = -1,
                     contextScore = -1,
-                    aiExplanationText = null,
+                    aiDirectQuoteExplanationText = null,
+                    aiContextExplanationText = null,
                     aiResponseError = null
                 )
             }
             // Call the GeminiAIService
-            when (val memorizedScoreResult = geminiService.getMemorizedScore(verseRef, memorizedText)) {
+            when (val memorizedScoreResult = geminiService.getAIScore(verseRef, directQuoteToEvaluate, contextToEvaluate)) {
                 is AiServiceResult.Success -> {
 
                     var responseJSONText = (memorizedScoreResult.data).removePrefix("```json").removeSuffix("```").trim()
@@ -107,7 +110,8 @@ class MemorizeVerseViewModel() : ViewModel(){
                                 aiResponseLoading = false,
                                 directQuoteScore = scoreData.DirectQuoteScore,
                                 contextScore = scoreData.ContextScore,
-                                aiExplanationText = scoreData.Explanation,
+                                aiDirectQuoteExplanationText = scoreData.DirectQuoteExplanation,
+                                aiContextExplanationText = scoreData.ContextExplanation,
                                 aiResponseError = null
                             )
                         }
@@ -121,7 +125,8 @@ class MemorizeVerseViewModel() : ViewModel(){
                                 aiResponseLoading = false,
                                 directQuoteScore = -1,
                                 contextScore = -1,
-                                aiExplanationText = null,
+                                aiDirectQuoteExplanationText = null,
+                                aiContextExplanationText = null,
                                 aiResponseError = "Unable to parse AI response"
                             )
                         }
@@ -133,7 +138,8 @@ class MemorizeVerseViewModel() : ViewModel(){
                             aiResponseLoading = false,
                             directQuoteScore = -1,
                             contextScore = -1,
-                            aiExplanationText = "", // Clear score on error
+                            aiDirectQuoteExplanationText = "", // Clear score on error
+                            aiContextExplanationText = "",
                             aiResponseError = memorizedScoreResult.message
                         )
                     }

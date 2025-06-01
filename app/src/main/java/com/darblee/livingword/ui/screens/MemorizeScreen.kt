@@ -409,7 +409,7 @@ fun MemorizeScreen(
     }
 
     // LaunchedEffect to observe changes in score and AI response text to show the dialog
-    LaunchedEffect(state.contextScore, state.aiExplanationText, state.aiResponseLoading) {
+    LaunchedEffect(state.contextScore, state.aiDirectQuoteExplanationText, state.aiResponseLoading) {
         if (state.aiResponseLoading || (state.contextScore >= 0)) {
             showScoreDialog = true
         }
@@ -1219,7 +1219,7 @@ fun MemorizeScreen(
                     },
                     title = {
                         Text(
-                            text = if (state.aiResponseLoading) "Calculating Score..." else "Contextual Score: ${state.contextScore}\nDirect Quote Score: ${state.directQuoteScore}",
+                            text = if (state.aiResponseLoading) "Calculating Score..." else "Score Assessment",
                             style = MaterialTheme.typography.titleLarge
                         )
                     },
@@ -1231,39 +1231,23 @@ fun MemorizeScreen(
                             if (state.aiResponseLoading) {
                                 CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
                             } else {
-                                // Explanation Label
-                                Text(
-                                    text = "Explanation",
-                                    style = MaterialTheme.typography.labelMedium, // Or your preferred style
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 4.dp)
+                                OutlinedTextField(
+                                    label = {  Text("Direct Quote Score : ${state.directQuoteScore}") },
+                                    value = state.aiDirectQuoteExplanationText.toString(),
+                                    minLines = 10,
+                                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                                    onValueChange = { /* read-only */ }
                                 )
-                                // Box with border for the TextField
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(min = 100.dp, max = 400.dp)
-                                        .border(
-                                            1.dp,
-                                            MaterialTheme.colorScheme.outline, // Use theme color for border
-                                            RoundedCornerShape(4.dp)
-                                        )
-                                ) {
-                                    BasicTextField(
-                                        value = state.aiExplanationText.toString(),
-                                        onValueChange = {}, // Read-only
-                                        readOnly = true,
-                                        modifier = Modifier
-                                            .fillMaxSize() // Fill the box
-                                            .padding(8.dp) // Inner padding for text
-                                            .verticalScroll(rememberScrollState()),
-                                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                            color = LocalContentColor.current // Ensure text color is appropriate
-                                        ),
-                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary) // Not visible for readOnly
-                                    )
-                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                OutlinedTextField(
+                                    label = {  Text("Context  Score : ${state.contextScore}") },
+                                    value = state.aiContextExplanationText.toString(),
+                                    minLines = 10,
+                                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                                    onValueChange = { /* read-only */ }
+                                )
                             }
                         }
                     },

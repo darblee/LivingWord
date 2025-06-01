@@ -105,27 +105,36 @@ object GeminiAIService { // Changed from "class GeminiAIService()" to "object Ge
      * Fetches a memorization score for the given Bible verse reference from the Gemini API.
      *
      * @param verseRef The Bible verse reference (e.g., "John 3:16-17").
-     * @param memorizedText for the memorized text.
+     * @param directQuoteToEvaluate for the Direct Quote text.
      * @return [AiServiceResult.Success] with the take-away text, or [AiServiceResult.Error] if an issue occurs.
      */
-    suspend fun getMemorizedScore(verseRef: String, memorizedText: String): AiServiceResult<String> {
+    suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, contextToEvaluate: String): AiServiceResult<String> {
         if (generativeModel == null) {
             return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized.")
         }
 
         return try {
             val prompt = """
-            Provide % scores of memorized text for Bible verse $verseRef. 
-            "Direct Quote Score" is based on direct quote accuracy.
-            "Context Score" is based on contextual accuracy.
-            Respond in the following format:
+            Provide % scores of provided text for Bible verse $verseRef. 
+            "Direct Quote Score" is based on direct quote accuracy on the following provided direct quote text:
+
+            $directQuoteToEvaluate
+
+            "Direct Quote Explanation" is explanation on Direct Quote Score.
+            
+            "Context Score" is based on contextual accuracy on the provided context text:
+            
+            $contextToEvaluate
+            
+            "Context Explanation" is the explanation on Context Score.
+            
+            Respond in the following JSON format:
             {
              "DirectQuoteScore" : integer between 0 to 100,
              "ContextScore" : integer between 0 to 100,
-             "Explanation": "This is sample text"
+             "DirectQuoteExplanation": "This is sample text"
+             "ContextExplanation": "This is sample text"
             }
-            Here is the memorized text:
-            $memorizedText
             """
             Log.d("GeminiAIService", "Sending memorized score prompt to Gemini: \"$prompt\"")
 
