@@ -525,6 +525,9 @@ fun MemorizeScreen(
 
     var currentScreen by remember { mutableStateOf(Screen.MemorizeScreen) }
 
+    // State to control the visibility of the copy confirmation dialog
+    var showCopyConfirmDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -837,10 +840,11 @@ fun MemorizeScreen(
                             horizontalAlignment = Alignment.CenterHorizontally, // Centers buttons if they don't fill width
                             // verticalArrangement arranges the buttons within this column.
                             // spacedBy adds space between the buttons vertically.
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
                             Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
 
+                            // Annotate via voice
                             FloatingActionButton(
                                 onClick = {
                                     if (!hasPermission) {
@@ -860,7 +864,7 @@ fun MemorizeScreen(
                                         // isListening will be set to true in onReadyForSpeech
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().height(35.dp),
+                                modifier = Modifier.fillMaxWidth().height(30.dp),
                                 containerColor = if (isListening)
                                     MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
                                 else
@@ -876,8 +880,46 @@ fun MemorizeScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+                            Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row
 
+                            // Copy from direct quote
+                            FloatingActionButton(
+                                onClick = {
+                                    if (directQuoteTextFieldValue.text.isNotEmpty()) {
+                                        if (contextTextFieldValue.text.isNotEmpty()) {
+                                            showCopyConfirmDialog = true // Show dialog if context is not empty
+                                        } else {
+                                            // Context is empty, so copy directly
+                                            contextTextFieldValue = directQuoteTextFieldValue.copy(
+                                                selection = TextRange(directQuoteTextFieldValue.text.length)
+                                            )
+                                            contextPartialText = "" // Clear partial text in context field
+                                        }
+                                    } else {
+                                        Log.i("Click", "Direct quote is empty, nothing to copy")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(30.dp),
+                                containerColor = if (directQuoteTextFieldValue.text.isNotEmpty()) { // Use the combined text
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                }
+
+                            ) {
+                                Text(
+                                    "Copy",
+                                    color = if (directQuoteTextFieldValue.text.isNotEmpty()) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row
+
+                            // Clear the box
                             FloatingActionButton(
                                 onClick = {
                                     val textToCheck = contextTextFieldValue.text + contextPartialText // Consider combined text
@@ -890,7 +932,7 @@ fun MemorizeScreen(
                                         }
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().height(35.dp),
+                                modifier = Modifier.fillMaxWidth().height(30.dp),
                                 containerColor = if ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) { // Use the combined text
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -899,7 +941,7 @@ fun MemorizeScreen(
                             ) {
                                 Text(
                                     "Clear",
-                                    color = if ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) {
+                                    color = if (contextTextFieldValue.text.isNotEmpty()) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -1012,6 +1054,34 @@ fun MemorizeScreen(
                             dismissButton = {
                                 TextButton(
                                     onClick = { processDeletingContextText = false }
+                                ) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
+
+                    if (showCopyConfirmDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showCopyConfirmDialog = false },
+                            title = { Text("Confirm Override") },
+                            text = { Text("The context box is not empty. Do you want to override its content?") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        contextTextFieldValue = directQuoteTextFieldValue.copy(
+                                            selection = TextRange(directQuoteTextFieldValue.text.length)
+                                        )
+                                        contextPartialText = "" // Clear any partial text in context field
+                                        showCopyConfirmDialog = false
+                                    }
+                                ) {
+                                    Text("Override")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { showCopyConfirmDialog = false }
                                 ) {
                                     Text("Cancel")
                                 }
