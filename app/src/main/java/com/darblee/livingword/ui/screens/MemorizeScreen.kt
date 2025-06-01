@@ -57,6 +57,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -566,8 +567,6 @@ fun MemorizeScreen(
             }
         }
     ) { paddingValues ->
-        val scriptureScrollState = rememberScrollState()
-
         Column(
             modifier = Modifier
                 .padding(paddingValues)
@@ -1059,16 +1058,16 @@ fun MemorizeScreen(
                                     background = MaterialTheme.colorScheme.primaryContainer,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 ))
-                            Text(
-                                text = scriptureAnnotatedText,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(8.dp),
-                                minLines = 5,
-                                maxLines = 5
-                            )
+                                SelectionContainer {
+                                    Text(
+                                        text = scriptureAnnotatedText,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(8.dp),
+                                    )
+                                }
                         } else {
                             Box(
                                 modifier = Modifier
@@ -1330,7 +1329,7 @@ private fun processPunctuation(text: String): String {
         if (beforePeriod.endsWith(" ")) {
             processedText = beforePeriod.trimEnd() + "."
         }
-        // If it's just "wordperiod", it might not be intended as a punctuation. This logic is tricky.
+        // If it's just word "period", it might not be intended as a punctuation. This logic is tricky.
     }
 
     // Handle "question mark"
