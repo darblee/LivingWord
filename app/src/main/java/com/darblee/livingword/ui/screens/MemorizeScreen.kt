@@ -58,6 +58,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.domain.model.MemorizeVerseViewModel
@@ -1043,17 +1044,28 @@ fun MemorizeScreen(
                     )
                     {
                         if (isScriptureVisible) {
-                            BasicTextField(
-                                value = verse?.scripture ?: "Loading...",
-                                onValueChange = { /* Read-only */ },
+                            val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+                            val scriptureTextContent = verse?.scripture ?: "Loading scripture...."
+
+
+                            val scriptureAnnotatedText = buildAnnotatedStringForTTS(
+                                fullText = scriptureTextContent,
+                                isTargeted = false,
+                                highlightSentenceIndex = -1,
+                                isSpeaking = false,
+                                isPaused = false,
+                                baseStyle = SpanStyle(color = baseTextColor),
+                                highlightStyle = SpanStyle(
+                                    background = MaterialTheme.colorScheme.primaryContainer,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                ))
+                            Text(
+                                text = scriptureAnnotatedText,
+                                style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .verticalScroll(scriptureScrollState)
-                                    .padding(8.dp) // Add some padding inside
-                                    .clickable { /* Do nothing */ },
-                                readOnly = true,
-                                textStyle = LocalTextStyle.current.copy(color = LocalContentColor.current),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(8.dp),
                                 minLines = 5,
                                 maxLines = 5
                             )
