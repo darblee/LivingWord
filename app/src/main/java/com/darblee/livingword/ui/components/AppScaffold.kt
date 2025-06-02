@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -45,10 +46,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import com.darblee.livingword.BuildConfig
+import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen // Your sealed class for routes
 import com.darblee.livingword.click
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -378,6 +383,8 @@ private fun ColorThemeSetting(
         // first item (left side) and second item (right side)
         Spacer(modifier = Modifier.weight(1f))
 
+        val applicationContext = LocalContext.current.applicationContext
+
         Column(
             modifier = Modifier
                 .wrapContentWidth()
@@ -401,6 +408,13 @@ private fun ColorThemeSetting(
 
                                 // Calls the lambda function that does the actual Color theme change to the app
                                 onColorThemeUpdated(newSelectedTheme)
+
+                                // Save the Color Theme setting
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    PreferenceStore(applicationContext).saveColorModeToSetting(
+                                        newSelectedTheme
+                                    )
+                                }
                             },
                         )
                         .padding(horizontal = 8.dp),

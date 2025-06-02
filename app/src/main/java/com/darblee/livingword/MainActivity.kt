@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,9 +25,6 @@ import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.theme.SetColorTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -61,6 +59,10 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(ColorThemeOption.System)
             }
 
+            LaunchedEffect(Unit) {
+                colorTheme = PreferenceStore(applicationContext).readColorModeFromSetting()
+            }
+
             SetColorTheme(colorTheme) {
                 var currentSnackBarEvent by remember { mutableStateOf<SnackBarEvent?>(null) }
 
@@ -76,13 +78,6 @@ class MainActivity : ComponentActivity() {
                     currentTheme = colorTheme,
                     onColorThemeUpdated = { newColorThemeSetting ->
                         colorTheme = newColorThemeSetting
-
-                        // Save the Color Theme setting
-                        CoroutineScope(Dispatchers.IO).launch {
-/*                            PreferenceStore(applicationContext).saveColorModeToSetting(
-                                newColorThemeSetting
-                            )*/
-                        }
                     },  // onColorThemeUpdated
                 )  // MainViewImplementation
 

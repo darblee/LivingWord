@@ -16,6 +16,8 @@ googleAiGenerativeai = "0.9.0" # Version for Google AI SDK (Check for latest)
 secretsGradlePlugin = "2.0.1"
 room = "2.7.1"
 ksp = "2.1.10-1.0.31"
+datastorePreferencesRxjava2 = "1.1.7"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,6 +51,10 @@ google-ai-generativeai = { group = "com.google.ai.client.generativeai", name = "
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+
+# Preference Datastore
+androidx-datastore-preferences-rxjava2 = { module = "androidx.datastore:datastore-preferences-rxjava2", version.ref = "datastorePreferencesRxjava2" }
+androidx-datastore-preferences-rxjava3 = { module = "androidx.datastore:datastore-preferences-rxjava3", version.ref = "datastorePreferencesRxjava2" }
 
 # Handle secrets - manage secrets like API keys during the build configuration without exposing them to version control
 secrets-gradle-plugin = { module = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }

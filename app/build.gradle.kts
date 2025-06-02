@@ -110,6 +110,10 @@ dependencies {
     implementation(libs.androidx.material.icons.core) // Use the latest version
 
 
+    // Preference datastore
+    implementation (libs.androidx.datastore.preferences.rxjava2)
+    implementation (libs.androidx.datastore.preferences.rxjava3)
+
     // Room database
     // Room uses KSP (Kotlin Symbol Processing) to generate code that interacts with the database
     // When you define your database schema using Room annotations (like @Entity, @Dao, @Database), the Room processor
