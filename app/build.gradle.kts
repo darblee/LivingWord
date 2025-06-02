@@ -1,3 +1,6 @@
+import java.text.SimpleDateFormat
+import java.time.Instant
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -28,6 +31,29 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Generate the Build Time.
+            // In the app, you can retrieve build time info.
+            // e.g.     Log.i(TAG, "Build time is " + BuildConfig.BUILD_TIME)
+            //          Log.i(TAG, "Build time is " + getString(R.string.build_time))
+            val instant = Instant.now()
+            val sdf = SimpleDateFormat("MM/dd/yyyy, HH:mm:ss")
+            val buildTime = sdf.format(instant.epochSecond * 1000L)
+            buildConfigField("String", "BUILD_TIME", "\"${buildTime}\"")
+            resValue("string", "build_time", "\"${buildTime}\"")
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
+        debug {
+
+            // Generate the Build Time.
+            // In the app, you can retrieve build time info.
+            // e.g.     Log.i(TAG, "Build time is " + BuildConfig.BUILD_TIME)
+            //          Log.i(TAG, "Build time is " + getString(R.string.build_time))
+            val instant = Instant.now()
+            val sdf = SimpleDateFormat("MM/dd/yyyy, HH:mm:ss")
+            val buildTime = sdf.format(instant.epochSecond * 1000L)
+            buildConfigField("String", "BUILD_TIME", "\"${buildTime}\"")
+            resValue("string", "build_time", "\"${buildTime}\"")
         }
     }
     compileOptions {
