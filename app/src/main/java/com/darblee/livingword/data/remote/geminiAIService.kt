@@ -1,10 +1,10 @@
-package com.darblee.livingword.data.remote // You can choose an appropriate package name
+package com.darblee.livingword.data.remote
 
 import android.util.Log
+import com.darblee.livingword.AISettings // Import AISettings
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
 import com.google.ai.client.generativeai.type.generationConfig
-import com.darblee.livingword.BuildConfig
 
 /**
  * Sealed class to represent the result of an AI service call,
@@ -18,56 +18,76 @@ sealed class AiServiceResult<out T> {
 /**
  * Service object for interacting with the Gemini AI API.
  * Implemented as a singleton.
+ * This service needs to be configured using the `configure` method before use.
  */
-object GeminiAIService { // Changed from "class GeminiAIService()" to "object GeminiAIService"
-
-    private val apiKey = BuildConfig.GEMINI_API_KEY // Made private as it's an internal detail
+object GeminiAIService {
 
     private var generativeModel: GenerativeModel? = null
     private var initializationErrorMessage: String? = null
-
-    init {
-        initializeGeminiModel()
-    }
+    private var isConfigured = false
+    private var currentAISettings: AISettings? = null
 
     /**
-     * Initializes the Gemini GenerativeModel.
-     * Sets [initializationErrorMessage] if an error occurs.
+     * Configures and initializes the Gemini GenerativeModel with the provided settings.
+     * This method should be called before using the service, typically on app startup
+     * and whenever the AI settings are changed by the user.
+     *
+     * @param settings The AI settings (model name, API key, temperature).
      */
-    private fun initializeGeminiModel() {
+    fun configure(settings: AISettings) {
+        currentAISettings = settings
+        isConfigured = true // Mark as configured attempt
+        initializationErrorMessage = null // Reset error message
+        generativeModel = null // Reset model
+
+        Log.i("GeminiAIService", "Configuring with Model: ${settings.modelName}, Temp: ${settings.temperature}, API Key Present: ${settings.apiKey.isNotBlank()}")
+
         try {
-            if (apiKey.isNotBlank()) {
+            if (settings.apiKey.isNotBlank()) {
                 generativeModel = GenerativeModel(
-                    modelName = "gemini-1.5-flash", // Or your desired model
-                    apiKey = apiKey,
+                    modelName = settings.modelName,
+                    apiKey = settings.apiKey,
                     generationConfig = generationConfig {
-                        temperature = 0.7f // Adjust creativity as needed
+                        temperature = settings.temperature
+                        // You can add other generationConfig properties here if needed
+                        // topK = 1
+                        // topP = 0.95f
+                        // maxOutputTokens = 8192
                     }
                 )
-                Log.i("GeminiAIService", "GenerativeModel initialized successfully.")
+                Log.i("GeminiAIService", "GenerativeModel initialized successfully with new settings.")
             } else {
-                val errorMsg = "Gemini API Key is missing. Cannot get take-away."
+                val errorMsg = "Gemini API Key is missing. AI Service cannot be initialized."
                 Log.w("GeminiAIService", errorMsg)
                 initializationErrorMessage = errorMsg
+                generativeModel = null // Ensure model is null if API key is missing
             }
         } catch (e: Exception) {
-            val errorMsg = "Failed to initialize AI Model: ${e.message}"
+            val errorMsg = "Failed to initialize AI Model with new settings: ${e.message}"
             Log.e("GeminiAIService", "Error initializing GenerativeModel", e)
             initializationErrorMessage = errorMsg
+            generativeModel = null // Ensure model is null on error
         }
     }
 
     /**
-     * Checks if the GenerativeModel was initialized successfully.
-     * @return True if the model is initialized, false otherwise.
+     * Checks if the GenerativeModel was configured and initialized successfully.
+     * @return True if the model is configured and initialized, false otherwise.
      */
-    fun isInitialized(): Boolean = generativeModel != null
+    fun isInitialized(): Boolean = isConfigured && generativeModel != null && initializationErrorMessage == null
 
     /**
-     * Gets the error message if model initialization failed.
-     * @return The initialization error message, or null if initialization was successful.
+     * Gets the error message if model configuration or initialization failed.
+     * @return The initialization error message, or null if successful.
      */
     fun getInitializationError(): String? = initializationErrorMessage
+
+    /**
+     * Gets the current AI settings used by the service.
+     * Returns null if not configured yet.
+     */
+    fun getCurrentAISettings(): AISettings? = currentAISettings
+
 
     /**
      * Fetches a key take-away for the given Bible verse reference from the Gemini API.
@@ -76,16 +96,18 @@ object GeminiAIService { // Changed from "class GeminiAIService()" to "object Ge
      * @return [AiServiceResult.Success] with the take-away text, or [AiServiceResult.Error] if an issue occurs.
      */
     suspend fun getKeyTakeaway(verseRef: String): AiServiceResult<String> {
+        if (!isConfigured) {
+            return AiServiceResult.Error("GeminiAIService has not been configured.")
+        }
         if (generativeModel == null) {
-            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized.")
+            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
         }
 
         return try {
             val prompt = "Tell me the key take-away for $verseRef"
             Log.d("GeminiAIService", "Sending prompt to Gemini: \"$prompt\"")
 
-            // Call the Gemini API
-            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt) // Safe call due to the check above
+            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt)
             val responseText = response.text
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
@@ -109,25 +131,28 @@ object GeminiAIService { // Changed from "class GeminiAIService()" to "object Ge
      * @return [AiServiceResult.Success] with the take-away text, or [AiServiceResult.Error] if an issue occurs.
      */
     suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, contextToEvaluate: String): AiServiceResult<String> {
+        if (!isConfigured) {
+            return AiServiceResult.Error("GeminiAIService has not been configured.")
+        }
         if (generativeModel == null) {
-            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized.")
+            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
         }
 
         return try {
             val prompt = """
-            Provide % scores of provided text for Bible verse $verseRef. 
+            Provide % scores of provided text for Bible verse $verseRef.
             "Direct Quote Score" is based on direct quote accuracy on the following provided direct quote text:
 
             $directQuoteToEvaluate
 
             "Direct Quote Explanation" is explanation on Direct Quote Score.
-            
+
             "Context Score" is based on contextual accuracy on the provided context text:
-            
+
             $contextToEvaluate
-            
+
             "Context Explanation" is the explanation on Context Score.
-            
+
             Respond in the following JSON format:
             {
              "DirectQuoteScore" : integer between 0 to 100,
@@ -138,8 +163,7 @@ object GeminiAIService { // Changed from "class GeminiAIService()" to "object Ge
             """
             Log.d("GeminiAIService", "Sending memorized score prompt to Gemini: \"$prompt\"")
 
-            // Call the Gemini API
-            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt) // Safe call due to the check above
+            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt)
             val responseText = (response.text)?.trimIndent()
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
@@ -151,7 +175,7 @@ object GeminiAIService { // Changed from "class GeminiAIService()" to "object Ge
             }
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
-            AiServiceResult.Error("Could not get take-away from AI (${e.javaClass.simpleName}).", e)
+            AiServiceResult.Error("Could not get AI score from AI (${e.javaClass.simpleName}).", e)
         }
     }
 }

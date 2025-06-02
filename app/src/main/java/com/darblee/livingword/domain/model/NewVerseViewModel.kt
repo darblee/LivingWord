@@ -40,7 +40,8 @@ class NewVerseViewModel() : ViewModel() {
         val generalError: String? = null, // For other errors like Gemini init
         val isContentSaved: Boolean = false, // Track if current content has been saved
         val newlySavedVerseId: Long? = null,
-        val isLoading: Boolean = false
+        val isLoading: Boolean = false,
+        val isAiServiceReady: Boolean = false // To track AI service status
     )
 
     private val _state = MutableStateFlow(NewVerseScreenState())
@@ -49,27 +50,28 @@ class NewVerseViewModel() : ViewModel() {
     private var fetchDataJob: Job? = null
 
     private val esvBibleLookupService: ESVBibleLookupService = ESVBibleLookupService()
-
-    // Use the GeminiAIService object directly
-    private val geminiService = GeminiAIService // Changed from: GeminiAIService()
+    private val geminiService = GeminiAIService // Singleton instance
 
     init {
-        // Check Gemini service initialization status and update state if there's an error
-        if (!geminiService.isInitialized()) { // Access directly
-            val initError = geminiService.getInitializationError() // Access directly
-            _state.update {
-                it.copy(
-                    aiResponseError = initError,
-                    // If the error is specifically "Failed to initialize AI Model", set generalError
-                    generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) initError else null
-                )
-            }
+        updateAiServiceStatus()
+    }
+
+    private fun updateAiServiceStatus() {
+        val isReady = geminiService.isInitialized()
+        val initError = if (!isReady) geminiService.getInitializationError() else null
+        _state.update {
+            it.copy(
+                isAiServiceReady = isReady,
+                aiResponseError = if (it.aiResponseError == null && initError != null) initError else it.aiResponseError, // Preserve existing errors unless this is the first check
+                generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || initError?.contains("API Key missing", ignoreCase = true) == true) initError else null
+            )
         }
     }
 
+
     fun updateSelectedTopics(selectedTopics: List<String>) {
         selectedTopics.forEach {
-            Log.i("LearnViewModel", "Topic: $it")
+            Log.i("NewVerseViewModel", "Topic: $it")
         }
         _state.update { currentState ->
             currentState.copy(
@@ -98,9 +100,10 @@ class NewVerseViewModel() : ViewModel() {
 
     fun clearVerseData() {
         fetchDataJob?.cancel()
-        _state.update { currentState ->
-            val geminiInitError = if (!geminiService.isInitialized()) geminiService.getInitializationError() else null
-            currentState.copy(
+        updateAiServiceStatus() // Refresh AI status
+        val currentAiStatus = _state.value
+        _state.update {
+            it.copy(
                 selectedVerse = null,
                 scriptureText = "",
                 aiResponseText = "",
@@ -108,8 +111,8 @@ class NewVerseViewModel() : ViewModel() {
                 isScriptureLoading = false,
                 aiResponseLoading = false,
                 scriptureError = null,
-                aiResponseError = geminiInitError, // Reflect current Gemini init status
-                generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) geminiInitError else null,
+                aiResponseError = currentAiStatus.aiResponseError, // Use refreshed error status
+                generalError = currentAiStatus.generalError,
                 isContentSaved = false,
                 newlySavedVerseId = null,
             )
@@ -122,19 +125,20 @@ class NewVerseViewModel() : ViewModel() {
             return
         }
 
-        val currentState = _state.value
-        val geminiReady = geminiService.isInitialized()
-        val geminiInitError = if (!geminiReady) geminiService.getInitializationError() else null
+        updateAiServiceStatus() // Refresh AI status before fetching
+        val geminiReady = _state.value.isAiServiceReady
+        val geminiInitError = _state.value.aiResponseError ?: _state.value.generalError
 
+
+        val currentState = _state.value
         // Avoid re-fetching if the exact same verse is already selected and loaded without errors
         if (verse == currentState.selectedVerse &&
             currentState.scriptureText.isNotEmpty() && currentState.scriptureError == null &&
             (currentState.aiResponseText.isNotEmpty() || currentState.aiResponseError != null || !geminiReady)
         ) {
-            Log.d("LearnViewModel", "Verse $verse already loaded. Skipping fetch.")
-            // If AI response had an error before (and model exists), maybe retry?
+            Log.d("NewVerseViewModel", "Verse $verse already loaded. Skipping fetch.")
             if (geminiReady && currentState.aiResponseText.isEmpty() && currentState.aiResponseError != null && !currentState.aiResponseLoading) {
-                Log.d("LearnViewModel", "Retrying AI response fetch for $verse.")
+                Log.d("NewVerseViewModel", "Retrying AI response fetch for $verse.")
                 fetchKeyTakeAwayOnly(verse)
             }
             return
@@ -146,12 +150,12 @@ class NewVerseViewModel() : ViewModel() {
             it.copy(
                 selectedVerse = verse,
                 isScriptureLoading = true,
-                aiResponseLoading = geminiReady, // Start AI loading only if service is initialized
+                aiResponseLoading = geminiReady,
                 scriptureText = "Loading Scripture...",
-                aiResponseText = if (geminiReady) "Getting AI Response ..." else (geminiInitError ?: ""),
+                aiResponseText = if (geminiReady) "Getting AI Response ..." else (geminiInitError ?: "AI Service not ready."),
                 scriptureError = null,
-                aiResponseError = if (geminiReady) null else geminiInitError, // Clear previous errors only if Gemini is ready
-                generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) geminiInitError else null,
+                aiResponseError = if (geminiReady) null else geminiInitError,
+                generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || geminiInitError?.contains("API Key missing", ignoreCase = true) == true) geminiInitError else null,
                 isContentSaved = false,
             )
         }
@@ -169,7 +173,6 @@ class NewVerseViewModel() : ViewModel() {
 
             if (scriptureResult.isSuccess && geminiReady) {
                 val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
-                // Call the GeminiAIService
                 when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
                     is AiServiceResult.Success -> {
                         _state.update {
@@ -184,7 +187,7 @@ class NewVerseViewModel() : ViewModel() {
                         _state.update {
                             it.copy(
                                 aiResponseLoading = false,
-                                aiResponseText = "", // Clear text on error
+                                aiResponseText = "",
                                 aiResponseError = takeAwayResult.message
                             )
                         }
@@ -197,19 +200,20 @@ class NewVerseViewModel() : ViewModel() {
                         aiResponseError = it.aiResponseError ?: "Cannot fetch take-away due to scripture error."
                     )
                 }
-            } else { // Gemini service not ready, ensure loading is false
+            } else { // Gemini service not ready
                 _state.update { it.copy(aiResponseLoading = false) }
             }
         }
     }
 
     private fun fetchKeyTakeAwayOnly(verse: BibleVerseRef) {
-        if (!geminiService.isInitialized()) {
-            Log.w("LearnViewModel", "Skipping take-away retry as GeminiAIService is not initialized.")
+        updateAiServiceStatus() // Refresh AI status
+        if (!_state.value.isAiServiceReady) {
+            Log.w("NewVerseViewModel", "Skipping take-away retry as GeminiAIService is not initialized/configured.")
             _state.update {
                 it.copy(
                     aiResponseLoading = false,
-                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() // Ensure init error is shown
+                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() ?: "AI Service not ready."
                 )
             }
             return
@@ -220,7 +224,6 @@ class NewVerseViewModel() : ViewModel() {
         val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
 
         viewModelScope.launch {
-            // Call the GeminiAIService
             when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     _state.update {
@@ -235,7 +238,7 @@ class NewVerseViewModel() : ViewModel() {
                     _state.update {
                         it.copy(
                             aiResponseLoading = false,
-                            aiResponseText = "", // Clear text on error
+                            aiResponseText = "",
                             aiResponseError = takeAwayResult.message
                         )
                     }
@@ -243,6 +246,19 @@ class NewVerseViewModel() : ViewModel() {
             }
         }
     }
+
+    // Call this method if AI settings might have changed externally (e.g. from settings screen)
+    // to re-evaluate the AI service status.
+    fun refreshAiServiceStatus() {
+        updateAiServiceStatus()
+        // If a verse is selected and AI was previously not ready, but now is, consider re-fetching AI data.
+        val currentSt = _state.value
+        if (currentSt.selectedVerse != null && currentSt.isAiServiceReady && currentSt.aiResponseText.isBlank() && currentSt.aiResponseError != null) {
+            Log.d("NewVerseViewModel", "AI service is now ready. Attempting to fetch AI data for ${currentSt.selectedVerse.book} ${currentSt.selectedVerse.chapter}:${currentSt.selectedVerse.startVerse}")
+            fetchKeyTakeAwayOnly(currentSt.selectedVerse)
+        }
+    }
+
 
     fun resetNavigationState() {
         _state.update {

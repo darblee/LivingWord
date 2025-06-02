@@ -2,4 +2,5 @@
     <string name="app_name">In Christ</string>
     <string name="OK">OK</string>
     <string name="version">Version 1.0</string>
+    <string name="version_prefix">LivingWord</string>
 </resources>

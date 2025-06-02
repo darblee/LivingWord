@@ -1,13 +1,10 @@
 package com.darblee.livingword.ui.components
 
-import android.view.HapticFeedbackConstants
-import android.view.SoundEffectConstants
-import android.view.View
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,31 +14,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert // Icon for dropdown
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
@@ -50,10 +49,11 @@ import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen // Your sealed class for routes
 import com.darblee.livingword.click
+import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.ui.theme.ColorThemeOption
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.darblee.livingword.AISettings
+import com.darblee.livingword.SnackBarController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,16 +68,17 @@ fun AppScaffold(
     var showMenu by remember { mutableStateOf(false) }
     var showAboutDialogBox by remember { mutableStateOf(false) }
     var showSettingDialogBox by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val preferenceStore = remember { PreferenceStore(context.applicationContext) }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = title,
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ), //
+                    containerColor = colorScheme.primaryContainer
+                ),
                 actions = {
-                    // This is where you define your "same icon, same dropdown menu"
                     IconButton(onClick = { showMenu = !showMenu }) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
@@ -88,8 +89,6 @@ fun AppScaffold(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        // Add your consistent DropdownMenuItems here
-                        // Example:
                         DropdownMenuItem(
                             leadingIcon = {
                                 Icon(
@@ -97,7 +96,7 @@ fun AppScaffold(
                                     contentDescription = "Settings"
                                 )
                             },
-                            text = { Text("Settings") }, // Replace with actual action
+                            text = { Text("Settings") },
                             onClick = {
                                 showSettingDialogBox = true
                                 showMenu = false
@@ -107,7 +106,7 @@ fun AppScaffold(
                             leadingIcon = {
                                 Icon(imageVector = Icons.Filled.Info, contentDescription = "About")
                             },
-                            text = { Text("About") }, // Replace with actual action
+                            text = { Text("About") },
                             onClick = {
                                 showAboutDialogBox = true
                                 showMenu = false
@@ -131,24 +130,22 @@ fun AppScaffold(
                                     saveState = true
                                 }
                                 // Avoid multiple copies of the same destination when
-                                // reselecting the same item
+                                // re-selecting the same item
                                 launchSingleTop = true
-                                // Restore state when reselecting a previously selected item
+                                // Restore state when re-selecting a previously selected item
                                 restoreState = true
                             }
                         }
                     },
                     label = { Text("Home") },
-                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") } //
+                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
                 )
                 NavigationBarItem(
                     selected = currentScreenInstance is Screen.AllVersesScreen,
                     onClick = {
                         if (currentScreenInstance !is Screen.AllVersesScreen) {
                             navController.navigate(Screen.AllVersesScreen) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
-                                }
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -157,7 +154,7 @@ fun AppScaffold(
                     label = { Text("All Verses") },
                     icon = {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_meditate_custom), //
+                            painter = painterResource(id = R.drawable.ic_meditate_custom),
                             contentDescription = "Review all verses",
                             modifier = Modifier.size(24.dp)
                         )
@@ -168,16 +165,14 @@ fun AppScaffold(
                     onClick = {
                         if (currentScreenInstance !is Screen.VerseByTopicScreen) {
                             navController.navigate(Screen.VerseByTopicScreen) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
-                                }
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
                         }
                     },
                     label = { Text("Verse By Topics") },
-                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") } //
+                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
                 )
             }
         }
@@ -194,8 +189,13 @@ fun AppScaffold(
 
     if (showSettingDialogBox) {
         SettingPopup(
+            preferenceStore = preferenceStore,
             onDismissRequest = { showSettingDialogBox = false },
-            onConfirmation = { showSettingDialogBox = false },
+            onConfirmation = { newSettings ->
+                // This lambda is called when settings are confirmed and saved
+                GeminiAIService.configure(newSettings) // Reconfigure the service
+                showSettingDialogBox = false
+            },
             onColorThemeUpdated = onColorThemeUpdated,
             currentTheme = currentTheme,
         )
@@ -211,80 +211,64 @@ private fun AboutDialogPopup(
         onDismissRequest = { onDismissRequest() },
         properties = DialogProperties(
             dismissOnBackPress = true,
-            dismissOnClickOutside = false
+            dismissOnClickOutside = false // Changed to false to require explicit dismissal
         )
     ) {
-        // Draw a rectangle shape with rounded corners inside the dialog
         Card(
             shape = RoundedCornerShape(20.dp),
             modifier = Modifier
-                .width(200.dp)
+                .width(300.dp) // Adjusted width for better content fit
                 .padding(0.dp)
-                .height(IntrinsicSize.Min)
+                .wrapContentHeight() // Use wrapContentHeight
                 .border(0.dp, color = colorScheme.outline, shape = RoundedCornerShape(20.dp)),
             elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
         ) {
             Column(
                 Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally // Center content
             ) {
-                Row {
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .align(Alignment.CenterVertically)) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Living Word",
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                    Column(Modifier.weight(3f)) {
+                Row(
+                    modifier = Modifier.padding(16.dp), // Add padding
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_meditate_custom),
+                        contentDescription = "Living Word Logo",
+                        modifier = Modifier.size(60.dp) // Adjust size
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
                         Text(
-                            text = stringResource(id = R.string.version),
-                            color = colorScheme.primary,
-                            modifier = Modifier
-                                .padding(2.dp, 4.dp, 2.dp, 0.dp)
-                                .align(Alignment.CenterHorizontally)
-                                .fillMaxWidth(),
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                            text = stringResource(id = R.string.app_name), // Use app_name string
+                            style = MaterialTheme.typography.headlineSmall, // Use a larger style
+                            color = colorScheme.primary
+                        )
+                        Text(
+                            text = "${stringResource(id = R.string.version_prefix)} ${BuildConfig.VERSION_NAME}", // Use string resource
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = BuildConfig.BUILD_TIME,
-                            color = colorScheme.primary,
-                            modifier = Modifier
-                                .padding(4.dp, 0.dp, 4.dp, 2.dp)
-                                .align(Alignment.CenterHorizontally)
-                                .fillMaxWidth(),
-                            fontSize = 10.sp,
-                            textAlign = TextAlign.Center
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 HorizontalDivider(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = colorScheme.outlineVariant // Use a slightly different color for divider
+                )
+                TextButton(
+                    onClick = { onConfirmation() },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .width(1.dp), color = colorScheme.outline
-                )
-                Row(Modifier.padding(top = 0.dp)) {
-                    TextButton(
-                        onClick = { onConfirmation() },
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(0.dp)
-                            .weight(1F)
-                            .border(0.dp, color = Color.Transparent)
-                            .height(48.dp),
-                        elevation = ButtonDefaults.elevatedButtonElevation(0.dp, 0.dp),
-                        shape = RoundedCornerShape(0.dp),
-                        contentPadding = PaddingValues()
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.OK),
-                            color = colorScheme.primary
-                        )
-                    }
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.OK),
+                        color = colorScheme.primary
+                    )
                 }
             }
         }
@@ -294,143 +278,173 @@ private fun AboutDialogPopup(
 
 @Composable
 private fun SettingPopup(
+    preferenceStore: PreferenceStore,
     onDismissRequest: () -> Unit,
-    onConfirmation: () -> Unit,
+    onConfirmation: (AISettings) -> Unit, // Callback with new settings
     onColorThemeUpdated: (colorThemeType: ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
 ) {
+    var currentAISettings by remember { mutableStateOf<AISettings?>(null) }
+    val scope = rememberCoroutineScope()
+
+    // Load initial AI settings
+    LaunchedEffect(key1 = Unit) {
+        currentAISettings = preferenceStore.readAISettings()
+    }
+
     Dialog(
         onDismissRequest = { onDismissRequest() },
         properties = DialogProperties(
             dismissOnBackPress = true,
-            dismissOnClickOutside = false
+            dismissOnClickOutside = false // Require explicit action
         )
     ) {
-        // Draw a rectangle shape with rounded corners inside the dialog
         Card(
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
-                .width(350.dp)
-                .wrapContentHeight()
-                .padding(25.dp)
+                .width(350.dp) // Keep width
+                .wrapContentHeight() // Allow height to adjust
                 .border(
-                    0.dp,
+                    0.dp, // No border needed if card has elevation
                     color = colorScheme.outline,
                     shape = RoundedCornerShape(16.dp)
                 ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp) // Add elevation
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                ColorThemeSetting(onColorThemeUpdated, currentTheme)
-                AIModelSetting()
+            // Only show content when settings are loaded
+            currentAISettings?.let { loadedSettings ->
+                var modelName by remember { mutableStateOf(loadedSettings.modelName) }
+                var apiKey by remember { mutableStateOf(loadedSettings.apiKey) }
+                var temperatureInput by remember { mutableStateOf(loadedSettings.temperature.toString()) }
 
-                Row(
-                    modifier = Modifier.wrapContentWidth(),
-                    horizontalArrangement = Arrangement.Center
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()), // Make settings scrollable
+                    verticalArrangement = Arrangement.spacedBy(16.dp), // Increase spacing
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Button(onClick = { onConfirmation() })
-                    {
-                        Text(
-                            text = stringResource(id = R.string.OK),
-                            fontSize = 14.sp
-                        )
+                    Text("App Settings", style = MaterialTheme.typography.titleLarge) // Title for the dialog
+
+                    ColorThemeSetting(onColorThemeUpdated, currentTheme, preferenceStore)
+
+                    HorizontalDivider()
+
+                    AIModelSetting(
+                        modelName = modelName,
+                        onModelNameChange = { modelName = it },
+                        apiKey = apiKey,
+                        onApiKeyChange = { apiKey = it },
+                        temperatureInput = temperatureInput,
+                        onTemperatureInputChange = { temperatureInput = it }
+                    )
+
+                    HorizontalDivider()
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(), // Fill width for button arrangement
+                        horizontalArrangement = Arrangement.End // Align buttons to the end
+                    ) {
+                        TextButton(onClick = { onDismissRequest() }) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val tempFloat = temperatureInput.toFloatOrNull() ?: PreferenceStore.DEFAULT_AI_TEMPERATURE
+                                val newSettings = AISettings(modelName, apiKey, tempFloat.coerceIn(0f, 1f))
+                                scope.launch {
+                                    preferenceStore.saveAISettings(newSettings)
+                                    onConfirmation(newSettings) // Pass new settings back
+                                }
+                            },
+                            enabled = apiKey.isNotBlank() && modelName.isNotBlank() // Basic validation
+                        ) {
+                            Text(stringResource(id = R.string.OK))
+                        }
                     }
                 }
+            } ?: run {
+                // Show a loading indicator while settings are being loaded
+                CircularProgressIndicator(modifier = Modifier.padding(16.dp))
             }
-        } // ColumnScope
+        }
     }
 }
 
 @Composable
 private fun ColorThemeSetting(
     onColorThemeUpdated: (colorThemeType: ColorThemeOption) -> Unit,
-    currentTheme: ColorThemeOption
+    currentTheme: ColorThemeOption,
+    preferenceStore: PreferenceStore // Pass PreferenceStore
 ) {
     val view = LocalView.current
+    val scope = rememberCoroutineScope()
+    val applicationContext = LocalContext.current.applicationContext
 
-    Row(
-        modifier = Modifier
-            .border(1.dp, colorScheme.outline, shape = RoundedCornerShape(5.dp))
-            .wrapContentWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        val colorThemeOptionsStringValues = listOf(
-            ColorThemeOption.System.toString(),
-            ColorThemeOption.Light.toString(),
-            ColorThemeOption.Dark.toString()
-        )
 
-        val (selectedOption, onOptionSelected) = remember {
-            // Make the initial selection match the global color theme
-            // at the start of opening the Theme setting dialog box
-            mutableStateOf(currentTheme.toString())
-        }
+    Column(modifier = Modifier.fillMaxWidth()) { // Use Column for better structure
         Text(
             text = "Color Theme",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier
-                .padding(5.dp)
-                .wrapContentWidth()
+            modifier = Modifier.padding(bottom = 8.dp)
         )
-
-        // add weight modifier to the row composable to ensure
-        // that the composable is measured after the other
-        // composable is measured. This create space between
-        // first item (left side) and second item (right side)
-        Spacer(modifier = Modifier.weight(1f))
-
-        val applicationContext = LocalContext.current.applicationContext
-
-        Column(
+        Row(
             modifier = Modifier
-                .wrapContentWidth()
-                .selectableGroup()
-                .padding(5.dp)
+                .border(1.dp, colorScheme.outlineVariant, shape = RoundedCornerShape(8.dp)) // Softer border
+                .fillMaxWidth()
+                .padding(8.dp), // Add padding inside the border
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            colorThemeOptionsStringValues.forEach { curColorString ->
-                Row(
-                    Modifier
-                        .selectable(
-                            selected = (curColorString == selectedOption),
-                            onClick = {
-                                view.click()
-                                onOptionSelected(curColorString)  // This make this button get selected
-                                val newSelectedTheme =
-                                    when (curColorString) {
-                                        ColorThemeOption.System.toString() -> ColorThemeOption.System
-                                        ColorThemeOption.Light.toString() -> ColorThemeOption.Light
-                                        else -> ColorThemeOption.Dark
+            val colorThemeOptionsStringValues = listOf(
+                ColorThemeOption.System.toString(),
+                ColorThemeOption.Light.toString(),
+                ColorThemeOption.Dark.toString()
+            )
+
+            val (selectedOption, onOptionSelected) = remember(currentTheme) { // React to currentTheme changes
+                mutableStateOf(currentTheme.toString())
+            }
+
+            // Radio buttons on the right
+            Column(Modifier.selectableGroup()) {
+                colorThemeOptionsStringValues.forEach { curColorString ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (curColorString == selectedOption),
+                                onClick = {
+                                    view.click()
+                                    onOptionSelected(curColorString)
+                                    val newSelectedTheme =
+                                        when (curColorString) {
+                                            ColorThemeOption.System.toString() -> ColorThemeOption.System
+                                            ColorThemeOption.Light.toString() -> ColorThemeOption.Light
+                                            else -> ColorThemeOption.Dark
+                                        }
+                                    onColorThemeUpdated(newSelectedTheme)
+                                    scope.launch {
+                                        // Use the passed preferenceStore instance
+                                        preferenceStore.saveColorModeToSetting(newSelectedTheme)
                                     }
-
-                                // Calls the lambda function that does the actual Color theme change to the app
-                                onColorThemeUpdated(newSelectedTheme)
-
-                                // Save the Color Theme setting
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    PreferenceStore(applicationContext).saveColorModeToSetting(
-                                        newSelectedTheme
-                                    )
-                                }
-                            },
+                                },
+                                role = androidx.compose.ui.semantics.Role.RadioButton // For accessibility
+                            )
+                            .padding(vertical = 4.dp), // Adjust padding
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = (curColorString == selectedOption),
+                            onClick = null
                         )
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = (curColorString == selectedOption),
-                        onClick = null  // null recommended for accessibility with ScreenReaders
-                    )
-                    Text(
-                        text = curColorString,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .wrapContentWidth()
-                    )
+                        Text(
+                            text = curColorString,
+                            style = MaterialTheme.typography.bodyLarge, // Slightly larger text
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
                 }
             }
         }
@@ -438,18 +452,82 @@ private fun ColorThemeSetting(
 }
 
 
-
 @Composable
 private fun AIModelSetting(
-
+    modelName: String,
+    onModelNameChange: (String) -> Unit,
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    temperatureInput: String,
+    onTemperatureInputChange: (String) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .border(1.dp, colorScheme.outline, shape = RoundedCornerShape(5.dp))
-            .wrapContentWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+    var apiKeyVisible by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Text(
+            text = "AI Model Configuration",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
+        OutlinedTextField(
+            value = modelName,
+            onValueChange = onModelNameChange,
+            label = { Text("Model Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = onApiKeyChange,
+            label = { Text("API Key") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                val image = if (apiKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
+                val description = if (apiKeyVisible) "Hide API Key" else "Show API Key"
+                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                    Icon(imageVector = image, description)
+                }
+            }
+        )
+        if (apiKey.isBlank()) {
+            Text(
+                "API Key is required for AI features.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+
+
+        OutlinedTextField(
+            value = temperatureInput,
+            onValueChange = { newValue ->
+                // Allow empty, or valid float format
+                if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*\$"))) {
+                    onTemperatureInputChange(newValue)
+                }
+            },
+            label = { Text("Temperature (0.0 - 1.0)") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true
+        )
+        val tempFloat = temperatureInput.toFloatOrNull()
+        if (tempFloat == null && temperatureInput.isNotEmpty() || (tempFloat != null && (tempFloat < 0f || tempFloat > 1f))) {
+            Text(
+                "Must be a number between 0.0 and 1.0.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
     }
-
 }

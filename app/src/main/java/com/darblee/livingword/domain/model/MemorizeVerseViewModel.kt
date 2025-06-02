@@ -42,7 +42,9 @@ class MemorizeVerseViewModel() : ViewModel(){
         val aiResponseLoading: Boolean = false,
         val aiResponseError: String? = null,
         val generalError: String? = null, // For other errors like Gemini init
-        val isLoading: Boolean = false
+        val isLoading: Boolean = false,
+        val isAiServiceReady: Boolean = false // To track AI service status
+
     )
 
     private val _state = MutableStateFlow(MemorizedVerseScreenState())
@@ -51,21 +53,27 @@ class MemorizeVerseViewModel() : ViewModel(){
     // Use the GeminiAIService object directly
     private val geminiService = GeminiAIService // Changed from: GeminiAIService()
 
-    // Optional: Add init block to check Gemini initialization if needed for this ViewModel specifically
     init {
-        if (!geminiService.isInitialized()) { // Access directly
-            val initError = geminiService.getInitializationError() // Access directly
-            _state.update {
-                it.copy(
-                    aiResponseError = initError,
-                    generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true) initError else null
-                )
-            }
+        updateAiServiceStatus()
+    }
+
+    private fun updateAiServiceStatus() {
+        val isReady = geminiService.isInitialized()
+        val initError = if (!isReady) geminiService.getInitializationError() else null
+        _state.update {
+            it.copy(
+                isAiServiceReady = isReady,
+                aiResponseError = if (it.aiResponseError == null && initError != null) initError else it.aiResponseError, // Preserve existing errors unless this is the first check
+                generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || initError?.contains("API Key missing", ignoreCase = true) == true) initError else null
+            )
         }
     }
 
     fun fetchMemorizedScore(verse: BibleVerseRef, directQuoteToEvaluate: String, contextToEvaluate: String) {
-        if (!geminiService.isInitialized()) { // Access directly
+        updateAiServiceStatus()
+        val geminiReady = _state.value.isAiServiceReady
+
+        if (!geminiReady) {
             Log.w("MemorizedVerseViewModel", "Skipping score retry as GeminiAIService is not initialized.")
             _state.update {
                 it.copy(

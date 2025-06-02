@@ -1,4 +1,5 @@
 package com.darblee.livingword
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.ActivityInfo
@@ -19,12 +20,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.darblee.livingword.data.BibleData
+import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.theme.SetColorTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -36,8 +40,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private lateinit var preferenceStore: PreferenceStore // Declare here
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        preferenceStore = PreferenceStore(applicationContext) // Initialize here
 
         // Check for microphone permission
         if (ContextCompat.checkSelfPermission(
@@ -51,6 +59,13 @@ class MainActivity : ComponentActivity() {
         // Initialize BibleData with application context
         BibleData.init(applicationContext)
 
+        // Configure GeminiAIService on startup
+        lifecycleScope.launch {
+            val aiSettings = preferenceStore.readAISettings()
+            GeminiAIService.configure(aiSettings)
+        }
+
+
         enableEdgeToEdge()
         setContent {
             ForcePortraitMode()
@@ -59,8 +74,9 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(ColorThemeOption.System)
             }
 
+            // Load color theme from preferences
             LaunchedEffect(Unit) {
-                colorTheme = PreferenceStore(applicationContext).readColorModeFromSetting()
+                colorTheme = preferenceStore.readColorModeFromSetting()
             }
 
             SetColorTheme(colorTheme) {
@@ -70,7 +86,6 @@ class MainActivity : ComponentActivity() {
                 ObserveAsEvents(
                     flow = SnackBarController.events
                 ) { event ->
-                    // When a new event comes in, update our state
                     currentSnackBarEvent = event
                 }
 
@@ -78,11 +93,10 @@ class MainActivity : ComponentActivity() {
                     currentTheme = colorTheme,
                     onColorThemeUpdated = { newColorThemeSetting ->
                         colorTheme = newColorThemeSetting
-                    },  // onColorThemeUpdated
-                )  // MainViewImplementation
+                        // No need to save here, AppScaffold's SettingPopup handles it
+                    },
+                )
 
-
-                // Our custom snackBar host that will show messages
                 CustomSnackBarHost(
                     snackBarEvent = currentSnackBarEvent,
                     onDismiss = { currentSnackBarEvent = null }
@@ -100,11 +114,12 @@ class MainActivity : ComponentActivity() {
 
         Scaffold(
             modifier = Modifier.fillMaxSize()
-        ) { innerPadding ->
+        ) { _ -> // innerPadding is now handled by AppScaffold
 
             val bibleViewModel: BibleVerseViewModel =
                 viewModel(factory = BibleVerseViewModel.Factory(applicationContext))
 
+            // Pass preferenceStore to SetUpNavGraph if needed, or ensure AppScaffold has access
             SetUpNavGraph(
                 bibleViewModel = bibleViewModel,
                 navController = navController,
