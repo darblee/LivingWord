@@ -50,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,6 +77,7 @@ import androidx.navigation.NavController
 import com.darblee.livingword.Screen
 import com.darblee.livingword.R
 import com.darblee.livingword.domain.model.TTSViewModel
+import com.darblee.livingword.ui.components.AppScaffold
 import java.text.BreakIterator
 import java.util.Locale
 
@@ -206,117 +208,84 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    var currentScreen by remember { mutableStateOf(Screen.Home) }
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Prepare your heart") },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                // Optional: Add colors, navigation icon, actions etc.
-            )
-        },
-        bottomBar = {
-            // NavigationBar for switching between screens
-            NavigationBar {
-                NavigationBarItem(
-                    selected = currentScreen == Screen.Home,
-                    onClick = { navController.navigate(Screen.Home) },
-                    label = { Text("Home") },
-                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.AllVersesScreen,
-                    onClick = { navController.navigate(Screen.AllVersesScreen) },
-                    label = { Text("All Verses") },
-                    icon = {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Review all verses",
-                            modifier = Modifier.size(24.dp)
+    AppScaffold(
+        title = { Text("Prepare your heart") },
+        navController = navController,
+        currentScreenInstance = Screen.Home, // Pass the actual Screen instance
+        content = { paddingValues -> // Content lambda receives padding values
+            // Determine layout based on orientation
+            when (configuration.orientation) {
+                Configuration.ORIENTATION_LANDSCAPE -> {
+                    // Landscape: Logo on Left, Text on Right
+                    Row(
+                        // Apply padding from Scaffold, fill screen, add overall padding
+                        modifier = Modifier
+                            .padding(paddingValues) // Apply Scaffold padding
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically // Center items vertically
+                    ) {
+                        // Column for Logo and Icons (Stacked Vertically)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) { // Center icons under logo
+                            DisplayAppLogo()
+                            Spacer(Modifier.height(4.dp)) // Add a small vertical space
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
+                                Spacer(Modifier.width(8.dp)) // Space between play/pause and restart icons
+                                // DisplayRestartIcon(isTtsInitialized, context, viewModel, textToSpeak)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp)) // Space between logo/icon group and text
+
+                        // Prayer Text (Right) - Takes remaining space
+                        // The ProcessMorningPrayer already has vertical scroll
+                        ProcessMorningPrayer(
+                            modifier = Modifier.weight(1f).fillMaxHeight(), // Allow text to use full height,
+                            textToSpeak = textToSpeak
                         )
                     }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.VerseByTopicScreen,
-                    onClick = { navController.navigate(Screen.VerseByTopicScreen) },
-                    label = { Text("Verse By Topics") },
-                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
-                )
-            }
-        }
-    ) { paddingValues -> // Content lambda receives padding values
-        // Determine layout based on orientation
-        when (configuration.orientation) {
-            Configuration.ORIENTATION_LANDSCAPE -> {
-                // Landscape: Logo on Left, Text on Right
-                Row(
-                    // Apply padding from Scaffold, fill screen, add overall padding
-                    modifier = Modifier
-                        .padding(paddingValues) // Apply Scaffold padding
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically // Center items vertically
-                ) {
-                    // Column for Logo and Icons (Stacked Vertically)
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) { // Center icons under logo
-                        DisplayAppLogo()
-                        Spacer(Modifier.height(4.dp)) // Add a small vertical space
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
-                            Spacer(Modifier.width(8.dp)) // Space between play/pause and restart icons
-                            // DisplayRestartIcon(isTtsInitialized, context, viewModel, textToSpeak)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp)) // Space between logo/icon group and text
-
-                    // Prayer Text (Right) - Takes remaining space
-                    // The ProcessMorningPrayer already has vertical scroll
-                    ProcessMorningPrayer(
-                        modifier = Modifier.weight(1f).fillMaxHeight(), // Allow text to use full height,
-                        textToSpeak = textToSpeak
-                    )
                 }
-            }
 
-            else -> { // Default to Portrait layout
-                // Portrait: Logo on Top, Text Below
-                Column(
-                    modifier = Modifier
-                        .padding(paddingValues) // Apply Scaffold padding
-                        .fillMaxSize(), // Apply padding from Scaffold, fill screen
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Top // Keep logo/icon  at the top
-                ) {
-                    // Row for Logo and Icon
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(
-                            top = 32.dp,
-                            bottom = 16.dp
-                        ) // Padding for the top row
+                else -> { // Default to Portrait layout
+                    // Portrait: Logo on Top, Text Below
+                    Column(
+                        modifier = Modifier
+                            .padding(paddingValues) // Apply Scaffold padding
+                            .fillMaxSize(), // Apply padding from Scaffold, fill screen
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Top // Keep logo/icon  at the top
                     ) {
-                        DisplayAppLogo()
-                        Spacer(Modifier.width(8.dp)) // Space between logo and icon
+                        // Row for Logo and Icon
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(
+                                top = 32.dp,
+                                bottom = 16.dp
+                            ) // Padding for the top row
+                        ) {
+                            DisplayAppLogo()
+                            Spacer(Modifier.width(8.dp)) // Space between logo and icon
 
-                        // Column for pause/resume icon and replay icon (STacked vertically)
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {  // Center icons
-                            DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
-                            Spacer(Modifier.height(16.dp)) // Space between play/pause and replay icons
-                            // DisplayRestartIcon(isTtsInitialized, context, viewModel, textToSpeak)
+                            // Column for pause/resume icon and replay icon (STacked vertically)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {  // Center icons
+                                DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
+                                Spacer(Modifier.height(16.dp)) // Space between play/pause and replay icons
+                                // DisplayRestartIcon(isTtsInitialized, context, viewModel, textToSpeak)
+                            }
                         }
-                    }
 
-                    // Prayer Text (Below)
-                    ProcessMorningPrayer(
-                        // Use fillMaxWidth with a fraction for 95% width
-                        modifier = Modifier.fillMaxWidth(0.95f).weight(1f), // Allow text to take remaining space
-                        textToSpeak = textToSpeak
-                    )
+                        // Prayer Text (Below)
+                        ProcessMorningPrayer(
+                            // Use fillMaxWidth with a fraction for 95% width
+                            modifier = Modifier.fillMaxWidth(0.95f).weight(1f), // Allow text to take remaining space
+                            textToSpeak = textToSpeak
+                        )
+                    }
                 }
             }
         }
-    }
+    )
 }
 
 @Composable

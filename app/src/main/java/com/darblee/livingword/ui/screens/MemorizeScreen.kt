@@ -74,6 +74,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.domain.model.MemorizeVerseViewModel
+import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 
 import kotlin.system.exitProcess
@@ -537,224 +538,441 @@ fun MemorizeScreen(
         }
     }
 
-    var currentScreen by remember { mutableStateOf(Screen.MemorizeScreen) }
-
     // State to control the visibility of the copy confirmation dialog
     var showCopyConfirmDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    if (verse != null) {
-                        Text("Memorize : ${verseReference(verse!!)}" )
-                    } else {
-                        Text("Memorize Verse")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = currentScreen == Screen.Home,
-                    onClick = { navController.navigate(Screen.Home) },
-                    label = { Text("Home") },
-                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.AllVersesScreen,
-                    onClick = { navController.navigate(Screen.AllVersesScreen) },
-                    label = { Text("Meditate") },
-                    icon = {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Meditate",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.VerseByTopicScreen,
-                    onClick = { navController.navigate(Screen.VerseByTopicScreen) },
-                    label = { Text("Verse By Topics") },
-                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
-                )
+    AppScaffold(
+        title = {
+            if (verse != null) {
+                Text("Memorize : ${verseReference(verse!!)}" )
+            } else {
+                Text("Memorize Verse")
             }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            LabeledOutlinedBox(
-                label = "Memorized Verse (with context)",
+        },
+        navController = navController,
+        currentScreenInstance = Screen.MemorizeScreen(verseID = verseID), // Pass the actual Screen instance
+        content = { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 30.dp)
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(modifier = Modifier.padding(4.dp)) {
-                    DisplayListeningStatus(isListening)
+                LabeledOutlinedBox(
+                    label = "Memorized Verse (with context)",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 30.dp)
+                ) {
+                    Column(modifier = Modifier.padding(4.dp)) {
+                        DisplayListeningStatus(isListening)
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // Direct Quote: This Row arranges the TextField and the Button Column side-by-side
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top // Align items to the top of the Row
-                    ) {
-                        // OutlinedTextField takes 80% of the width
-                        // Replace both OutlinedTextField instances with this structure:
-
-                        Box(
-                            modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
+                        // Direct Quote: This Row arranges the TextField and the Button Column side-by-side
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top // Align items to the top of the Row
                         ) {
-                            // Text field with border
-                            BasicTextField(
-                                value = directQuoteTextFieldValue,
-                                onValueChange = { newValue ->
-                                    directQuoteTextFieldValue = newValue
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .border(
-                                        width = if (isDirectQuoteTextFieldFocused) 2.dp else 1.dp,
-                                        color = if (isDirectQuoteTextFieldFocused)
-                                            MaterialTheme.colorScheme.primary
-                                        else
-                                            MaterialTheme.colorScheme.outline,
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(12.dp) // Internal padding
-                                    .focusRequester(focusRequester)
-                                    .onFocusChanged { focusState ->
-                                        isDirectQuoteTextFieldFocused = focusState.isFocused
-                                    },
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                    color = MaterialTheme.colorScheme.onSurface
-                                ),
-                                keyboardOptions = KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.Sentences,
-                                    imeAction = ImeAction.Default
-                                ),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                decorationBox = { innerTextField ->
-                                    Box(
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        if (directQuoteTextFieldValue.text.isEmpty()) {
-                                            Text(
-                                                text = "Type or speak (🎤) ...",
-                                                style = MaterialTheme.typography.bodyLarge.copy(
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                                ),
-                                                modifier = Modifier.padding(top = 20.dp) // Move placeholder down to avoid label overlap
-                                            )
-                                        }
-                                        Box(
-                                            modifier = Modifier.padding(top = if (directQuoteTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
-                                        ) {
-                                            innerTextField()
-                                        }
-                                    }
-                                }
-                            )
+                            // OutlinedTextField takes 80% of the width
+                            // Replace both OutlinedTextField instances with this structure:
 
-                            // Overlapping label positioned at top-left corner on the border
-                            Text(
-                                text = "Direct Quote",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isDirectQuoteTextFieldFocused)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
-                                    .background(
-                                        color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
-                                        shape = RoundedCornerShape(2.dp)
-                                    )
-                                    .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp)) // Spacing between TextField and Button Column
-
-                        // This Column takes 20% of the width and stacks the buttons vertically
-                        Column(
-                            modifier = Modifier
-                                .weight(0.2f) // Takes 20% of the width
-                                .padding(start = 4.dp), // Optional: adjust as needed
-                            horizontalAlignment = Alignment.CenterHorizontally, // Centers buttons if they don't fill width
-                            // verticalArrangement arranges the buttons within this column.
-                            // spacedBy adds space between the buttons vertically.
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
-
-                            FloatingActionButton(
-                                onClick = {
-                                    if (!hasPermission) {
-                                        Log.w("MemorizeScreen", "Record audio permission not granted.")
-                                        // TODO: Implement permission request flow if not already present elsewhere
-                                        return@FloatingActionButton
-                                    }
-
-                                    if (isListening) {
-                                        stopListening(directQuoteSpeechRecognizer)
-                                        isListening = false // Manually update state
-                                        directQuotePartialText = ""    // Clear partial text when explicitly stopping
-                                    } else {
-                                        // Request focus to the text field when starting to listen? Optional.
-                                        // focusRequester.requestFocus()
-                                        startListening(context, directQuoteSpeechRecognizer)
-                                        // isListening will be set to true in onReadyForSpeech
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(35.dp),
-                                containerColor = if (isListening)
-                                    MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
-                                else
-                                    MaterialTheme.colorScheme.primary
+                            Box(
+                                modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
                             ) {
-                                if (isListening) {
-                                    Icon(
-                                        imageVector =  Icons.Filled.MicOff,
-                                        contentDescription = "Start listening",
-                                    )
-                                } else {
-                                    Text(text = "🎤", fontSize = 20.sp)
-                                }
+                                // Text field with border
+                                BasicTextField(
+                                    value = directQuoteTextFieldValue,
+                                    onValueChange = { newValue ->
+                                        directQuoteTextFieldValue = newValue
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .border(
+                                            width = if (isDirectQuoteTextFieldFocused) 2.dp else 1.dp,
+                                            color = if (isDirectQuoteTextFieldFocused)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.outline,
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                        .padding(12.dp) // Internal padding
+                                        .focusRequester(focusRequester)
+                                        .onFocusChanged { focusState ->
+                                            isDirectQuoteTextFieldFocused = focusState.isFocused
+                                        },
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    keyboardOptions = KeyboardOptions(
+                                        capitalization = KeyboardCapitalization.Sentences,
+                                        imeAction = ImeAction.Default
+                                    ),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    decorationBox = { innerTextField ->
+                                        Box(
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            if (directQuoteTextFieldValue.text.isEmpty()) {
+                                                Text(
+                                                    text = "Type or speak (🎤) ...",
+                                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                    ),
+                                                    modifier = Modifier.padding(top = 20.dp) // Move placeholder down to avoid label overlap
+                                                )
+                                            }
+                                            Box(
+                                                modifier = Modifier.padding(top = if (directQuoteTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
+                                            ) {
+                                                innerTextField()
+                                            }
+                                        }
+                                    }
+                                )
+
+                                // Overlapping label positioned at top-left corner on the border
+                                Text(
+                                    text = "Direct Quote",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isDirectQuoteTextFieldFocused)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
+                                        .background(
+                                            color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
+                                            shape = RoundedCornerShape(2.dp)
+                                        )
+                                        .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
+                                )
                             }
 
-                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+                            Spacer(modifier = Modifier.width(8.dp)) // Spacing between TextField and Button Column
 
+                            // This Column takes 20% of the width and stacks the buttons vertically
+                            Column(
+                                modifier = Modifier
+                                    .weight(0.2f) // Takes 20% of the width
+                                    .padding(start = 4.dp), // Optional: adjust as needed
+                                horizontalAlignment = Alignment.CenterHorizontally, // Centers buttons if they don't fill width
+                                // verticalArrangement arranges the buttons within this column.
+                                // spacedBy adds space between the buttons vertically.
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+
+                                FloatingActionButton(
+                                    onClick = {
+                                        if (!hasPermission) {
+                                            Log.w("MemorizeScreen", "Record audio permission not granted.")
+                                            // TODO: Implement permission request flow if not already present elsewhere
+                                            return@FloatingActionButton
+                                        }
+
+                                        if (isListening) {
+                                            stopListening(directQuoteSpeechRecognizer)
+                                            isListening = false // Manually update state
+                                            directQuotePartialText = ""    // Clear partial text when explicitly stopping
+                                        } else {
+                                            // Request focus to the text field when starting to listen? Optional.
+                                            // focusRequester.requestFocus()
+                                            startListening(context, directQuoteSpeechRecognizer)
+                                            // isListening will be set to true in onReadyForSpeech
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(35.dp),
+                                    containerColor = if (isListening)
+                                        MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
+                                    else
+                                        MaterialTheme.colorScheme.primary
+                                ) {
+                                    if (isListening) {
+                                        Icon(
+                                            imageVector =  Icons.Filled.MicOff,
+                                            contentDescription = "Start listening",
+                                        )
+                                    } else {
+                                        Text(text = "🎤", fontSize = 20.sp)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+
+                                FloatingActionButton(
+                                    onClick = {
+                                        val textToCheck = directQuoteTextFieldValue.text + directQuotePartialText // Consider combined text
+                                        if (textToCheck.isNotEmpty()) {
+                                            if (textToCheck.length < 10) {
+                                                directQuoteTextFieldValue = TextFieldValue("")
+                                                directQuotePartialText = ""
+                                            } else {
+                                                processDeletingDirectQuoteText = true
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(35.dp),
+                                    containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) { // Use the combined text
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                    }
+                                ) {
+                                    Text(
+                                        "Clear",
+                                        color = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp)) // Spacer after the Row
+
+                        // Context: This Row arranges the TextField and the Button Column side-by-side
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top // Align items to the top of the Row
+                        ) {
+                            // OutlinedTextField takes 80% of the width
+                            Box(
+                                modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
+                            ) {
+                                // Text field with border
+                                BasicTextField(
+                                    value = contextTextFieldValue,
+                                    onValueChange = { newValue ->
+                                        contextTextFieldValue = newValue
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .border(
+                                            width = if (isContextTextFieldFocused) 2.dp else 1.dp,
+                                            color = if (isContextTextFieldFocused)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.outline,
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                        .padding(12.dp) // Internal padding
+                                        .focusRequester(focusRequester)
+                                        .onFocusChanged { focusState ->
+                                            isContextTextFieldFocused = focusState.isFocused
+                                        },
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    keyboardOptions = KeyboardOptions(
+                                        capitalization = KeyboardCapitalization.Sentences,
+                                        imeAction = ImeAction.Default
+                                    ),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    decorationBox = { innerTextField ->
+                                        Box(
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            if (contextTextFieldValue.text.isEmpty()) {
+                                                Text(
+                                                    text = "Type or speak (🎤) ...",
+                                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                    ),
+                                                    modifier = Modifier.padding(top = 20.dp) // Move placeholder down to avoid label overlap
+                                                )
+                                            }
+                                            Box(
+                                                modifier = Modifier.padding(top = if (contextTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
+                                            ) {
+                                                innerTextField()
+                                            }
+                                        }
+                                    }
+                                )
+
+                                // Overlapping label positioned at top-left corner on the border
+                                Text(
+                                    text = "Context",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isContextTextFieldFocused)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
+                                        .background(
+                                            color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
+                                            shape = RoundedCornerShape(2.dp)
+                                        )
+                                        .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp)) // Spacing between TextField and Button Column
+
+                            // This Column takes 20% of the width and stacks the buttons vertically
+                            Column(
+                                modifier = Modifier
+                                    .weight(0.2f) // Takes 20% of the width
+                                    .padding(start = 4.dp), // Optional: adjust as needed
+                                horizontalAlignment = Alignment.CenterHorizontally, // Centers buttons if they don't fill width
+                                // verticalArrangement arranges the buttons within this column.
+                                // spacedBy adds space between the buttons vertically.
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
+
+                                // Annotate via voice
+                                FloatingActionButton(
+                                    onClick = {
+                                        if (!hasPermission) {
+                                            Log.w("MemorizeScreen", "Record audio permission not granted.")
+                                            // TODO: Implement permission request flow if not already present elsewhere
+                                            return@FloatingActionButton
+                                        }
+
+                                        if (isListening) {
+                                            stopListening(contextSpeechRecognizer)
+                                            isListening = false // Manually update state
+                                            contextPartialText = ""    // Clear partial text when explicitly stopping
+                                        } else {
+                                            // Request focus to the text field when starting to listen? Optional.
+                                            // focusRequester.requestFocus()
+                                            startListening(context, contextSpeechRecognizer)
+                                            // isListening will be set to true in onReadyForSpeech
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(30.dp),
+                                    containerColor = if (isListening)
+                                        MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
+                                    else
+                                        MaterialTheme.colorScheme.primary
+                                ) {
+                                    if (isListening) {
+                                        Icon(
+                                            imageVector =  Icons.Filled.MicOff,
+                                            contentDescription = "Start listening",
+                                        )
+                                    } else {
+                                        Text(text = "🎤", fontSize = 20.sp)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row
+
+                                // Copy from direct quote
+                                FloatingActionButton(
+                                    onClick = {
+                                        if (directQuoteTextFieldValue.text.isNotEmpty()) {
+                                            if (contextTextFieldValue.text.isNotEmpty()) {
+                                                showCopyConfirmDialog = true // Show dialog if context is not empty
+                                            } else {
+                                                // Context is empty, so copy directly
+                                                contextTextFieldValue = directQuoteTextFieldValue.copy(
+                                                    selection = TextRange(directQuoteTextFieldValue.text.length)
+                                                )
+                                                contextPartialText = "" // Clear partial text in context field
+                                            }
+                                        } else {
+                                            Log.i("Click", "Direct quote is empty, nothing to copy")
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(30.dp),
+                                    containerColor = if (directQuoteTextFieldValue.text.isNotEmpty()) { // Use the combined text
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                    }
+
+                                ) {
+                                    Text(
+                                        "Copy",
+                                        color = if (directQuoteTextFieldValue.text.isNotEmpty()) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        }
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row
+
+                                // Clear the box
+                                FloatingActionButton(
+                                    onClick = {
+                                        val textToCheck = contextTextFieldValue.text + contextPartialText // Consider combined text
+                                        if (textToCheck.isNotEmpty()) {
+                                            if (textToCheck.length < 10) {
+                                                contextTextFieldValue = TextFieldValue("")
+                                                contextPartialText = ""
+                                            } else {
+                                                processDeletingContextText = true
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(30.dp),
+                                    containerColor = if ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) { // Use the combined text
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                    }
+                                ) {
+                                    Text(
+                                        "Clear",
+                                        color = if (contextTextFieldValue.text.isNotEmpty()) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp)) // Spacer after the Row
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             FloatingActionButton(
                                 onClick = {
-                                    val textToCheck = directQuoteTextFieldValue.text + directQuotePartialText // Consider combined text
-                                    if (textToCheck.isNotEmpty()) {
-                                        if (textToCheck.length < 10) {
-                                            directQuoteTextFieldValue = TextFieldValue("")
-                                            directQuotePartialText = ""
-                                        } else {
-                                            processDeletingDirectQuoteText = true
+                                    val directQuoteToEvaluate = directQuoteTextFieldValue.text + directQuotePartialText // Consider combined text
+                                    val contextToEvaluate = contextTextFieldValue.text + contextPartialText // Consider combined text
+
+                                    if (directQuoteToEvaluate.length >= 5) {
+                                        Log.i("Memorize Screen", "Do the evaluation with text: $directQuoteToEvaluate")
+                                        if (verse != null) {
+                                            val verseInfo = BibleVerseRef(
+                                                book = verse!!.book,
+                                                chapter = verse!!.chapter,
+                                                startVerse = verse!!.startVerse,
+                                                endVerse = verse!!.endVerse
+                                            )
+                                            memorizedViewModel.fetchMemorizedScore(
+                                                verseInfo,
+                                                directQuoteToEvaluate,
+                                                contextToEvaluate
+                                            )
                                         }
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().height(35.dp),
-                                containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) { // Use the combined text
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) { // Use the combined text
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                                 }
                             ) {
                                 Text(
-                                    "Clear",
-                                    color = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) {
+                                    "Evaluate",
+                                    color = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -762,530 +980,281 @@ fun MemorizeScreen(
                                 )
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(10.dp)) // Spacer after the Row
-
-                    // Context: This Row arranges the TextField and the Button Column side-by-side
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top // Align items to the top of the Row
-                    ) {
-                        // OutlinedTextField takes 80% of the width
-                        Box(
-                            modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
-                        ) {
-                            // Text field with border
-                            BasicTextField(
-                                value = contextTextFieldValue,
-                                onValueChange = { newValue ->
-                                    contextTextFieldValue = newValue
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .border(
-                                        width = if (isContextTextFieldFocused) 2.dp else 1.dp,
-                                        color = if (isContextTextFieldFocused)
-                                            MaterialTheme.colorScheme.primary
-                                        else
-                                            MaterialTheme.colorScheme.outline,
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(12.dp) // Internal padding
-                                    .focusRequester(focusRequester)
-                                    .onFocusChanged { focusState ->
-                                        isContextTextFieldFocused = focusState.isFocused
-                                    },
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                    color = MaterialTheme.colorScheme.onSurface
-                                ),
-                                keyboardOptions = KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.Sentences,
-                                    imeAction = ImeAction.Default
-                                ),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                decorationBox = { innerTextField ->
-                                    Box(
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        if (contextTextFieldValue.text.isEmpty()) {
-                                            Text(
-                                                text = "Type or speak (🎤) ...",
-                                                style = MaterialTheme.typography.bodyLarge.copy(
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                                ),
-                                                modifier = Modifier.padding(top = 20.dp) // Move placeholder down to avoid label overlap
-                                            )
-                                        }
-                                        Box(
-                                            modifier = Modifier.padding(top = if (contextTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
-                                        ) {
-                                            innerTextField()
-                                        }
-                                    }
-                                }
-                            )
-
-                            // Overlapping label positioned at top-left corner on the border
+                        if (!hasPermission) {
+                            Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Context",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isContextTextFieldFocused)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
-                                    .background(
-                                        color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
-                                        shape = RoundedCornerShape(2.dp)
-                                    )
-                                    .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
+                                text = "Microphone permission is required for live transcription. Please grant permission in app settings.",
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp)) // Spacing between TextField and Button Column
-
-                        // This Column takes 20% of the width and stacks the buttons vertically
-                        Column(
-                            modifier = Modifier
-                                .weight(0.2f) // Takes 20% of the width
-                                .padding(start = 4.dp), // Optional: adjust as needed
-                            horizontalAlignment = Alignment.CenterHorizontally, // Centers buttons if they don't fill width
-                            // verticalArrangement arranges the buttons within this column.
-                            // spacedBy adds space between the buttons vertically.
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Spacer(modifier = Modifier.height(2.dp)) // Spacer after the Row
-
-                            // Annotate via voice
-                            FloatingActionButton(
-                                onClick = {
-                                    if (!hasPermission) {
-                                        Log.w("MemorizeScreen", "Record audio permission not granted.")
-                                        // TODO: Implement permission request flow if not already present elsewhere
-                                        return@FloatingActionButton
-                                    }
-
-                                    if (isListening) {
-                                        stopListening(contextSpeechRecognizer)
-                                        isListening = false // Manually update state
-                                        contextPartialText = ""    // Clear partial text when explicitly stopping
-                                    } else {
-                                        // Request focus to the text field when starting to listen? Optional.
-                                        // focusRequester.requestFocus()
-                                        startListening(context, contextSpeechRecognizer)
-                                        // isListening will be set to true in onReadyForSpeech
+                        if (processDeletingDirectQuoteText) {
+                            AlertDialog(
+                                onDismissRequest = { processDeletingDirectQuoteText = false },
+                                title = { Text("Confirm Erase Direct Quote") },
+                                text = { Text("Are you sure you want to clear direct quote?") },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            directQuoteTextFieldValue = TextFieldValue("")
+                                            directQuotePartialText = ""
+                                            processDeletingDirectQuoteText = false
+                                        }
+                                    ) {
+                                        Text("Clear")
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().height(30.dp),
-                                containerColor = if (isListening)
-                                    MaterialTheme.colorScheme.errorContainer // Use container colors for consistency
-                                else
-                                    MaterialTheme.colorScheme.primary
-                            ) {
-                                if (isListening) {
-                                    Icon(
-                                        imageVector =  Icons.Filled.MicOff,
-                                        contentDescription = "Start listening",
-                                    )
-                                } else {
-                                    Text(text = "🎤", fontSize = 20.sp)
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = { processDeletingDirectQuoteText = false }
+                                    ) {
+                                        Text("Cancel")
+                                    }
                                 }
-                            }
+                            )
+                        }
 
-                            Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row
+                        if (processDeletingContextText) {
+                            AlertDialog(
+                                onDismissRequest = { processDeletingContextText = false },
+                                title = { Text("Confirm Erase Context Info") },
+                                text = { Text("Are you sure you want to clear context info?") },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            contextTextFieldValue = TextFieldValue("")
+                                            contextPartialText = ""
+                                            processDeletingContextText = false
+                                        }
+                                    ) {
+                                        Text("Clear")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = { processDeletingContextText = false }
+                                    ) {
+                                        Text("Cancel")
+                                    }
+                                }
+                            )
+                        }
 
-                            // Copy from direct quote
-                            FloatingActionButton(
-                                onClick = {
-                                    if (directQuoteTextFieldValue.text.isNotEmpty()) {
-                                        if (contextTextFieldValue.text.isNotEmpty()) {
-                                            showCopyConfirmDialog = true // Show dialog if context is not empty
-                                        } else {
-                                            // Context is empty, so copy directly
+                        if (showCopyConfirmDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showCopyConfirmDialog = false },
+                                title = { Text("Confirm Override") },
+                                text = { Text("The context box is not empty. Do you want to override its content?") },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
                                             contextTextFieldValue = directQuoteTextFieldValue.copy(
                                                 selection = TextRange(directQuoteTextFieldValue.text.length)
                                             )
-                                            contextPartialText = "" // Clear partial text in context field
+                                            contextPartialText = "" // Clear any partial text in context field
+                                            showCopyConfirmDialog = false
                                         }
-                                    } else {
-                                        Log.i("Click", "Direct quote is empty, nothing to copy")
+                                    ) {
+                                        Text("Override")
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().height(30.dp),
-                                containerColor = if (directQuoteTextFieldValue.text.isNotEmpty()) { // Use the combined text
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                }
-
-                            ) {
-                                Text(
-                                    "Copy",
-                                    color = if (directQuoteTextFieldValue.text.isNotEmpty()) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = { showCopyConfirmDialog = false }
+                                    ) {
+                                        Text("Cancel")
                                     }
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row
-
-                            // Clear the box
-                            FloatingActionButton(
-                                onClick = {
-                                    val textToCheck = contextTextFieldValue.text + contextPartialText // Consider combined text
-                                    if (textToCheck.isNotEmpty()) {
-                                        if (textToCheck.length < 10) {
-                                            contextTextFieldValue = TextFieldValue("")
-                                            contextPartialText = ""
-                                        } else {
-                                            processDeletingContextText = true
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(30.dp),
-                                containerColor = if ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) { // Use the combined text
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                }
-                            ) {
-                                Text(
-                                    "Clear",
-                                    color = if (contextTextFieldValue.text.isNotEmpty()) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp)) // Spacer after the Row
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FloatingActionButton(
-                            onClick = {
-                                val directQuoteToEvaluate = directQuoteTextFieldValue.text + directQuotePartialText // Consider combined text
-                                val contextToEvaluate = contextTextFieldValue.text + contextPartialText // Consider combined text
-
-                                if (directQuoteToEvaluate.length >= 5) {
-                                    Log.i("Memorize Screen", "Do the evaluation with text: $directQuoteToEvaluate")
-                                    if (verse != null) {
-                                        val verseInfo = BibleVerseRef(
-                                            book = verse!!.book,
-                                            chapter = verse!!.chapter,
-                                            startVerse = verse!!.startVerse,
-                                            endVerse = verse!!.endVerse
-                                        )
-                                        memorizedViewModel.fetchMemorizedScore(
-                                            verseInfo,
-                                            directQuoteToEvaluate,
-                                            contextToEvaluate
-                                        )
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) { // Use the combined text
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                            }
-                        ) {
-                            Text(
-                                "Evaluate",
-                                color = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 }
                             )
                         }
-                    }
-
-                    if (!hasPermission) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Microphone permission is required for live transcription. Please grant permission in app settings.",
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
-                    if (processDeletingDirectQuoteText) {
-                        AlertDialog(
-                            onDismissRequest = { processDeletingDirectQuoteText = false },
-                            title = { Text("Confirm Erase Direct Quote") },
-                            text = { Text("Are you sure you want to clear direct quote?") },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = {
-                                        directQuoteTextFieldValue = TextFieldValue("")
-                                        directQuotePartialText = ""
-                                        processDeletingDirectQuoteText = false
-                                    }
-                                ) {
-                                    Text("Clear")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(
-                                    onClick = { processDeletingDirectQuoteText = false }
-                                ) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
-                    }
-
-                    if (processDeletingContextText) {
-                        AlertDialog(
-                            onDismissRequest = { processDeletingContextText = false },
-                            title = { Text("Confirm Erase Context Info") },
-                            text = { Text("Are you sure you want to clear context info?") },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = {
-                                        contextTextFieldValue = TextFieldValue("")
-                                        contextPartialText = ""
-                                        processDeletingContextText = false
-                                    }
-                                ) {
-                                    Text("Clear")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(
-                                    onClick = { processDeletingContextText = false }
-                                ) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
-                    }
-
-                    if (showCopyConfirmDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showCopyConfirmDialog = false },
-                            title = { Text("Confirm Override") },
-                            text = { Text("The context box is not empty. Do you want to override its content?") },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = {
-                                        contextTextFieldValue = directQuoteTextFieldValue.copy(
-                                            selection = TextRange(directQuoteTextFieldValue.text.length)
-                                        )
-                                        contextPartialText = "" // Clear any partial text in context field
-                                        showCopyConfirmDialog = false
-                                    }
-                                ) {
-                                    Text("Override")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(
-                                    onClick = { showCopyConfirmDialog = false }
-                                ) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            LabeledOutlinedBox(
-                label = "Scripture",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 30.dp) // Ensure enough height for button and text
-            ) {
-                Column(modifier = Modifier.padding(4.dp)) {
-                    Column(
-                        modifier = Modifier
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.outline,
-                                RoundedCornerShape(4.dp)
-                            )
-                            .padding(4.dp)
-                            .fillMaxWidth()
-                            .height(100.dp)
-                    )
-                    {
-                        if (isScriptureVisible) {
-                            val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
-                            val scriptureTextContent = verse?.scripture ?: "Loading scripture...."
-
-                            val scriptureAnnotatedText = buildAnnotatedStringForTTS(
-                                fullText = scriptureTextContent,
-                                isTargeted = false,
-                                highlightSentenceIndex = -1,
-                                isSpeaking = false,
-                                isPaused = false,
-                                baseStyle = SpanStyle(color = baseTextColor),
-                                highlightStyle = SpanStyle(
-                                    background = MaterialTheme.colorScheme.primaryContainer,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                ))
-                                SelectionContainer {
-                                    Text(
-                                        text = scriptureAnnotatedText,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .verticalScroll(rememberScrollState())
-                                            .padding(8.dp),
-                                    )
-                                }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) // Opaque box
-                                    .clickable { isScriptureVisible = true } // Click to reveal
-                                    .padding(8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Click to reveal scripture verse",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(
+                LabeledOutlinedBox(
+                    label = "Scripture",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 30.dp) // Ensure enough height for button and text
+                ) {
+                    Column(modifier = Modifier.padding(4.dp)) {
+                        Column(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            onClick = { isScriptureVisible = true },
-                            enabled = !isScriptureVisible,
-                            shape = RoundedCornerShape(4.dp)
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(4.dp)
+                                .fillMaxWidth()
+                                .height(100.dp)
                         )
                         {
-                            Text(text = "Reveal")
+                            if (isScriptureVisible) {
+                                val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+                                val scriptureTextContent = verse?.scripture ?: "Loading scripture...."
+
+                                val scriptureAnnotatedText = buildAnnotatedStringForTTS(
+                                    fullText = scriptureTextContent,
+                                    isTargeted = false,
+                                    highlightSentenceIndex = -1,
+                                    isSpeaking = false,
+                                    isPaused = false,
+                                    baseStyle = SpanStyle(color = baseTextColor),
+                                    highlightStyle = SpanStyle(
+                                        background = MaterialTheme.colorScheme.primaryContainer,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ))
+                                    SelectionContainer {
+                                        Text(
+                                            text = scriptureAnnotatedText,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .verticalScroll(rememberScrollState())
+                                                .padding(8.dp),
+                                        )
+                                    }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) // Opaque box
+                                        .clickable { isScriptureVisible = true } // Click to reveal
+                                        .padding(8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Click to reveal scripture verse",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
-                        Button(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            onClick = { isScriptureVisible = false },
-                            enabled = isScriptureVisible,
-                            shape = RoundedCornerShape(4.dp)
+                        Spacer(modifier = Modifier.height(16.dp)) // Adjusted spacer
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Hide")
+                            Button(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                onClick = { isScriptureVisible = true },
+                                enabled = !isScriptureVisible,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            {
+                                Text(text = "Reveal")
+                            }
+                            Button(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                onClick = { isScriptureVisible = false },
+                                enabled = isScriptureVisible,
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(text = "Hide")
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp)) // Space before the new button
+                Spacer(modifier = Modifier.height(16.dp)) // Space before the new button
 
-            // New Button to navigate back
-            Button(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back to detail screen",
-                    modifier = Modifier.size(ButtonDefaults.IconSize)
-                )
-                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                Text("back to detail screen")
-            }
+                // New Button to navigate back
+                Button(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to detail screen",
+                        modifier = Modifier.size(ButtonDefaults.IconSize)
+                    )
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text("back to detail screen")
+                }
 
-            Spacer(modifier = Modifier.height(16.dp)) // Space after new button (optional)
+                Spacer(modifier = Modifier.height(16.dp)) // Space after new button (optional)
 
-            // Dialog to display score and AI explanation
-            if (showScoreDialog) {
-                AlertDialog(
-                    modifier = Modifier.padding(8.dp),
-                    onDismissRequest = {
-                        // Only allow dismiss if not loading, or handle dismiss during loading appropriately
-                        if (!state.aiResponseLoading) {
-                            showScoreDialog = false
-                        }
-                    },
-                    title = {
-                        Text(
-                            text = if (state.aiResponseLoading) "Calculating Score..." else "Score Assessment",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    },
-                    text = {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally // Center progress indicator
-                        ) {
+                // Dialog to display score and AI explanation
+                if (showScoreDialog) {
+                    AlertDialog(
+                        modifier = Modifier.padding(8.dp),
+                        onDismissRequest = {
+                            // Only allow dismiss if not loading, or handle dismiss during loading appropriately
+                            if (!state.aiResponseLoading) {
+                                showScoreDialog = false
+                            }
+                        },
+                        title = {
+                            Text(
+                                text = if (state.aiResponseLoading) "Calculating Score..." else "Score Assessment",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        },
+                        text = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally // Center progress indicator
+                            ) {
+                                if (state.aiResponseLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
+                                } else {
+                                    OutlinedTextField(
+                                        label = {  Text("Direct Quote Score : ${state.directQuoteScore}") },
+                                        value = state.aiDirectQuoteExplanationText.toString(),
+                                        minLines = 10,
+                                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                                        onValueChange = { /* read-only */ }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    OutlinedTextField(
+                                        label = {  Text("Context  Score : ${state.contextScore}") },
+                                        value = state.aiContextExplanationText.toString(),
+                                        minLines = 10,
+                                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                                        onValueChange = { /* read-only */ }
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            if (!state.aiResponseLoading) { // Show OK button only when not loading
+                                TextButton(onClick = { showScoreDialog = false }) {
+                                    Text("OK")
+                                }
+                            }
+                        },
+                        dismissButton = { // Optionally, provide a dismiss button if needed during loading
                             if (state.aiResponseLoading) {
-                                CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
-                            } else {
-                                OutlinedTextField(
-                                    label = {  Text("Direct Quote Score : ${state.directQuoteScore}") },
-                                    value = state.aiDirectQuoteExplanationText.toString(),
-                                    minLines = 10,
-                                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                                    onValueChange = { /* read-only */ }
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                OutlinedTextField(
-                                    label = {  Text("Context  Score : ${state.contextScore}") },
-                                    value = state.aiContextExplanationText.toString(),
-                                    minLines = 10,
-                                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                                    onValueChange = { /* read-only */ }
-                                )
+                                TextButton(onClick = {
+                                    // Handle cancel/dismiss during loading if necessary
+                                    // e.g., memorizedViewModel.cancelScoreCalculation()
+                                    showScoreDialog = false // For now, just dismiss
+                                }) {
+                                    Text("Cancel")
+                                }
                             }
-                        }
-                    },
-                    confirmButton = {
-                        if (!state.aiResponseLoading) { // Show OK button only when not loading
-                            TextButton(onClick = { showScoreDialog = false }) {
-                                Text("OK")
-                            }
-                        }
-                    },
-                    dismissButton = { // Optionally, provide a dismiss button if needed during loading
-                        if (state.aiResponseLoading) {
-                            TextButton(onClick = {
-                                // Handle cancel/dismiss during loading if necessary
-                                // e.g., memorizedViewModel.cancelScoreCalculation()
-                                showScoreDialog = false // For now, just dismiss
-                            }) {
-                                Text("Cancel")
-                            }
-                        }
-                    },
-                )
+                        },
+                    )
+                }
             }
         }
-    }
+    )
 
     DisposableEffect(Unit) {
         onDispose {

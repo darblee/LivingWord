@@ -12,29 +12,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Church
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -62,13 +51,13 @@ import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Global
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
 import com.darblee.livingword.Global.VERSE_RESULT_KEY
-import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.verseReferenceT
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.NewVerseViewModel
+import com.darblee.livingword.ui.components.AppScaffold
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
@@ -254,315 +243,265 @@ fun AddNewVerseScreen(
         )
     }
 
-    var currentScreen by remember { mutableStateOf(Screen.NewVerseScreen) }
+    AppScaffold(
+        title = { Text("Add New Verse") },
+        navController = navController,
+        currentScreenInstance = Screen.NewVerseScreen, // Pass the actual Screen instance
+        content = { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues) // Apply padding from Scaffold
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp), // Adjusted vertical padding
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                HandleVerseSelection(newVerseViewModel, navController, state.selectedVerse)
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Add New Verse") },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            )
-        },
-        bottomBar = {
-            // NavigationBar for switching between screens
-            NavigationBar {
-                NavigationBarItem(
-                    selected = currentScreen == Screen.Home,
-                    onClick = {
-                        navController.navigate(Screen.Home) {
-                            popUpTo(navController.graph.id) { inclusive = true } // Clear entire stack
-                            launchSingleTop = true
-                        }
-                    },
-                    label = { Text("Home") },
-                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.AllVersesScreen,
-                    onClick = {
-                        navController.navigate(Screen.AllVersesScreen) { // Or VerseByTopicScreen
-                            popUpTo(Screen.Home) // Pop back to Home, then navigate to this screen
-                            launchSingleTop = true
-                        }
-                    },
-                    label = { Text("All Verses") },
-                    icon = {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Review all verses",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.VerseByTopicScreen,
-                    onClick = {
-                        navController.navigate(Screen.VerseByTopicScreen) { // Or VerseByTopicScreen
-                            popUpTo(Screen.Home) // Pop back to Home, then navigate to this screen
-                            launchSingleTop = true
-                        }
-                    },
-                    label = { Text("Verse By Topics") },
-                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
-                )
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues) // Apply padding from Scaffold
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp), // Adjusted vertical padding
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            HandleVerseSelection(newVerseViewModel, navController, state.selectedVerse)
+                Spacer(modifier = Modifier.height(8.dp)) // Space before content boxes
 
-            Spacer(modifier = Modifier.height(8.dp)) // Space before content boxes
+                // Display general errors from ViewModel if any
+                state.generalError?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
 
-            // Display general errors from ViewModel if any
-            state.generalError?.let { error ->
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
+                Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
 
-            Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-
-                LabeledOutlinedBox(
-                    label = "Scripture",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f) // Takes up proportional space
-                ) { // Content lambda for the Box
-                    // Show loading indicator based on ViewModel state
-                    if (state.isScriptureLoading) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        // Display scripture text or error message from ViewModel state
-                        val rawTextToShow = state.scriptureError ?: state.scriptureText
-                        val hasError = state.scriptureError != null
-                        val isEmpty = rawTextToShow.isEmpty() && !hasError && state.selectedVerse != null
-
-                        val placeholderText = when {
-                            state.selectedVerse == null -> "Scripture to appear after selecting a verse..."
-                            hasError -> "" // Error is shown directly in rawTextToShow
-                            isEmpty -> " " // Use a space to prevent collapse if empty after load
-                            else -> ""
-                        }
-
-                        // Format the scripture text with verse numbers if it's not an error
-                        val formattedText = if (!hasError && rawTextToShow.isNotEmpty()) {
-                            formatScriptureWithVerseNumbers(rawTextToShow)
+                    LabeledOutlinedBox(
+                        label = "Scripture",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f) // Takes up proportional space
+                    ) { // Content lambda for the Box
+                        // Show loading indicator based on ViewModel state
+                        if (state.isScriptureLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         } else {
-                            buildAnnotatedString { append(rawTextToShow) }
-                        }
+                            // Display scripture text or error message from ViewModel state
+                            val rawTextToShow = state.scriptureError ?: state.scriptureText
+                            val hasError = state.scriptureError != null
+                            val isEmpty = rawTextToShow.isEmpty() && !hasError && state.selectedVerse != null
 
-                        if (rawTextToShow.isNotEmpty()) {
-                            // Use Text composable for formatted text instead of BasicTextField
-                            Text(
-                                text = formattedText,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(scriptureScrollState),
-                                style = LocalTextStyle.current.copy(
-                                    color = if (hasError) MaterialTheme.colorScheme.error else LocalContentColor.current
+                            val placeholderText = when {
+                                state.selectedVerse == null -> "Scripture to appear after selecting a verse..."
+                                hasError -> "" // Error is shown directly in rawTextToShow
+                                isEmpty -> " " // Use a space to prevent collapse if empty after load
+                                else -> ""
+                            }
+
+                            // Format the scripture text with verse numbers if it's not an error
+                            val formattedText = if (!hasError && rawTextToShow.isNotEmpty()) {
+                                formatScriptureWithVerseNumbers(rawTextToShow)
+                            } else {
+                                buildAnnotatedString { append(rawTextToShow) }
+                            }
+
+                            if (rawTextToShow.isNotEmpty()) {
+                                // Use Text composable for formatted text instead of BasicTextField
+                                Text(
+                                    text = formattedText,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(scriptureScrollState),
+                                    style = LocalTextStyle.current.copy(
+                                        color = if (hasError) MaterialTheme.colorScheme.error else LocalContentColor.current
+                                    )
                                 )
-                            )
-                        } else {
-                            // Show placeholder text
-                            Text(
-                                text = placeholderText,
-                                style = LocalTextStyle.current.copy(
-                                    color = LocalContentColor.current.copy(alpha = 0.5f)
-                                ),
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp)) // Space between boxes
-
-                // --- Key Take-Away Box ---
-                LabeledOutlinedBox(
-                    label = "Key Take-Away",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f) // Takes up proportional space
-                ) { // Content lambda for the Box
-                    // Show loading indicator based on ViewModel state
-                    if (state.aiResponseLoading) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        // Display take-away text or error message from ViewModel state
-                        val textToShow = state.aiResponseError ?: state.aiResponseText
-
-                        // Determine if the text field should be considered "empty" for placeholder logic
-                        val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
-                        val newBaseStyle = SpanStyle(color = baseTextColor)
-
-                        val scriptureAnnotatedText = buildAnnotatedStringForTTS(
-                            fullText = textToShow,
-                            isTargeted = false,
-                            highlightSentenceIndex = 0,
-                            isSpeaking = false,
-                            isPaused = false,
-                            baseStyle = newBaseStyle,
-                            highlightStyle = SpanStyle(
-                                background = MaterialTheme.colorScheme.primaryContainer,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            ))
-
-                        var textToDisplay = scriptureAnnotatedText
-
-                        if (textToShow.isEmpty()) textToDisplay =
-                            buildAnnotatedString {
-                                withStyle(
-                                    style = SpanStyle(
+                            } else {
+                                // Show placeholder text
+                                Text(
+                                    text = placeholderText,
+                                    style = LocalTextStyle.current.copy(
                                         color = LocalContentColor.current.copy(alpha = 0.5f)
-                                    )
-                                ) {
-                                    append("Take-away comment to appear after selecting a verse .....")
-                                }
+                                    ),
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             }
-
-                        Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
-                            Text(
-                                text = textToDisplay,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                            )
                         }
                     }
-                }
-                // --- End Key Take-Away Box ---
 
-                Spacer(modifier = Modifier.height(8.dp)) // Space before topics box
+                    Spacer(modifier = Modifier.height(16.dp)) // Space between boxes
 
-                // --- Selected Topics Box ---
-                val topicScrollState = rememberScrollState()
-
-                var topicLabel = "Selected Topic"
-
-                if (state.selectedTopics.isNotEmpty()) {
-                    if (state.selectedTopics.size > 1) topicLabel =
-                        "${state.selectedTopics.count()} Selected Topics"
-                }
-
-                LabeledOutlinedBox(
-                    label = topicLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                    // Adjust height as needed, e.g., .heightIn(min = 56.dp)
-                ) {
-                    if (state.selectedTopics.isEmpty()) {
-                        if (state.selectedVerse == null) {
-                            Text(text = buildAnnotatedString {
-                                withStyle(
-                                    style = SpanStyle(
-                                        color = LocalContentColor.current.copy(alpha = 0.5f)
-                                    )
-                                ) {
-                                    append("Add topics only after verse is identified")
-                                }
-                            })
+                    // --- Key Take-Away Box ---
+                    LabeledOutlinedBox(
+                        label = "Key Take-Away",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f) // Takes up proportional space
+                    ) { // Content lambda for the Box
+                        // Show loading indicator based on ViewModel state
+                        if (state.aiResponseLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         } else {
-                            // Only show topic button when verse is identified
-                            Button(
-                                onClick = {
+                            // Display take-away text or error message from ViewModel state
+                            val textToShow = state.aiResponseError ?: state.aiResponseText
 
-                                    // Serialize current topics to pass to TopicSelectionScreen
-                                    val currentSelectedTopicsJson = try {
-                                        Json.encodeToString(
-                                            ListSerializer(String.serializer()),
-                                            state.selectedTopics
+                            // Determine if the text field should be considered "empty" for placeholder logic
+                            val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+                            val newBaseStyle = SpanStyle(color = baseTextColor)
+
+                            val scriptureAnnotatedText = buildAnnotatedStringForTTS(
+                                fullText = textToShow,
+                                isTargeted = false,
+                                highlightSentenceIndex = 0,
+                                isSpeaking = false,
+                                isPaused = false,
+                                baseStyle = newBaseStyle,
+                                highlightStyle = SpanStyle(
+                                    background = MaterialTheme.colorScheme.primaryContainer,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                ))
+
+                            var textToDisplay = scriptureAnnotatedText
+
+                            if (textToShow.isEmpty()) textToDisplay =
+                                buildAnnotatedString {
+                                    withStyle(
+                                        style = SpanStyle(
+                                            color = LocalContentColor.current.copy(alpha = 0.5f)
                                         )
-                                    } catch (e: Exception) {
-                                        Log.e(
-                                            "NewVerseScreen",
-                                            "Error serializing current topics: ${e.message}",
-                                            e
-                                        )
-                                        null // Fallback to null if serialization fails
+                                    ) {
+                                        append("Take-away comment to appear after selecting a verse .....")
                                     }
+                                }
 
-                                    // Navigate to Topic Selection Screen
-                                    navController.navigate(
-                                        Screen.TopicSelectionScreen(selectedTopicsJson = currentSelectedTopicsJson)
-                                    )
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Global.SMALL_ACTION_BUTTON_MODIFIER, // Use global modifier
-                                contentPadding = Global.SMALL_ACTION_BUTTON_PADDING // Use global padding
-                            ) {
-                                Text("Add Topic(s)")
+                            Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
+                                Text(
+                                    text = textToDisplay,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                )
                             }
                         }
-                    } else {
-                        Column(
-                            modifier = Modifier.verticalScroll(topicScrollState) // Enable vertical scrolling
-                        ) {
-                            // Use FlowRow to allow chips to wrap to the next line
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
-                                verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                    }
+                    // --- End Key Take-Away Box ---
+
+                    Spacer(modifier = Modifier.height(8.dp)) // Space before topics box
+
+                    // --- Selected Topics Box ---
+                    val topicScrollState = rememberScrollState()
+
+                    var topicLabel = "Selected Topic"
+
+                    if (state.selectedTopics.isNotEmpty()) {
+                        if (state.selectedTopics.size > 1) topicLabel =
+                            "${state.selectedTopics.count()} Selected Topics"
+                    }
+
+                    LabeledOutlinedBox(
+                        label = topicLabel,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                        // Adjust height as needed, e.g., .heightIn(min = 56.dp)
+                    ) {
+                        if (state.selectedTopics.isEmpty()) {
+                            if (state.selectedVerse == null) {
+                                Text(text = buildAnnotatedString {
+                                    withStyle(
+                                        style = SpanStyle(
+                                            color = LocalContentColor.current.copy(alpha = 0.5f)
+                                        )
+                                    ) {
+                                        append("Add topics only after verse is identified")
+                                    }
+                                })
+                            } else {
+                                // Only show topic button when verse is identified
+                                Button(
+                                    onClick = {
+
+                                        // Serialize current topics to pass to TopicSelectionScreen
+                                        val currentSelectedTopicsJson = try {
+                                            Json.encodeToString(
+                                                ListSerializer(String.serializer()),
+                                                state.selectedTopics
+                                            )
+                                        } catch (e: Exception) {
+                                            Log.e(
+                                                "NewVerseScreen",
+                                                "Error serializing current topics: ${e.message}",
+                                                e
+                                            )
+                                            null // Fallback to null if serialization fails
+                                        }
+
+                                        // Navigate to Topic Selection Screen
+                                        navController.navigate(
+                                            Screen.TopicSelectionScreen(selectedTopicsJson = currentSelectedTopicsJson)
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Global.SMALL_ACTION_BUTTON_MODIFIER, // Use global modifier
+                                    contentPadding = Global.SMALL_ACTION_BUTTON_PADDING // Use global padding
+                                ) {
+                                    Text("Add Topic(s)")
+                                }
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier.verticalScroll(topicScrollState) // Enable vertical scrolling
                             ) {
-                                state.selectedTopics.forEach { topic ->
-                                    // Display each topic as a read-only chip
-                                    SuggestionChip(
-                                        onClick = { /* Read-only, do nothing on click */ },
-                                        label = { Text(topic) },
-                                    )
+                                // Use FlowRow to allow chips to wrap to the next line
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
+                                    verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                                ) {
+                                    state.selectedTopics.forEach { topic ->
+                                        // Display each topic as a read-only chip
+                                        SuggestionChip(
+                                            onClick = { /* Read-only, do nothing on click */ },
+                                            label = { Text(topic) },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                // --- End Selected Topics Box ---
-            }// End of weighted Column for boxes
+                    // --- End Selected Topics Box ---
+                }// End of weighted Column for boxes
 
-            if (readyToSave(state) && !state.isContentSaved)
-            {
-                Spacer(modifier = Modifier.height(8.dp)) // Space before the button
-                Button(
-                    onClick = {
-                        bibleViewModel.saveNewVerse(
-                            verse = (state.selectedVerse!!),
-                            scripture = state.scriptureText,
-                            aiResponse = state.aiResponseText,
-                            topics = state.selectedTopics,
-                            newVerseViewModel = newVerseViewModel
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth() // Make button wide
-                        .height(48.dp), // Standard button height
-                    shape = RoundedCornerShape(8.dp) // Consistent shape
-                ) {
-                    Text("Save")
+                if (readyToSave(state) && !state.isContentSaved)
+                {
+                    Spacer(modifier = Modifier.height(8.dp)) // Space before the button
+                    Button(
+                        onClick = {
+                            bibleViewModel.saveNewVerse(
+                                verse = (state.selectedVerse!!),
+                                scripture = state.scriptureText,
+                                aiResponse = state.aiResponseText,
+                                topics = state.selectedTopics,
+                                newVerseViewModel = newVerseViewModel
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth() // Make button wide
+                            .height(48.dp), // Standard button height
+                        shape = RoundedCornerShape(8.dp) // Consistent shape
+                    ) {
+                        Text("Save")
+                    }
                 }
             }
         }
-    }
+    )
 
     // Handle back press to navigate to Home and clear backstack
     BackPressHandler {

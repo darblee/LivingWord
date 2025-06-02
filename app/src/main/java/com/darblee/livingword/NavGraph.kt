@@ -7,6 +7,7 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -31,9 +32,6 @@ import com.darblee.livingword.ui.screens.ShowVerseByTopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
 import com.darblee.livingword.ui.screens.VerseDetailScreen
 import kotlinx.serialization.Serializable
-
-
-
 
 @Serializable // Mark the sealed class as Serializable
 sealed class Screen {
@@ -101,7 +99,8 @@ sealed class Screen {
 fun SetUpNavGraph(
     modifier: Modifier,
     bibleViewModel: BibleVerseViewModel,
-    navController: NavHostController
+    navController: NavHostController,
+    currentScreen: MutableState<Screen>
 ) {
     // NavHost defines the navigation graph
     NavHost(

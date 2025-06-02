@@ -144,7 +144,6 @@ fun VerseDetailScreen(
     verseID: Long // Argument of the BibleVerse entity in "BibleVerse_Item" Database
 ) {
     // Remember scroll states for the text fields (UI concern)
-    val scriptureScrollState = rememberScrollState()
     val aiResponseScrollState = rememberScrollState()
 
     // Use produceState to asynchronously load the BibleVerse

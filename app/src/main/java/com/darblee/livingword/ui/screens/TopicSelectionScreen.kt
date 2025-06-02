@@ -48,6 +48,7 @@ import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.TopicSelectionViewModel
+import com.darblee.livingword.ui.components.AppScaffold
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -94,6 +95,7 @@ fun TopicSelectionScreen(
     }
 
     TopicSelectionContent(
+        navController = navController,
         topicSelections = state.topicSelections,
         onTopicToggled = topicSelectionViewModel::toggleTopic,
         onAddNewTopic = topicSelectionViewModel::addNewTopic,
@@ -145,6 +147,7 @@ internal fun TopicSelectionContent(
     onTopicToggled: (String) -> Unit,
     onAddNewTopic: (String) -> Unit,
     onConfirm: (List<String>) -> Unit,
+    navController: NavController,
 ) {
     // Retrieves the current keyboard controller instance that you can use in your composable
     // In this case, it needs to hide the keyboard after the user submits a text
@@ -152,131 +155,128 @@ internal fun TopicSelectionContent(
     var newTopicText by remember { mutableStateOf("") }
     var showDialog by remember { mutableStateOf(false) } // Added state for dialog
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Topic Selection") },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            )
-        }
-    ) { paddingValues ->
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-        ) {
-            Text(
-                text = "Select Topics. Add new one if needed",
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+    AppScaffold(
+        title = { Text("Topic Selection") },
+        navController = navController,
+        currentScreenInstance = Screen.TopicSelectionScreen(), // Pass the actual Screen instance
+        content = { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
             ) {
-                OutlinedTextField(
-                    value = newTopicText,
-                    onValueChange = { newTopicText = it },
-                    label = { Text("Add New Topic") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
+                Text(
+                    text = "Select Topics. Add new one if needed",
+                )
 
-                    /***
-                     * "IME" stands for "Input Method Editor" - essentially the software keyboard
-                     *
-                     *  When the user taps on our "Add New Topic" text field, they'll see a keyboard where the bottom-right key (usually Enter/Return)
-                     *  is replaced with a button labeled "Done". This visually indicates to the user that pressing this button will complete their
-                     *  current task of entering a new topic.
-                     *
-                     *  By itself, setting imeAction = ImeAction.Done only changes how the button looks - it doesn't define what happens when it's pressed.
-                     *  That's why in our code, we pair it with KeyboardActions:
-                     */
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = newTopicText,
+                        onValueChange = { newTopicText = it },
+                        label = { Text("Add New Topic") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+
+                        /***
+                         * "IME" stands for "Input Method Editor" - essentially the software keyboard
+                         *
+                         *  When the user taps on our "Add New Topic" text field, they'll see a keyboard where the bottom-right key (usually Enter/Return)
+                         *  is replaced with a button labeled "Done". This visually indicates to the user that pressing this button will complete their
+                         *  current task of entering a new topic.
+                         *
+                         *  By itself, setting imeAction = ImeAction.Done only changes how the button looks - it doesn't define what happens when it's pressed.
+                         *  That's why in our code, we pair it with KeyboardActions:
+                         */
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (newTopicText.isNotBlank()) {
+                                    onAddNewTopic(newTopicText.trim())
+                                    newTopicText = ""
+                                    keyboardController?.hide()
+                                }
+                            }
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = {
                             if (newTopicText.isNotBlank()) {
                                 onAddNewTopic(newTopicText.trim())
                                 newTopicText = ""
                                 keyboardController?.hide()
                             }
                         }
-                    )
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = {
-                        if (newTopicText.isNotBlank()) {
-                            onAddNewTopic(newTopicText.trim())
-                            newTopicText = ""
-                            keyboardController?.hide()
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Topic"
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2), // 2 columns
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                topicSelections.keys.toList().sorted().forEach { topic ->
-                    item {
-                        TopicCheckboxItem(
-                            topic = topic,
-                            isChecked = topicSelections[topic] == true,
-                            onCheckedChange = { onTopicToggled(topic) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Topic"
                         )
                     }
-                    Log.i("TopicSelection", "topic = $topicSelections")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2), // 2 columns
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    topicSelections.keys.toList().sorted().forEach { topic ->
+                        item {
+                            TopicCheckboxItem(
+                                topic = topic,
+                                isChecked = topicSelections[topic] == true,
+                                onCheckedChange = { onTopicToggled(topic) }
+                            )
+                        }
+                        Log.i("TopicSelection", "topic = $topicSelections")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        // Convert selections to list of selected topics
+                        val selectedTopics = topicSelections.filter { it.value }.keys.toList()
+                        Log.i("TopicSelectionContent", "Number of topic selected: ${selectedTopics.size}")
+                        if (selectedTopics.isEmpty()) { // Check if no topics are selected
+                            showDialog = true
+                        } else {
+                            onConfirm(selectedTopics)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Confirm Selection")
+                }
+
+                // Dialog to show when no topics are selected
+                if (showDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDialog = false },
+                        title = { Text("No Topic Selected") },
+                        text = { Text("Please select at least one topic to continue.") },
+                        confirmButton = {
+                            TextButton(onClick = { showDialog = false }) {
+                                Text("OK")
+                            }
+                        }
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    // Convert selections to list of selected topics
-                    val selectedTopics = topicSelections.filter { it.value }.keys.toList()
-                    Log.i("TopicSelectionContent", "Number of topic selected: ${selectedTopics.size}")
-                    if (selectedTopics.isEmpty()) { // Check if no topics are selected
-                        showDialog = true
-                    } else {
-                        onConfirm(selectedTopics)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Confirm Selection")
-            }
-
-            // Dialog to show when no topics are selected
-            if (showDialog) {
-                AlertDialog(
-                    onDismissRequest = { showDialog = false },
-                    title = { Text("No Topic Selected") },
-                    text = { Text("Please select at least one topic to continue.") },
-                    confirmButton = {
-                        TextButton(onClick = { showDialog = false }) {
-                            Text("OK")
-                        }
-                    }
-                )
-            }
         }
-    }
+    )
 }
 
 @Composable

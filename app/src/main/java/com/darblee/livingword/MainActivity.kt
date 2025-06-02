@@ -11,9 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +25,9 @@ import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.theme.SetColorTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -72,33 +73,52 @@ class MainActivity : ComponentActivity() {
                     currentSnackBarEvent = event
                 }
 
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = colorScheme.background
-                ) {
+                MainViewImplementation(
+                    currentTheme = colorTheme,
+                    onColorThemeUpdated = { newColorThemeSetting ->
+                        colorTheme = newColorThemeSetting
 
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize()
-                    ) { innerPadding ->
-                        val navController = rememberNavController()
+                        // Save the Color Theme setting
+                        CoroutineScope(Dispatchers.IO).launch {
+/*                            PreferenceStore(applicationContext).saveColorModeToSetting(
+                                newColorThemeSetting
+                            )*/
+                        }
+                    },  // onColorThemeUpdated
+                )  // MainViewImplementation
 
-                        val bibleViewModel: BibleVerseViewModel =
-                            viewModel(factory = BibleVerseViewModel.Factory(applicationContext))
 
-                        SetUpNavGraph(
-                            modifier = Modifier.padding(innerPadding),
-                            bibleViewModel = bibleViewModel,
-                            navController = navController
-                        )
-                    }
-
-                    // Our custom snackBar host that will show messages
-                    CustomSnackBarHost(
-                        snackBarEvent = currentSnackBarEvent,
-                        onDismiss = { currentSnackBarEvent = null }
-                    )
-                }
+                // Our custom snackBar host that will show messages
+                CustomSnackBarHost(
+                    snackBarEvent = currentSnackBarEvent,
+                    onDismiss = { currentSnackBarEvent = null }
+                )
             }
+        }
+    }
+
+    @Composable
+    private fun MainViewImplementation(
+        onColorThemeUpdated: (colorThemeSetting: ColorThemeOption) -> Unit,
+        currentTheme: ColorThemeOption,
+    ) {
+        val currentScreen = remember { mutableStateOf<Screen>(Screen.Home) }
+
+        val navController = rememberNavController()
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize()
+        ) { innerPadding ->
+
+            val bibleViewModel: BibleVerseViewModel =
+                viewModel(factory = BibleVerseViewModel.Factory(applicationContext))
+
+            SetUpNavGraph(
+                modifier = Modifier.padding(innerPadding),
+                bibleViewModel = bibleViewModel,
+                navController = navController,
+                currentScreen = currentScreen
+            )
         }
     }
 

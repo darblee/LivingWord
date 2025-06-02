@@ -29,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,152 +47,121 @@ import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.data.Topic
+import com.darblee.livingword.ui.components.AppScaffold
 
 
 // TODO: Add BackPress handler to navigate back to home. See logic in New Verse Screen.
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShowVerseByTopicScreen(navController: NavController, bibleViewModel: BibleVerseViewModel) {
+fun ShowVerseByTopicScreen(
+    navController: NavController,
+    bibleViewModel: BibleVerseViewModel,
+) {
 
     val allVerseToList  by bibleViewModel.allVerses.collectAsState()
     val allTopicItems by bibleViewModel.allTopicItems.collectAsState()
     var selectedTopics by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
-    var currentScreen by remember { mutableStateOf(Screen.VerseByTopicScreen) }
-
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Meditate God's Word by Topic(s)") },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            )
-        },
-        bottomBar = {
-            // NavigationBar for switching between screens
-            NavigationBar {
-                NavigationBarItem(
-                    selected = currentScreen == Screen.Home,
-                    onClick = { navController.navigate(Screen.Home) },
-                    label = { Text("Home") },
-                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.AllVersesScreen,
-                    onClick = { navController.navigate(Screen.AllVersesScreen) },
-                    label = { Text("All Verses") },
-                    icon = {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Review all verses",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.VerseByTopicScreen,
-                    onClick = { navController.navigate(Screen.VerseByTopicScreen) },
-                    label = { Text("Verse By Topics") },
-                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
-                )
-            }
-        }    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues) // Apply padding from Scaffold
-                .fillMaxSize()
-                .padding(16.dp),
-
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Use a radio group for the list of topics
-            // Use LazyVerticalGrid for 3-column layout
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.heightIn(max = (3 * 48).dp)
-                    .border(width = 1.dp, color = Color.White )
-                    .padding(0.dp)
+    AppScaffold(
+        title = { Text("Meditate God's Word by Topic(s)") }, // Define the title for this screen
+        navController = navController,
+        currentScreenInstance = Screen.VerseByTopicScreen, // Pass the actual Screen instance
+        content = { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues) // Apply padding from Scaffold
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Log.i("ShowVerseByTopic", "All selected Topics: ${allTopicItems}")
+                // Use a radio group for the list of topics
+                // Use LazyVerticalGrid for 3-column layout
 
-                items(allTopicItems.size) { index ->
-                    val topicItem = allTopicItems[index]
-                    val isSelected = selectedTopics.contains(topicItem.topic)
-                    Row(
-                        modifier = Modifier
-                            .selectable(
-                                selected = isSelected,
-                                onClick = {
-                                    selectedTopics = onSelectTopicCheckBox(!isSelected, selectedTopics, topicItem)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.heightIn(max = (3 * 48).dp)
+                        .border(width = 1.dp, color = Color.White )
+                        .padding(0.dp)
+                ) {
+                    Log.i("ShowVerseByTopic", "All selected Topics: ${allTopicItems}")
+
+                    items(allTopicItems.size) { index ->
+                        val topicItem = allTopicItems[index]
+                        val isSelected = selectedTopics.contains(topicItem.topic)
+                        Row(
+                            modifier = Modifier
+                                .selectable(
+                                    selected = isSelected,
+                                    onClick = {
+                                        selectedTopics = onSelectTopicCheckBox(!isSelected, selectedTopics, topicItem)
+                                    }
+                                )
+                                .padding(vertical = 0.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { isChecked ->
+                                    selectedTopics = onSelectTopicCheckBox(isChecked, selectedTopics, topicItem)
                                 }
                             )
-                            .padding(vertical = 0.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { isChecked ->
-                                selectedTopics = onSelectTopicCheckBox(isChecked, selectedTopics, topicItem)
+                            Text(
+                                text = topicItem.topic,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 0.dp)
+                            )
+                        }
+                    }
+                }
+
+                Log.i("ShowVerseByTopic", "SelectedTopics: $selectedTopics")
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (selectedTopics.isNotEmpty()) {
+                    val filteredVerses = allVerseToList.filter { verseItem ->
+                        // Check if the verseItem.topics (trimmed, original case)
+                        // contains ANY of the selectedTopics (normalized: lowercase, trimmed).
+                        selectedTopics.any { selectedTopicNormalized -> // Iterate through selected topics
+                            verseItem.topics.any { verseTopicFromDb -> // Check if any of verse's topics match
+                                // Compare verseTopicFromDb (already trimmed by TypeConverter)
+                                // with selectedTopicNormalized (already trimmed and lowercased)
+                                verseTopicFromDb.equals(selectedTopicNormalized, ignoreCase = true)
                             }
-                        )
-                        Text(
-                            text = topicItem.topic,
+                        }
+                    }
+
+                    Log.i("ShowVerseByTopic", "Found ${filteredVerses.size} verses matching ANY selected topics.")
+
+                    if (filteredVerses.isNotEmpty()) {
+
+                        // Use weight if it's in a Column that should expand
+                        // TODO: For now, let's assume you keeping the forEach for VerseCard.
+                        // If performance becomes an issue with many verses, consider a Lazy layout.
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(filteredVerses) { verseItem ->
+                                VerseCard(verseItem, navController)
+                                Spacer(modifier = Modifier.height(2.dp))
+                            }
+                        }
+                    } else {
+                        Text( // Updated feedback text
+                            text = "No verses found matching any of the selected topics.",
                             style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 0.dp)
+                            modifier = Modifier.padding(vertical = 16.dp).weight(1f)
                         )
-                    }
-                }
-            }
-
-            Log.i("ShowVerseByTopic", "SelectedTopics: $selectedTopics")
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (selectedTopics.isNotEmpty()) {
-                val filteredVerses = allVerseToList.filter { verseItem ->
-                    // Check if the verseItem.topics (trimmed, original case)
-                    // contains ANY of the selectedTopics (normalized: lowercase, trimmed).
-                    selectedTopics.any { selectedTopicNormalized -> // Iterate through selected topics
-                        verseItem.topics.any { verseTopicFromDb -> // Check if any of verse's topics match
-                            // Compare verseTopicFromDb (already trimmed by TypeConverter)
-                            // with selectedTopicNormalized (already trimmed and lowercased)
-                            verseTopicFromDb.equals(selectedTopicNormalized, ignoreCase = true)
-                        }
-                    }
-                }
-
-                Log.i("ShowVerseByTopic", "Found ${filteredVerses.size} verses matching ANY selected topics.")
-
-                if (filteredVerses.isNotEmpty()) {
-
-                    // Use weight if it's in a Column that should expand
-                    // TODO: For now, let's assume you keeping the forEach for VerseCard.
-                    // If performance becomes an issue with many verses, consider a Lazy layout.
-                    LazyColumn(modifier = Modifier.weight(1f)) {
-                        items(filteredVerses) { verseItem ->
-                            VerseCard(verseItem, navController)
-                            Spacer(modifier = Modifier.height(2.dp))
-                        }
                     }
                 } else {
-                    Text( // Updated feedback text
-                        text = "No verses found matching any of the selected topics.",
+                    Text(
+                        text = "Please select one or more topics to see matching verses.",
                         style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(vertical = 16.dp).weight(1f)
+                        modifier = Modifier.padding(vertical = 16.dp).weight(1f) // Use weight to push button down
                     )
                 }
-            } else {
-                Text(
-                    text = "Please select one or more topics to see matching verses.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(vertical = 16.dp).weight(1f) // Use weight to push button down
-                )
             }
         }
-    }
+    )
 
     // Handle back press to navigate to Home and clear backstack
     BackPressHandler {
