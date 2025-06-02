@@ -9,10 +9,11 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,7 +25,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.domain.model.BibleVerseViewModel
-import com.darblee.livingword.ui.theme.LivingWordTheme
+import com.darblee.livingword.ui.theme.ColorThemeOption
+import com.darblee.livingword.ui.theme.SetColorTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -55,7 +57,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             ForcePortraitMode()
 
-            LivingWordTheme {
+            var colorTheme by remember {
+                mutableStateOf(ColorThemeOption.System)
+            }
+
+            SetColorTheme(colorTheme) {
                 var currentSnackBarEvent by remember { mutableStateOf<SnackBarEvent?>(null) }
 
                 // Observe SnackBar events
@@ -66,8 +72,11 @@ class MainActivity : ComponentActivity() {
                     currentSnackBarEvent = event
                 }
 
-                // Our custom snackbar will be positioned over the scaffold content
-                Box(modifier = Modifier.fillMaxSize()) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = colorScheme.background
+                ) {
+
                     Scaffold(
                         modifier = Modifier.fillMaxSize()
                     ) { innerPadding ->
