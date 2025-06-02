@@ -45,7 +45,7 @@ fun VerseCard(verseItem: BibleVerse, navController: NavController) {
                 buildAnnotatedString {
                     // Apply default style or theme style implicitly
                     append("")
-                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = Color.Cyan)) {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.surfaceTint)) {
                         append(verseReference(verseItem))
                     }
                     append(" " + (verseItem.scripture).removePassageRef())

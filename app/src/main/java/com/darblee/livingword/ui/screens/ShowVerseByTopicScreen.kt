@@ -9,45 +9,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Church
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
-import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.data.Topic
 import com.darblee.livingword.ui.components.AppScaffold
+import com.darblee.livingword.ui.theme.ColorThemeOption
 
 
 // TODO: Add BackPress handler to navigate back to home. See logic in New Verse Screen.
@@ -57,6 +44,8 @@ import com.darblee.livingword.ui.components.AppScaffold
 fun ShowVerseByTopicScreen(
     navController: NavController,
     bibleViewModel: BibleVerseViewModel,
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption,
 ) {
 
     val allVerseToList  by bibleViewModel.allVerses.collectAsState()
@@ -67,6 +56,8 @@ fun ShowVerseByTopicScreen(
         title = { Text("Meditate God's Word by Topic(s)") }, // Define the title for this screen
         navController = navController,
         currentScreenInstance = Screen.VerseByTopicScreen, // Pass the actual Screen instance
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
         content = { paddingValues ->
             Column(
                 modifier = Modifier

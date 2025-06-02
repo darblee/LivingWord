@@ -19,17 +19,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,6 +46,7 @@ import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.TopicSelectionViewModel
 import com.darblee.livingword.ui.components.AppScaffold
+import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -58,7 +56,9 @@ fun TopicSelectionScreen(
     topicSelectionViewModel: TopicSelectionViewModel = viewModel(),
     navController: NavController,
     bibleViewModel: BibleVerseViewModel,
-    selectedTopicsJson: String?
+    selectedTopicsJson: String?,
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption
 ) {
     val state by topicSelectionViewModel.state.collectAsState()
 
@@ -99,6 +99,8 @@ fun TopicSelectionScreen(
         topicSelections = state.topicSelections,
         onTopicToggled = topicSelectionViewModel::toggleTopic,
         onAddNewTopic = topicSelectionViewModel::addNewTopic,
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
         onConfirm = { selectedTopics ->
 
             // Need to send the data back to the destination screen
@@ -148,6 +150,8 @@ internal fun TopicSelectionContent(
     onAddNewTopic: (String) -> Unit,
     onConfirm: (List<String>) -> Unit,
     navController: NavController,
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption,
 ) {
     // Retrieves the current keyboard controller instance that you can use in your composable
     // In this case, it needs to hide the keyboard after the user submits a text
@@ -159,6 +163,8 @@ internal fun TopicSelectionContent(
         title = { Text("Topic Selection") },
         navController = navController,
         currentScreenInstance = Screen.TopicSelectionScreen(), // Pass the actual Screen instance
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
         content = { paddingValues ->
             Column(
                 modifier = Modifier

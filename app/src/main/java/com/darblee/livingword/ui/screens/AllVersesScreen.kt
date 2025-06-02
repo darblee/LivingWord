@@ -23,12 +23,15 @@ import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
+import com.darblee.livingword.ui.theme.ColorThemeOption
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllVersesScreen(
     navController: NavController,
     bibleViewModel: BibleVerseViewModel,
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption,
 ) {
 
     val allVerses by bibleViewModel.allVerses.collectAsState()
@@ -37,6 +40,8 @@ fun AllVersesScreen(
         title = { Text("Meditate God's Word") }, // Define the title for this screen
         navController = navController,
         currentScreenInstance = Screen.AllVersesScreen, // Pass the actual Screen instance
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
         content = { paddingValues -> // Content lambda receives padding values
             Column(
                 modifier = Modifier

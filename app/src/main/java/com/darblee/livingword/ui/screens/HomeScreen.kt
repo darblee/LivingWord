@@ -28,8 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer // Import SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Church
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.RecordVoiceOver
@@ -37,24 +35,16 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -78,6 +68,7 @@ import com.darblee.livingword.Screen
 import com.darblee.livingword.R
 import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
+import com.darblee.livingword.ui.theme.ColorThemeOption
 import java.text.BreakIterator
 import java.util.Locale
 
@@ -164,7 +155,11 @@ private fun splitIntoSentences(text: String, locale: Locale): List<String> {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(
+    navController: NavController,
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption
+) {
 
     // Get the current configuration
     val configuration = LocalConfiguration.current
@@ -284,7 +279,9 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
             }
-        }
+        },
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme
     )
 }
 

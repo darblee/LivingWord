@@ -1,5 +1,8 @@
 package com.darblee.livingword
 
+import android.view.HapticFeedbackConstants
+import android.view.SoundEffectConstants
+import android.view.View
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -18,4 +21,12 @@ internal object Global {
     val SMALL_ACTION_BUTTON_PADDING = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
     const val VERSE_RESULT_KEY = "selectedVerseResult" // Key to transfer saveStateHandle info from GetEndVerseNumberScreen to NewVerseScreen
     const val TOPIC_SELECTION_RESULT_KEY = "selected_topics_result"   // Key to transfer saveStateHandle info from TopicSelectionScreen to LearnScreen
+}
+
+/**
+ * Perform haptic feedback.
+ */
+fun View.click() = run {
+    this.let { this.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)}
+    this.playSoundEffect(SoundEffectConstants.CLICK)
 }

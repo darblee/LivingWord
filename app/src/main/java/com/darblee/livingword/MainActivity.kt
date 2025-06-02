@@ -10,7 +10,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -102,8 +101,6 @@ class MainActivity : ComponentActivity() {
         onColorThemeUpdated: (colorThemeSetting: ColorThemeOption) -> Unit,
         currentTheme: ColorThemeOption,
     ) {
-        val currentScreen = remember { mutableStateOf<Screen>(Screen.Home) }
-
         val navController = rememberNavController()
 
         Scaffold(
@@ -114,10 +111,10 @@ class MainActivity : ComponentActivity() {
                 viewModel(factory = BibleVerseViewModel.Factory(applicationContext))
 
             SetUpNavGraph(
-                modifier = Modifier.padding(innerPadding),
                 bibleViewModel = bibleViewModel,
                 navController = navController,
-                currentScreen = currentScreen
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme
             )
         }
     }

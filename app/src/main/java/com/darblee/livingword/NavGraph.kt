@@ -7,11 +7,9 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -31,6 +29,7 @@ import com.darblee.livingword.ui.screens.MemorizeScreen
 import com.darblee.livingword.ui.screens.ShowVerseByTopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
 import com.darblee.livingword.ui.screens.VerseDetailScreen
+import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.serialization.Serializable
 
 @Serializable // Mark the sealed class as Serializable
@@ -97,10 +96,10 @@ sealed class Screen {
 
 @Composable
 fun SetUpNavGraph(
-    modifier: Modifier,
     bibleViewModel: BibleVerseViewModel,
     navController: NavHostController,
-    currentScreen: MutableState<Screen>
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption,
 ) {
     // NavHost defines the navigation graph
     NavHost(
@@ -109,19 +108,29 @@ fun SetUpNavGraph(
     ) {
         // Define the Home screen destination using the Screen type
         composable<Screen.Home> { // Use composable<Type> for type safety
-            HomeScreen(navController = navController)
+            HomeScreen(navController = navController,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme)
         }
         // Define the Topic Screen destination
         composable<Screen.AllVersesScreen> {
-            AllVersesScreen(navController = navController, bibleViewModel = bibleViewModel)
+            AllVersesScreen(navController = navController,
+                bibleViewModel = bibleViewModel,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme
+                )
         }
         // Define the Prayer Screen destination.
         composable<Screen.VerseByTopicScreen> {
-            ShowVerseByTopicScreen(navController = navController, bibleViewModel = bibleViewModel)
+            ShowVerseByTopicScreen(navController = navController, bibleViewModel = bibleViewModel,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme)
         }
 
         composable<Screen.NewVerseScreen> {
-            AddNewVerseScreen(navController = navController, bibleViewModel = bibleViewModel)
+            AddNewVerseScreen(navController = navController, bibleViewModel = bibleViewModel,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme)
         }
 
         composable<Screen.GetBookScreen> {
@@ -154,7 +163,9 @@ fun SetUpNavGraph(
             TopicSelectionScreen(
                 navController = navController,
                 bibleViewModel = bibleViewModel,
-                selectedTopicsJson = screenRouteParams.selectedTopicsJson
+                selectedTopicsJson = screenRouteParams.selectedTopicsJson,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme
             )
         }
 
@@ -172,7 +183,9 @@ fun SetUpNavGraph(
             MemorizeScreen(
                 navController = navController,
                 bibleViewModel = bibleViewModel,
-                verseID = screenRouteParams.verseID
+                verseID = screenRouteParams.verseID,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme
             )
         }
     }

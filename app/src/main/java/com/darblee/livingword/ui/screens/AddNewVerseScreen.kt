@@ -58,6 +58,7 @@ import com.darblee.livingword.data.verseReferenceT
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.NewVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
+import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
@@ -105,6 +106,8 @@ fun formatScriptureWithVerseNumbers(scriptureText: String): androidx.compose.ui.
 fun AddNewVerseScreen(
     navController: NavController,
     bibleViewModel: BibleVerseViewModel,
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption,
 ) {
     val newVerseViewModel: NewVerseViewModel = viewModel()
     // Observe the state flow from the ViewModel safely with the lifecycle
@@ -247,6 +250,8 @@ fun AddNewVerseScreen(
         title = { Text("Add New Verse") },
         navController = navController,
         currentScreenInstance = Screen.NewVerseScreen, // Pass the actual Screen instance
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
         content = { paddingValues ->
             Column(
                 modifier = Modifier
@@ -500,7 +505,7 @@ fun AddNewVerseScreen(
                     }
                 }
             }
-        }
+        },
     )
 
     // Handle back press to navigate to Home and clear backstack
