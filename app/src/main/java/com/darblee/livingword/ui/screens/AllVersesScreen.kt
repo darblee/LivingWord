@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
@@ -107,6 +108,25 @@ fun AllVersesScreen(navController: NavController, bibleViewModel: BibleVerseView
                     }
                 }
             }
+        }
+    }
+
+    // Handle back press to navigate to Home and clear backstack
+    BackPressHandler {
+        navController.navigate(Screen.Home) {
+            /**
+             * Clears the entire back stack before navigating to All Verses screen. navController.graph.id
+             * refers to the root of your navigation graph.
+             */
+            popUpTo(navController.graph.id) { // Pop the entire back stack
+                inclusive = true
+            }
+            /**
+             * launchSingleTop = true ensures that if HomeScreen is already at the top of the stack
+             * (which it won't be in this specific scenario after popping everything, but it's good
+             * practice for navigations to Home), a new instance isn't created.
+             */
+            launchSingleTop = true // Avoid multiple instances of Home Screen
         }
     }
 }
