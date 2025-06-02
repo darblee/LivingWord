@@ -6,9 +6,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.data.AppDatabase
 import com.darblee.livingword.data.BibleVerse
+import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.BibleVerseRepository
 import com.darblee.livingword.data.Topic
 import kotlinx.coroutines.flow.MutableStateFlow

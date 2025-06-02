@@ -3,7 +3,7 @@ package com.darblee.livingword.domain.model
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.darblee.livingword.BibleVerseRef
+import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
 import kotlinx.coroutines.flow.MutableStateFlow

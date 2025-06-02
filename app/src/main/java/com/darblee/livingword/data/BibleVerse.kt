@@ -4,7 +4,6 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import com.darblee.livingword.BibleVerseRef
 
 @Entity(tableName = "BibleVerse_Items")
 @TypeConverters(Converters::class)

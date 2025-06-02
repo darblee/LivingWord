@@ -37,7 +37,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.Global
 import com.darblee.livingword.Global.VERSE_RESULT_KEY
 import com.darblee.livingword.Screen
@@ -48,6 +47,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.ui.semantics.Role
+import com.darblee.livingword.data.BibleVerseRef
 
 @Composable
 fun GetEndVerseNumberScreen(

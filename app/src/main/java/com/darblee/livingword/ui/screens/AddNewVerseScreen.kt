@@ -59,13 +59,13 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
-import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.Global
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
 import com.darblee.livingword.Global.VERSE_RESULT_KEY
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
+import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.verseReferenceT
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.NewVerseViewModel

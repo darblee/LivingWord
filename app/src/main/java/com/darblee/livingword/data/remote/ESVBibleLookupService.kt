@@ -1,8 +1,8 @@
 package com.darblee.livingword.data.remote
 
 import android.util.Log
-import com.darblee.livingword.BibleVerseRef
 import com.darblee.livingword.BuildConfig
+import com.darblee.livingword.data.BibleVerseRef
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable

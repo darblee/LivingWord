@@ -72,7 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.darblee.livingword.BibleVerseRef
+import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.domain.model.MemorizeVerseViewModel
 import com.darblee.livingword.ui.theme.ColorThemeOption
 

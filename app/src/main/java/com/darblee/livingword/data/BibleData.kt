@@ -8,6 +8,20 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.IOException
 
+
+/**
+ * Represents the selected Bible verse components.
+ * This is used both as a result type and potentially part of a screen's state.
+ * Marked as Serializable to be passed via SavedStateHandle.
+ */
+@Serializable
+data class BibleVerseRef(
+    val book: String,
+    val chapter: Int,
+    val startVerse: Int,
+    val endVerse: Int
+)
+
 /**
  * Represents the detailed information for a single book, loaded from JSON.
  * @param abbreviation The common abbreviation for the book (e.g., "Gen").

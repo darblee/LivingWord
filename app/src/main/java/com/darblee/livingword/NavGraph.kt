@@ -32,18 +32,7 @@ import com.darblee.livingword.ui.screens.TopicSelectionScreen
 import com.darblee.livingword.ui.screens.VerseDetailScreen
 import kotlinx.serialization.Serializable
 
-/**
- * Represents the selected Bible verse components.
- * This is used both as a result type and potentially part of a screen's state.
- * Marked as Serializable to be passed via SavedStateHandle.
- */
-@Serializable
-data class BibleVerseRef(
-    val book: String,
-    val chapter: Int,
-    val startVerse: Int,
-    val endVerse: Int
-)
+
 
 
 @Serializable // Mark the sealed class as Serializable
