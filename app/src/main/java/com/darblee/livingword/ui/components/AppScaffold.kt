@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.R
@@ -122,18 +123,11 @@ fun AppScaffold(
                     selected = currentScreenInstance is Screen.Home,
                     onClick = {
                         if (currentScreenInstance !is Screen.Home) {
-                            navController.navigate(Screen.Home) {
-                                // Pop up to the start destination of the graph to
-                                // avoid building up a large stack of destinations
-                                // on the back stack as users select items
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
+                            navController.navigate(route = Screen.Home) {
+                                popUpTo(navController.graph.startDestinationId) { // Or your specific graph's route name if not nested
+                                    saveState = true // Optional if you don't need to save its state
                                 }
-                                // Avoid multiple copies of the same destination when
-                                // re-selecting the same item
-                                launchSingleTop = true
-                                // Restore state when re-selecting a previously selected item
-                                restoreState = true
+                                launchSingleTop = true // Avoid multiple instances of Home Screen
                             }
                         }
                     },
@@ -144,10 +138,11 @@ fun AppScaffold(
                     selected = currentScreenInstance is Screen.AllVersesScreen,
                     onClick = {
                         if (currentScreenInstance !is Screen.AllVersesScreen) {
-                            navController.navigate(Screen.AllVersesScreen) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            navController.navigate(route = Screen.AllVersesScreen) {
+                                popUpTo(navController.graph.findStartDestination().id) { // Or your specific graph's route name if not nested
+                                    saveState = true // Optional if you don't need to save its state
+                                }
+                                launchSingleTop = true // Avoid multiple instances of Home Screen
                             }
                         }
                     },
@@ -164,10 +159,11 @@ fun AppScaffold(
                     selected = currentScreenInstance is Screen.VerseByTopicScreen,
                     onClick = {
                         if (currentScreenInstance !is Screen.VerseByTopicScreen) {
-                            navController.navigate(Screen.VerseByTopicScreen) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            navController.navigate(route = Screen.VerseByTopicScreen) {
+                                popUpTo(navController.graph.findStartDestination().id) { // Or your specific graph's route name if not nested
+                                    saveState = true // Optional if you don't need to save its state
+                                }
+                                launchSingleTop = true // Avoid multiple instances of Home Screen
                             }
                         }
                     },
