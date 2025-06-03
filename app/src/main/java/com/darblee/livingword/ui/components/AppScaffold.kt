@@ -54,7 +54,11 @@ import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
 import com.darblee.livingword.AISettings
-import com.darblee.livingword.SnackBarController
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import com.darblee.livingword.data.remote.AiServiceResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -376,8 +380,6 @@ private fun ColorThemeSetting(
 ) {
     val view = LocalView.current
     val scope = rememberCoroutineScope()
-    val applicationContext = LocalContext.current.applicationContext
-
 
     Column(modifier = Modifier.fillMaxWidth()) { // Use Column for better structure
         Text(
@@ -458,6 +460,10 @@ private fun AIModelSetting(
     onTemperatureInputChange: (String) -> Unit
 ) {
     var apiKeyVisible by remember { mutableStateOf(false) }
+    var isTestingConnection by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
+    var testSuccess by remember { mutableStateOf<Boolean?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -497,17 +503,16 @@ private fun AIModelSetting(
             Text(
                 "API Key is required for AI features.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                color = colorScheme.error,
                 modifier = Modifier.padding(start = 4.dp)
             )
         }
-
 
         OutlinedTextField(
             value = temperatureInput,
             onValueChange = { newValue ->
                 // Allow empty, or valid float format
-                if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*\$"))) {
+                if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
                     onTemperatureInputChange(newValue)
                 }
             },
@@ -521,9 +526,124 @@ private fun AIModelSetting(
             Text(
                 "Must be a number between 0.0 and 1.0.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                color = colorScheme.error,
                 modifier = Modifier.padding(start = 4.dp)
             )
+        }
+
+        // Test Configuration Section
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        isTestingConnection = true
+                        testResult = null
+                        testSuccess = null
+
+                        try {
+                            // Create temporary AI settings for testing
+                            val tempFloat = temperatureInput.toFloatOrNull() ?: PreferenceStore.DEFAULT_AI_TEMPERATURE
+                            val testSettings = AISettings(
+                                modelName = modelName,
+                                apiKey = apiKey,
+                                temperature = tempFloat.coerceIn(0f, 1f)
+                            )
+
+                            // Configure the service with test settings
+                            GeminiAIService.configure(testSettings)
+
+                            // Test the connection with a simple prompt
+                            val result = GeminiAIService.getKeyTakeaway("John 3:16")
+
+                            when (result) {
+                                is AiServiceResult.Success -> {
+                                    testSuccess = true
+                                    testResult = "Connection successful! AI model is working properly."
+                                }
+                                is AiServiceResult.Error -> {
+                                    testSuccess = false
+                                    testResult = "Connection failed: ${result.message}"
+                                }
+                            }
+                        } catch (e: Exception) {
+                            testSuccess = false
+                            testResult = "Test failed: ${e.message}"
+                        } finally {
+                            isTestingConnection = false
+                        }
+                    }
+                },
+                enabled = !isTestingConnection && apiKey.isNotBlank() && modelName.isNotBlank() &&
+                        (tempFloat != null && tempFloat >= 0f && tempFloat <= 1f),
+                modifier = Modifier.weight(1f)
+            ) {
+                if (isTestingConnection) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = colorScheme.onPrimary
+                        )
+                        Text("Testing...")
+                    }
+                } else {
+                    Text("Test Configuration")
+                }
+            }
+        }
+
+        // Display test result
+        testResult?.let { result ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (testSuccess == true) {
+                        colorScheme.primaryContainer
+                    } else {
+                        colorScheme.errorContainer
+                    }
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (testSuccess == true) Icons.Filled.CheckCircle else Icons.Filled.Error,
+                        contentDescription = if (testSuccess == true) "Success" else "Error",
+                        tint = if (testSuccess == true) {
+                            colorScheme.primary
+                        } else {
+                            colorScheme.error
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = result,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (testSuccess == true) {
+                            colorScheme.onPrimaryContainer
+                        } else {
+                            colorScheme.onErrorContainer
+                        }
+                    )
+                }
+            }
         }
     }
 }
