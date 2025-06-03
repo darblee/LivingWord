@@ -63,7 +63,7 @@ fun TopicSelectionScreen(
     val state by topicSelectionViewModel.state.collectAsState()
 
     // Get the snapshot of all topic items
-    val allTopicItems by bibleViewModel.allTopicItems.collectAsState()
+    val allTopicItems by bibleViewModel.allTopicsWithCount.collectAsState()
 
     // Convert the snapshot list of topic items into a list of topic names
     val allTopics: List<String> = allTopicItems.map { it.topic.trim() }

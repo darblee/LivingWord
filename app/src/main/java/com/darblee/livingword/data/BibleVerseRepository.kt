@@ -95,4 +95,6 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
             }
         }
     }
+
+    fun getAllTopicsWithCount(): Flow<List<TopicWithCount>> = bibleVerseDao.getAllTopicsWithCount()
 }

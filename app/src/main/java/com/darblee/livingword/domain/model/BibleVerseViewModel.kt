@@ -10,7 +10,7 @@ import com.darblee.livingword.data.AppDatabase
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.BibleVerseRepository
-import com.darblee.livingword.data.Topic
+import com.darblee.livingword.data.TopicWithCount
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -21,12 +21,12 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     private val _allVerses = MutableStateFlow<List<BibleVerse>>(emptyList())
     val allVerses: StateFlow<List<BibleVerse>> = _allVerses
 
-    private val _allTopics = MutableStateFlow<List<Topic>>(emptyList())
-    val allTopicItems: StateFlow<List<Topic>> = _allTopics
+    private val _allTopicsWithCount = MutableStateFlow<List<TopicWithCount>>(emptyList())
+    val allTopicsWithCount: StateFlow<List<TopicWithCount>> = _allTopicsWithCount
 
     init {
         getAllVerses()
-        getAllTopics()
+        getAllTopicsWithCount() // Changed from getAllTopics()
     }
 
     fun saveNewVerse(
@@ -73,10 +73,11 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
-    private fun getAllTopics() {
+    // Replace the existing getAllTopics() method with this:
+    private fun getAllTopicsWithCount() {
         viewModelScope.launch {
-            repository.getAllTopics().collectLatest { topics ->
-                _allTopics.value = topics
+            repository.getAllTopicsWithCount().collectLatest { topicsWithCount ->
+                _allTopicsWithCount.value = topicsWithCount
             }
         }
     }

@@ -32,12 +32,9 @@ import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.BibleVerseViewModel
-import com.darblee.livingword.data.Topic
+import com.darblee.livingword.data.TopicWithCount
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
-
-
-// TODO: Add BackPress handler to navigate back to home. See logic in New Verse Screen.
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,44 +45,46 @@ fun ShowVerseByTopicScreen(
     currentTheme: ColorThemeOption,
 ) {
 
-    val allVerseToList  by bibleViewModel.allVerses.collectAsState()
-    val allTopicItems by bibleViewModel.allTopicItems.collectAsState()
+    val allVerseToList by bibleViewModel.allVerses.collectAsState()
+    val allTopicsWithCount by bibleViewModel.allTopicsWithCount.collectAsState()
     var selectedTopics by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
     AppScaffold(
-        title = { Text("Meditate God's Word by Topic(s)") }, // Define the title for this screen
+        title = { Text("Meditate God's Word by Topic(s)") },
         navController = navController,
-        currentScreenInstance = Screen.VerseByTopicScreen, // Pass the actual Screen instance
+        currentScreenInstance = Screen.VerseByTopicScreen,
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = { paddingValues ->
             Column(
                 modifier = Modifier
-                    .padding(paddingValues) // Apply padding from Scaffold
+                    .padding(paddingValues)
                     .fillMaxSize()
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Use a radio group for the list of topics
-                // Use LazyVerticalGrid for 3-column layout
-
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.heightIn(max = (3 * 48).dp)
-                        .border(width = 1.dp, color = Color.White )
+                        .border(width = 1.dp, color = Color.White)
                         .padding(0.dp)
                 ) {
-                    Log.i("ShowVerseByTopic", "All selected Topics: ${allTopicItems}")
+                    Log.i("ShowVerseByTopic", "All Topics with Count: ${allTopicsWithCount}")
 
-                    items(allTopicItems.size) { index ->
-                        val topicItem = allTopicItems[index]
-                        val isSelected = selectedTopics.contains(topicItem.topic)
+                    items(allTopicsWithCount.size) { index -> // Updated this line
+                        val topicWithCount = allTopicsWithCount[index] // Updated this line
+                        val isSelected =
+                            selectedTopics.contains(topicWithCount.topic) // Updated this line
                         Row(
                             modifier = Modifier
                                 .selectable(
                                     selected = isSelected,
                                     onClick = {
-                                        selectedTopics = onSelectTopicCheckBox(!isSelected, selectedTopics, topicItem)
+                                        selectedTopics = onSelectTopicCheckBox(
+                                            !isSelected,
+                                            selectedTopics,
+                                            topicWithCount
+                                        ) // Updated this line
                                     }
                                 )
                                 .padding(vertical = 0.dp),
@@ -94,11 +93,15 @@ fun ShowVerseByTopicScreen(
                             Checkbox(
                                 checked = isSelected,
                                 onCheckedChange = { isChecked ->
-                                    selectedTopics = onSelectTopicCheckBox(isChecked, selectedTopics, topicItem)
+                                    selectedTopics = onSelectTopicCheckBox(
+                                        isChecked,
+                                        selectedTopics,
+                                        topicWithCount
+                                    ) // Updated this line
                                 }
                             )
                             Text(
-                                text = topicItem.topic,
+                                text = "${topicWithCount.topic} (${topicWithCount.verseCount})", // Updated this line
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.padding(start = 0.dp)
                             )
@@ -106,30 +109,26 @@ fun ShowVerseByTopicScreen(
                     }
                 }
 
+                // Rest of the code remains the same...
                 Log.i("ShowVerseByTopic", "SelectedTopics: $selectedTopics")
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (selectedTopics.isNotEmpty()) {
                     val filteredVerses = allVerseToList.filter { verseItem ->
-                        // Check if the verseItem.topics (trimmed, original case)
-                        // contains ANY of the selectedTopics (normalized: lowercase, trimmed).
-                        selectedTopics.any { selectedTopicNormalized -> // Iterate through selected topics
-                            verseItem.topics.any { verseTopicFromDb -> // Check if any of verse's topics match
-                                // Compare verseTopicFromDb (already trimmed by TypeConverter)
-                                // with selectedTopicNormalized (already trimmed and lowercased)
+                        selectedTopics.any { selectedTopicNormalized ->
+                            verseItem.topics.any { verseTopicFromDb ->
                                 verseTopicFromDb.equals(selectedTopicNormalized, ignoreCase = true)
                             }
                         }
                     }
 
-                    Log.i("ShowVerseByTopic", "Found ${filteredVerses.size} verses matching ANY selected topics.")
+                    Log.i(
+                        "ShowVerseByTopic",
+                        "Found ${filteredVerses.size} verses matching ANY selected topics."
+                    )
 
                     if (filteredVerses.isNotEmpty()) {
-
-                        // Use weight if it's in a Column that should expand
-                        // TODO: For now, let's assume you keeping the forEach for VerseCard.
-                        // If performance becomes an issue with many verses, consider a Lazy layout.
                         LazyColumn(modifier = Modifier.weight(1f)) {
                             items(filteredVerses) { verseItem ->
                                 VerseCard(verseItem, navController)
@@ -137,7 +136,7 @@ fun ShowVerseByTopicScreen(
                             }
                         }
                     } else {
-                        Text( // Updated feedback text
+                        Text(
                             text = "No verses found matching any of the selected topics.",
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(vertical = 16.dp).weight(1f)
@@ -147,7 +146,7 @@ fun ShowVerseByTopicScreen(
                     Text(
                         text = "Please select one or more topics to see matching verses.",
                         style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(vertical = 16.dp).weight(1f) // Use weight to push button down
+                        modifier = Modifier.padding(vertical = 16.dp).weight(1f)
                     )
                 }
             }
@@ -172,24 +171,21 @@ fun ShowVerseByTopicScreen(
             launchSingleTop = true // Avoid multiple instances of Home Screen
         }
     }
-
-
 }
 
+// Update the helper function to work with TopicWithCount:
 private fun onSelectTopicCheckBox(
     isChecked: Boolean,
     existingSelectedTopics: List<String>,
-    topicItem: Topic
+    topicWithCount: TopicWithCount // Changed parameter type
 ): List<String> {
     var newSelectedTopics = existingSelectedTopics
     if (isChecked) {
-        if (!newSelectedTopics.contains(topicItem.topic)) {
-            newSelectedTopics = newSelectedTopics + topicItem.topic
+        if (!newSelectedTopics.contains(topicWithCount.topic)) { // Access .topic property
+            newSelectedTopics = newSelectedTopics + topicWithCount.topic // Access .topic property
         }
     } else {
-        newSelectedTopics = newSelectedTopics.filter { it != topicItem.topic }
+        newSelectedTopics = newSelectedTopics.filter { it != topicWithCount.topic } // Access .topic property
     }
     return newSelectedTopics
 }
-
-

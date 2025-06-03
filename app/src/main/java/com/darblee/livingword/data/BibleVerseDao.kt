@@ -113,4 +113,17 @@ interface BibleVerseDao {
      */
     @Query("DELETE FROM Topics WHERE topic = :topicName")
     suspend fun deleteTopicByName(topicName: String)
+
+    /**
+     * Gets all topics with their verse counts using a JOIN query.
+     * This returns topics ordered by name, including the count of verses for each topic.
+     */
+    @Query("""
+    SELECT t.topic, COUNT(c.bibleVerseId) as verseCount
+    FROM Topics t
+    LEFT JOIN CrossRefBibleVerseTopics c ON t.id = c.topicId
+    GROUP BY t.id, t.topic
+    ORDER BY t.topic
+""")
+    fun getAllTopicsWithCount(): Flow<List<TopicWithCount>>
 }
