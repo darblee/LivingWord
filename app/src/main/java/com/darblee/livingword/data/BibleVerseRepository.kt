@@ -43,6 +43,46 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         return bibleVerseDao.findVerseByReference(book, chapter, startVerse)
     }
 
+    /**
+     * Deletes multiple topics by their names.
+     * Only deletes topics that have 0 verse count and are not default topics.
+     * Runs on IO dispatcher for database operations.
+     */
+    suspend fun deleteTopics(topicNames: List<String>) {
+        withContext(Dispatchers.IO) {
+            for (topicName in topicNames) {
+                try {
+                    // 1. Check if it's a default topic; if so, skip deletion.
+                    if (Global.DEFAULT_TOPICS.any { it.equals(topicName, ignoreCase = true) }) {
+                        Log.d("BibleVerseRepository", "Topic '$topicName' is a default topic, not deleting.")
+                        continue
+                    }
+
+                    // 2. Get the Topic entity to find its ID.
+                    val topicEntity = bibleVerseDao.getTopicByName(topicName)
+                    if (topicEntity != null) {
+                        // 3. Double-check if any verses are still associated with this topicId.
+                        val usageCount = bibleVerseDao.countVersesForTopicId(topicEntity.id)
+                        Log.d("BibleVerseRepository", "Topic '$topicName' (ID: ${topicEntity.id}) usage count: $usageCount")
+
+                        if (usageCount == 0) {
+                            // 4. Safe to delete the topic
+                            Log.i("BibleVerseRepository", "Deleting topic: '$topicName' (ID: ${topicEntity.id})")
+                            bibleVerseDao.deleteTopicById(topicEntity.id)
+                        } else {
+                            Log.w("BibleVerseRepository", "Cannot delete topic '$topicName' - it has $usageCount associated verses")
+                        }
+                    } else {
+                        Log.w("BibleVerseRepository", "Topic '$topicName' not found in Topics table")
+                    }
+                } catch (e: Exception) {
+                    Log.e("BibleVerseRepository", "Error deleting topic '$topicName': ${e.message}", e)
+                    // Continue with other topics even if one fails
+                }
+            }
+        }
+    }
+
     suspend fun deleteVerse(bibleVerse: BibleVerse) {
         // It's important to get the topics associated with the verse *before* it's deleted,
         // as the BibleVerse object itself contains this list.
@@ -97,4 +137,97 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
     }
 
     fun getAllTopicsWithCount(): Flow<List<TopicWithCount>> = bibleVerseDao.getAllTopicsWithCount()
+
+    // --- Support for Rename Topic ---
+    /**
+     * Renames a topic.
+     * @param oldTopicName The current name of the topic.
+     * @param newTopicName The new name for the topic.
+     * @throws IllegalArgumentException if the topic is a default topic, or if newTopicName already exists as a different topic.
+     * @throws NoSuchElementException if the oldTopicName is not found.
+     */
+    suspend fun renameTopic(oldTopicName: String, newTopicName: String) {
+        if (Global.DEFAULT_TOPICS.any { it.equals(oldTopicName, ignoreCase = true) }) {
+            Log.w("BibleVerseRepository", "Attempt to rename default topic '$oldTopicName' was blocked.")
+            throw IllegalArgumentException("Default topics cannot be renamed.")
+        }
+
+        val oldTopicEntity = bibleVerseDao.getTopicByName(oldTopicName)
+            ?: throw NoSuchElementException("Topic '$oldTopicName' not found and cannot be renamed.")
+
+        // If new and old names are identical (case-sensitive), no action needed.
+        if (oldTopicName == newTopicName) {
+            Log.i("BibleVerseRepository", "Topic rename: old and new names are identical ('$oldTopicName'). No change.")
+            return
+        }
+
+        val newTopicCheck = bibleVerseDao.getTopicByName(newTopicName)
+        if (newTopicCheck != null && newTopicCheck.id != oldTopicEntity.id) {
+            // newTopicName exists and belongs to a *different* topic.
+            Log.w("BibleVerseRepository", "Attempt to rename topic '$oldTopicName' to '$newTopicName', but '$newTopicName' already exists as a different topic.")
+            throw IllegalArgumentException("Topic '$newTopicName' already exists.")
+        }
+
+        // If newTopicCheck is not null and newTopicCheck.id == oldTopicEntity.id,
+        // it means newTopicName is just a case variation of oldTopicName. This is permissible.
+
+        withContext(Dispatchers.IO) {
+            bibleVerseDao.renameTopicInDb(oldTopicName, newTopicName, oldTopicEntity.id)
+        }
+    }
+
+    suspend fun renameOrMergeTopic(oldTopicName: String, newTopicName: String, isMergeIntent: Boolean) {
+        if (Global.DEFAULT_TOPICS.any { it.equals(oldTopicName, ignoreCase = true) }) {
+            throw IllegalArgumentException("Default topic '$oldTopicName' cannot be renamed or merged from.")
+        }
+
+        val oldTopicEntity = bibleVerseDao.getTopicByName(oldTopicName)
+            ?: throw NoSuchElementException("Topic '$oldTopicName' not found.")
+
+        // If old and new names are effectively the same (case-insensitive check for non-merge)
+        // and it's not an explicit merge intent, treat as potential case-only rename.
+        if (oldTopicName.equals(newTopicName, ignoreCase = true) && !isMergeIntent) {
+            if (oldTopicName == newTopicName) {
+                Log.i("BibleVerseRepository", "Topic rename: old and new names are identical ('$oldTopicName'). No change.")
+                return // No actual change needed if case is also identical
+            }
+            // This is a case-only rename. The renameTopicInDb can handle this.
+        }
+
+        val targetTopicEntity = bibleVerseDao.getTopicByName(newTopicName)
+
+        if (targetTopicEntity != null && targetTopicEntity.id != oldTopicEntity.id) {
+            // New name matches a DIFFERENT existing topic.
+            if (isMergeIntent) {
+                if (Global.DEFAULT_TOPICS.any { it.equals(targetTopicEntity.topic, ignoreCase = true) }) {
+                    throw IllegalArgumentException("Cannot merge into a default topic: '${targetTopicEntity.topic}'.")
+                }
+                // Proceed with merge
+                withContext(Dispatchers.IO) {
+                    bibleVerseDao.mergeTopics(
+                        oldTopicId = oldTopicEntity.id,
+                        oldTopicName = oldTopicName, // Pass original oldTopicName for string replacement
+                        targetTopicId = targetTopicEntity.id,
+                        targetTopicName = targetTopicEntity.topic // Pass actual name of target
+                    )
+                }
+            } else {
+                // Should ideally be caught by UI, but as a safeguard:
+                throw IllegalArgumentException("Topic '$newTopicName' already exists. Merge was not explicitly allowed.")
+            }
+        } else {
+            // Simple rename (new name doesn't exist or is a case change of the same topic)
+            // targetTopicEntity will be null if newTopicName doesn't exist.
+            // targetTopicEntity will be non-null but targetTopicEntity.id == oldTopicEntity.id if it's a case change.
+            if (targetTopicEntity != null && targetTopicEntity.id == oldTopicEntity.id && targetTopicEntity.topic == newTopicName) {
+                Log.i("BibleVerseRepository", "Topic rename: target is same topic with identical name ('$newTopicName'). No DB change for topic name itself needed, but checking verses.")
+                // Still call renameTopicInDb as verse topic strings might need case update if oldTopicName was different case
+            }
+            withContext(Dispatchers.IO) {
+                bibleVerseDao.renameTopicInDb(oldTopicName, newTopicName, oldTopicEntity.id)
+            }
+        }
+    }
+
+
 }

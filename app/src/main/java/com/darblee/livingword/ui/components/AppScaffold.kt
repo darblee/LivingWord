@@ -150,7 +150,7 @@ fun AppScaffold(
                             }
                         }
                     },
-                    label = { Text("All Verses") },
+                    label = { Text("Verses") },
                     icon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_meditate_custom),
@@ -171,7 +171,7 @@ fun AppScaffold(
                             }
                         }
                     },
-                    label = { Text("Verse By Topics") },
+                    label = { Text("Topics") },
                     icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
                 )
             }

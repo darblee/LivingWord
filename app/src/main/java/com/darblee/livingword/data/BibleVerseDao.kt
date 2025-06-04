@@ -126,4 +126,88 @@ interface BibleVerseDao {
     ORDER BY t.topic
 """)
     fun getAllTopicsWithCount(): Flow<List<TopicWithCount>>
+
+    // The following functions is used to support renaming Topic
+    @Query("UPDATE Topics SET topic = :newName WHERE id = :topicId")
+    suspend fun updateTopicNameById(topicId: Long, newName: String)
+
+    @Query("SELECT * FROM BibleVerse_Items WHERE topics LIKE '%' || :topicName || '%'")
+    suspend fun getVersesContainingTopic(topicName: String): List<BibleVerse>
+
+    @Transaction
+    suspend fun renameTopicInDb(oldTopicName: String, newTopicName: String, oldTopicId: Long) {
+        updateTopicNameById(oldTopicId, newTopicName)
+        val potentiallyAffectedVerses: List<BibleVerse> = getVersesContainingTopic(oldTopicName)
+        for (verse in potentiallyAffectedVerses) {
+            val currentTopicsList: List<String> = verse.topics
+            if (currentTopicsList.contains(oldTopicName)) {
+                val updatedTopicsList: List<String> = currentTopicsList.map { topic ->
+                    if (topic == oldTopicName) newTopicName else topic
+                }
+                if (updatedTopicsList != currentTopicsList) {
+                    val newTopicsStringForDb = updatedTopicsList.joinToString(",")
+                    updateVerseTopics(verse.id, newTopicsStringForDb)
+                }
+            }
+        }
+    }
+
+    // --- Added for Merge Topics ---
+    @Query("SELECT bibleVerseId FROM CrossRefBibleVerseTopics WHERE topicId = :topicId")
+    suspend fun getVerseIdsForTopicId(topicId: Long): List<Long>
+
+    @Query("DELETE FROM CrossRefBibleVerseTopics WHERE bibleVerseId = :verseId AND topicId = :topicId")
+    suspend fun deleteCrossRef(verseId: Long, topicId: Long)
+
+    // For safety, you might want to ensure no direct cross-references to the old topic ID remain after specific deletions.
+    @Query("DELETE FROM CrossRefBibleVerseTopics WHERE topicId = :topicId")
+    suspend fun deleteAllCrossRefsForTopicId(topicId: Long)
+
+
+    @Transaction
+    suspend fun mergeTopics(oldTopicId: Long, oldTopicName: String, targetTopicId: Long, targetTopicName: String) {
+        // 1. Re-associate BibleVerses from oldTopicId to targetTopicId in CrossRefBibleVerseTopics
+        val verseIdsWithOldTopic = getVerseIdsForTopicId(oldTopicId)
+        val verseIdsAlreadyWithTargetTopic = getVerseIdsForTopicId(targetTopicId)
+
+        for (verseIdInOld in verseIdsWithOldTopic) {
+            // Remove the old association first.
+            deleteCrossRef(verseIdInOld, oldTopicId)
+            // Add new association to targetTopicId, only if this verse isn't already linked to the target topic.
+            if (!verseIdsAlreadyWithTargetTopic.contains(verseIdInOld)) {
+                insertCrossRef(CrossRefBibleVerseTopics(bibleVerseId = verseIdInOld, topicId = targetTopicId))
+            }
+        }
+        // As an alternative to the loop, for more complex SQL scenarios (might need adjustments for Room):
+        // First, remove cross references from the old topic that would cause duplicates if simply updated to target topic.
+        // val conflictingVerseIdsQuery = "SELECT bibleVerseId FROM CrossRefBibleVerseTopics WHERE topicId = $oldTopicId AND bibleVerseId IN (SELECT bibleVerseId FROM CrossRefBibleVerseTopics WHERE topicId = $targetTopicId)"
+        // Then update remaining: "UPDATE CrossRefBibleVerseTopics SET topicId = $targetTopicId WHERE topicId = $oldTopicId"
+        // The programmatic loop above is safer and clearer with Room's DAO methods.
+
+        // 2. Update the 'topics' string in BibleVerse_Items
+        val versesToUpdate = getVersesContainingTopic(oldTopicName) // Find verses containing the old name string
+        for (verse in versesToUpdate) {
+            val currentTopicsList: List<String> = verse.topics
+
+            if (currentTopicsList.contains(oldTopicName)) {
+                // Map oldName to targetName, then make the list distinct to handle cases
+                // where the verse might have contained both oldName and targetName.
+                val updatedList = currentTopicsList
+                    .map { if (it.equals(oldTopicName, ignoreCase = false)) targetTopicName else it }
+                    .distinct() // Ensures targetTopicName is not duplicated
+
+                if (updatedList != currentTopicsList) {
+                    val newTopicsStringForDb = updatedList.joinToString(",")
+                    updateVerseTopics(verse.id, newTopicsStringForDb)
+                }
+            }
+        }
+
+        // 3. Delete the old topic from Topics table (it's now merged)
+        // Ensure all cross-references are gone before deleting the topic itself to prevent foreign key issues if any remain.
+        deleteAllCrossRefsForTopicId(oldTopicId) // Belt-and-suspenders, primary logic is above.
+        deleteTopicById(oldTopicId)
+    }
+
+
 }

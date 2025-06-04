@@ -24,6 +24,9 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     private val _allTopicsWithCount = MutableStateFlow<List<TopicWithCount>>(emptyList())
     val allTopicsWithCount: StateFlow<List<TopicWithCount>> = _allTopicsWithCount
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
     init {
         getAllVerses()
         getAllTopicsWithCount() // Changed from getAllTopics()
@@ -91,6 +94,23 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     }
 
     /**
+     * Deletes multiple topics by their names.
+     * Only topics with 0 verse count should be deleted.
+     * This function runs in a coroutine scope.
+     */
+    fun deleteTopics(topicNames: List<String>) {
+        viewModelScope.launch {
+            try {
+                repository.deleteTopics(topicNames)
+                Log.i("BibleVerseViewModel", "Successfully deleted topics: $topicNames")
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error deleting topics: ${e.message}", e)
+                // You might want to expose this error to the UI if needed
+            }
+        }
+    }
+
+    /**
      * Retrieves a specific Bible verse by its ID using the repository.
      * This is a suspend function as it calls a suspend function in the repository.
      * @param id The unique ID of the Bible verse to retrieve.
@@ -98,6 +118,44 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
      */
     suspend fun getVerseById(id: Long): BibleVerse {
         return repository.getVerseById(id)
+    }
+
+    // --- Added for Rename Topic ---
+    fun renameOrMergeTopic(oldTopicName: String, newTopicName: String, isMergeIntent: Boolean) {
+        val trimmedNewName = newTopicName.trim()
+        if (trimmedNewName.isBlank()) {
+            _errorMessage.value = "New topic name cannot be blank."
+            Log.w("BibleVerseViewModel", "New topic name cannot be blank.")
+            return
+        }
+        // If it's not a merge, and names are identical (case-sensitive), do nothing.
+        // If it IS a merge, newName will be an existing different topic, so this check is fine.
+        if (oldTopicName == trimmedNewName && !isMergeIntent) {
+            Log.i("BibleVerseViewModel", "Old and new topic names are the same. No action needed for rename.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                repository.renameOrMergeTopic(oldTopicName, trimmedNewName, isMergeIntent)
+                val action = if (isMergeIntent) "merged into" else "renamed to"
+                Log.i("BibleVerseViewModel", "Topic '$oldTopicName' $action '$trimmedNewName' successfully.")
+                _errorMessage.value = "Topic '$oldTopicName' $action '$trimmedNewName'."
+            } catch (e: IllegalArgumentException) {
+                Log.w("BibleVerseViewModel", "Validation error during topic operation: ${e.message}")
+                _errorMessage.value = e.message
+            } catch (e: NoSuchElementException) {
+                Log.w("BibleVerseViewModel", "Error during topic operation: ${e.message}")
+                _errorMessage.value = e.message
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error processing topic '$oldTopicName' to '$trimmedNewName': ${e.message}", e)
+                _errorMessage.value = "Failed to process topic: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun clearErrorMessage() {
+        _errorMessage.value = null
     }
 
     companion object {
