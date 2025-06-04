@@ -123,11 +123,9 @@ fun TopicSelectionScreen(
                     // 3. Set the JSON String result
                     prevScreenSavedStateHandle[Global.TOPIC_SELECTION_RESULT_KEY] = resultJson
 
-                    // 4. Pop back stack to previous screen
-                    navController.popBackStack(
-                        route = Screen.NewVerseScreen, // Destination to pop up to
-                        inclusive = false
-                    )
+                    // 4. Pop back stack to previous screen.
+                    // The previous screen could be the NewVerseScreen or VerseDetailsScreen.
+                    navController.popBackStack()
                 } else {
                     Log.e("TopicSelectionScreen", "No previous screen found on back stack.")
                     // Handle error or navigate to a default screen
