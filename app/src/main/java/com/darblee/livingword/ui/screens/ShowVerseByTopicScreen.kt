@@ -1,19 +1,23 @@
 package com.darblee.livingword.ui.screens
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -63,50 +67,75 @@ fun ShowVerseByTopicScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.heightIn(max = (3 * 48).dp)
-                        .border(width = 1.dp, color = Color.White)
-                        .padding(0.dp)
-                ) {
-                    Log.i("ShowVerseByTopic", "All Topics with Count: ${allTopicsWithCount}")
+                // Box to contain both the label and the grid
+                Box {
 
-                    items(allTopicsWithCount.size) { index -> // Updated this line
-                        val topicWithCount = allTopicsWithCount[index] // Updated this line
-                        val isSelected =
-                            selectedTopics.contains(topicWithCount.topic) // Updated this line
-                        Row(
-                            modifier = Modifier
-                                .selectable(
-                                    selected = isSelected,
-                                    onClick = {
+                    Text(
+                        text = "Select one or more topics to see matching verses.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(top = 16.dp, start = 8.dp)
+                    )
+
+                    // Topics grid with border
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.heightIn(max = (4 * 48).dp)
+                            .border(width = 1.dp, color = Color.White)
+                            .padding(top = 35.dp)
+                    ) {
+                        Log.i("ShowVerseByTopic", "All Topics with Count: ${allTopicsWithCount}")
+
+                        items(allTopicsWithCount.size) { index -> // Updated this line
+                            val topicWithCount = allTopicsWithCount[index] // Updated this line
+                            val isSelected =
+                                selectedTopics.contains(topicWithCount.topic) // Updated this line
+                            Row(
+                                modifier = Modifier
+                                    .selectable(
+                                        selected = isSelected,
+                                        onClick = {
+                                            selectedTopics = onSelectTopicCheckBox(
+                                                !isSelected,
+                                                selectedTopics,
+                                                topicWithCount
+                                            ) // Updated this line
+                                        }
+                                    )
+                                    .padding(vertical = 0.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { isChecked ->
                                         selectedTopics = onSelectTopicCheckBox(
-                                            !isSelected,
+                                            isChecked,
                                             selectedTopics,
                                             topicWithCount
                                         ) // Updated this line
                                     }
                                 )
-                                .padding(vertical = 0.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = { isChecked ->
-                                    selectedTopics = onSelectTopicCheckBox(
-                                        isChecked,
-                                        selectedTopics,
-                                        topicWithCount
-                                    ) // Updated this line
-                                }
-                            )
-                            Text(
-                                text = "${topicWithCount.topic} (${topicWithCount.verseCount})", // Updated this line
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(start = 0.dp)
-                            )
+                                Text(
+                                    text = "${topicWithCount.topic} (${topicWithCount.verseCount})", // Updated this line
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.padding(start = 0.dp)
+                                )
+                            }
                         }
                     }
+
+                    // Overlapping label positioned at top-left corner on the border
+                    Text(
+                        text = "${allTopicsWithCount.size} topics",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
+                            .background(
+                                color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                            .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
+                    )
                 }
 
                 // Rest of the code remains the same...
@@ -142,12 +171,6 @@ fun ShowVerseByTopicScreen(
                             modifier = Modifier.padding(vertical = 16.dp).weight(1f)
                         )
                     }
-                } else {
-                    Text(
-                        text = "Please select one or more topics to see matching verses.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(vertical = 16.dp).weight(1f)
-                    )
                 }
             }
         }
