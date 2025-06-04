@@ -734,7 +734,7 @@ fun VerseDetailScreen(
                                             // Start the full verse detail sequence.
                                             else {
                                                 val scripture = verseItem.scripture
-                                                val aiTakeaway = verseItem.aiResponse
+                                                val aiTakeaway = editedAiResponse
                                                 if (scripture.isNotBlank()) { // Ensure there's scripture to read
                                                     activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                                     ttsViewModel.startVerseDetailSequence(
