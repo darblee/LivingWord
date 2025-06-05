@@ -102,10 +102,10 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         viewModelScope.launch {
             try {
                 repository.deleteTopics(topicNames)
-                Log.i("BibleVerseViewModel", "Successfully deleted topics: $topicNames")
+                Log.i("BibleVerseViewModel", "Successfully processed deletion for topics: $topicNames")
             } catch (e: Exception) {
                 Log.e("BibleVerseViewModel", "Error deleting topics: ${e.message}", e)
-                // You might want to expose this error to the UI if needed
+                _errorMessage.value = "Error during topic deletion: ${e.localizedMessage}"
             }
         }
     }
@@ -156,6 +156,13 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
     fun clearErrorMessage() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Posts a custom message to be shown to the user (e.g., via Snackbar).
+     */
+    fun postUserMessage(message: String) {
+        _errorMessage.value = message
     }
 
     companion object {

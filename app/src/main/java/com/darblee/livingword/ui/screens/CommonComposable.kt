@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,5 +53,35 @@ fun LabeledOutlinedBox(
         ) {
             content() // Render the content passed into the box
         }
+    }
+}
+
+@Composable
+fun ErrorDialog(
+    showDialog: MutableState<Boolean>,
+    errorMessage: String
+) {
+    if (showDialog.value) {
+        AlertDialog(
+            onDismissRequest = {
+                // Optionally, you can allow dismissing by clicking outside
+                // showDialog.value = false
+            },
+            title = {
+                Text(text = "Error")
+            },
+            text = {
+                Text(text = errorMessage)
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDialog.value = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }

@@ -19,19 +19,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.items // For LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog // Added
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField // Added
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect // Added
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,26 +41,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext // Added
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.SnackbarHostState // Added
-import androidx.compose.material3.Scaffold // For Snackbar
-import androidx.compose.material3.SnackbarHost // Added
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.domain.model.BibleVerseViewModel
-import com.darblee.livingword.data.TopicWithCount
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
+
+// Define a new data class for display purposes in this screen
+data class TopicWithUiCount(
+    val name: String,
+    val uiVerseCount: Int
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RenameTopicDialog(
     currentTopicName: String,
-    allExistingTopicNames: List<String>, // Pass all topic names
+    allExistingTopicNames: List<String>,
     onDismiss: () -> Unit,
     onConfirm: (newName: String, isMerge: Boolean) -> Unit
 ) {
@@ -71,7 +75,7 @@ fun RenameTopicDialog(
 
     LaunchedEffect(newTopicName, currentTopicName, allExistingTopicNames) {
         val trimmedNew = newTopicName.trim()
-        uiErrorMessage = null // Reset error
+        uiErrorMessage = null
         showMergeWarning = false
         potentialMergeTarget = null
 
@@ -80,19 +84,17 @@ fun RenameTopicDialog(
         } else if (trimmedNew.length > 50) {
             uiErrorMessage = "Topic name is too long (max 50 chars)."
         } else if (!trimmedNew.equals(currentTopicName, ignoreCase = false)) {
-            // Check if it matches an existing topic that is NOT the current topic (even by case)
             val existingMatch = allExistingTopicNames.find { dbTopic ->
                 dbTopic.equals(trimmedNew, ignoreCase = true) && !dbTopic.equals(currentTopicName, ignoreCase = true)
             }
 
             if (existingMatch != null) {
-                // New name matches a *different* existing topic. This is a potential merge.
                 if (Global.DEFAULT_TOPICS.any { it.equals(existingMatch, ignoreCase = true) }) {
                     uiErrorMessage = "Cannot merge into default topic: \"$existingMatch\"."
-                    showMergeWarning = false // Merge not allowed with default topic
+                    showMergeWarning = false
                 } else {
                     showMergeWarning = true
-                    potentialMergeTarget = existingMatch // Store the actual cased name from DB
+                    potentialMergeTarget = existingMatch
                 }
             }
         }
@@ -122,7 +124,7 @@ fun RenameTopicDialog(
                                 "This will merge all verses from \"$currentTopicName\" into \"$potentialMergeTarget\". " +
                                 "\"$currentTopicName\" will then be deleted.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.tertiary // A distinct color for warning
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             }
@@ -131,13 +133,13 @@ fun RenameTopicDialog(
             Button(
                 onClick = {
                     val trimmedNewName = newTopicName.trim()
-                    if (uiErrorMessage == null && trimmedNewName.isNotBlank()) { // Check uiErrorMessage which now includes merge validation
+                    if (uiErrorMessage == null && trimmedNewName.isNotBlank()) {
                         onConfirm(trimmedNewName, showMergeWarning)
-                    } else if (uiErrorMessage == null && trimmedNewName.isBlank()){ // Set error if confirm clicked when blank
+                    } else if (uiErrorMessage == null && trimmedNewName.isBlank()){
                         uiErrorMessage = "Topic name cannot be blank."
                     }
                 },
-                enabled = uiErrorMessage == null || (showMergeWarning && uiErrorMessage?.startsWith("Cannot merge into default topic") == false) // Enable if no error OR if it's a valid merge warning
+                enabled = uiErrorMessage == null || (showMergeWarning && uiErrorMessage?.startsWith("Cannot merge into default topic") == false)
             ) {
                 Text(if (showMergeWarning) "Merge & Rename" else "Rename")
             }
@@ -159,195 +161,239 @@ fun ShowVerseByTopicScreen(
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
 ) {
+    val allDbTopicsWithCount by bibleViewModel.allTopicsWithCount.collectAsState() //
+    val allVerseToList by bibleViewModel.allVerses.collectAsState() //
 
-    val allTopicsWithCountState by bibleViewModel.allTopicsWithCount.collectAsState()
-
-    var selectedTopics by rememberSaveable { mutableStateOf(emptyList<String>()) }
-
-    var showRenameDialog by remember { mutableStateOf(false) } // Added state for rename dialog
-
-    // Snackbar
-    val snackbarHostState = remember { SnackbarHostState() }
-    val errorMessage by bibleViewModel.errorMessage.collectAsState()
-
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            bibleViewModel.clearErrorMessage() // Clear the message after showing
+    // Recalculate counts based on ListVerses logic
+    val topicsForDisplay: List<TopicWithUiCount> = remember(allDbTopicsWithCount, allVerseToList) {
+        allDbTopicsWithCount.map { dbTopicWithCount ->
+            val uiCount = allVerseToList.count { verseItem ->
+                verseItem.topics.any { verseTopicInItem ->
+                    verseTopicInItem.equals(dbTopicWithCount.topic, ignoreCase = true)
+                }
+            }
+            TopicWithUiCount(name = dbTopicWithCount.topic, uiVerseCount = uiCount)
         }
     }
 
-    // Using AppScaffold which likely has its own Scaffold internally.
-    // If AppScaffold doesn't provide a SnackbarHost, this would need adjustment.
-    // For this example, assuming AppScaffold can host or we use a local Scaffold if needed.
-    // For simplicity, we'll assume AppScaffold takes care of the scaffold structure.
-    // If not, the content lambda of AppScaffold would need to be wrapped in another Scaffold
-    // that includes the SnackbarHost.
+    var selectedTopics by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() } //
+    val errorMessage by bibleViewModel.errorMessage.collectAsState() //
+
+    LaunchedEffect(errorMessage) { //
+        errorMessage?.let { //
+            snackbarHostState.showSnackbar(it) //
+            bibleViewModel.clearErrorMessage() //
+        }
+    }
+
+
+    val showErrorDialog = remember { mutableStateOf(false) }
+    val errMessage = remember { mutableStateOf("Something went wrong!") }
 
     AppScaffold(
-        title = { Text("Meditate God's Word by Topic(s)") },
-        navController = navController,
-        currentScreenInstance = Screen.VerseByTopicScreen,
-        onColorThemeUpdated = onColorThemeUpdated,
-        currentTheme = currentTheme,
+        title = { Text("Meditate God's Word by Topic(s)") }, //
+        navController = navController, //
+        currentScreenInstance = Screen.VerseByTopicScreen, //
+        onColorThemeUpdated = onColorThemeUpdated, //
+        currentTheme = currentTheme, //
         content = { paddingValues ->
             Column(
                 modifier = Modifier
-                    .padding(paddingValues)
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(paddingValues) //
+                    .fillMaxSize() //
+                    .padding(16.dp), //
+                horizontalAlignment = Alignment.CenterHorizontally //
             ) {
-                // Box to contain both the label and the grid
-                Box {
+                Box { //
                     Text(
-                        text = "Select one or more topics to perform task.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 16.dp, start = 8.dp)
+                        text = "Select one or more topics to perform task.", //
+                        style = MaterialTheme.typography.bodyLarge, //
+                        modifier = Modifier.padding(top = 16.dp, start = 8.dp) //
                     )
 
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                        columns = GridCells.Fixed(2), //
                         modifier = Modifier
-                            .heightIn(max = (4 * 48).dp) // Max height for approx 4 items per column visible
-                            .border(width = 1.dp, color = Color.Gray) // Changed border color for visibility
-                            .padding(top = 35.dp)
+                            .heightIn(max = (4 * 48).dp) //
+                            .border(width = 1.dp, color = Color.Gray) //
+                            .padding(top = 35.dp) //
                     ) {
-                        items(allTopicsWithCountState.size) { index ->
-                            val topicWithCount = allTopicsWithCountState[index]
-                            val isSelected = selectedTopics.contains(topicWithCount.topic)
+                        items(topicsForDisplay.size) { index -> // Use topicsForDisplay
+                            val topicToDisplay = topicsForDisplay[index]
+                            val isSelected = selectedTopics.contains(topicToDisplay.name) //
                             Row(
                                 modifier = Modifier
-                                    .selectable(
-                                        selected = isSelected,
-                                        onClick = {
+                                    .selectable( //
+                                        selected = isSelected, //
+                                        onClick = { //
+                                            // Pass topicToDisplay.name instead of TopicWithCount object
                                             selectedTopics = onSelectTopicCheckBox(
                                                 !isSelected,
                                                 selectedTopics,
-                                                topicWithCount
+                                                topicToDisplay.name // Pass name
                                             )
                                         }
                                     )
-                                    .padding(vertical = 0.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 0.dp), //
+                                verticalAlignment = Alignment.CenterVertically //
                             ) {
                                 Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { isChecked ->
+                                    checked = isSelected, //
+                                    onCheckedChange = { isChecked -> //
                                         selectedTopics = onSelectTopicCheckBox(
                                             isChecked,
                                             selectedTopics,
-                                            topicWithCount
+                                            topicToDisplay.name // Pass name
                                         )
                                     }
                                 )
                                 Text(
-                                    text = "${topicWithCount.topic} (${topicWithCount.verseCount})",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.padding(start = 0.dp)
+                                    // Use topicToDisplay.name and topicToDisplay.uiVerseCount
+                                    text = "${topicToDisplay.name} (${topicToDisplay.uiVerseCount})",
+                                    style = MaterialTheme.typography.bodyLarge, //
+                                    modifier = Modifier.padding(start = 0.dp) //
                                 )
                             }
                         }
                     }
 
                     Text(
-                        text = "${allTopicsWithCountState.size} topics",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        // Use topicsForDisplay.size
+                        text = "${topicsForDisplay.size} topics",
+                        style = MaterialTheme.typography.labelLarge, //
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), //
                         modifier = Modifier
-                            .offset(x = 12.dp, y = (-8).dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(2.dp)
+                            .offset(x = 12.dp, y = (-8).dp) //
+                            .background( //
+                                color = MaterialTheme.colorScheme.surface, //
+                                shape = RoundedCornerShape(2.dp) //
                             )
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .padding(horizontal = 4.dp, vertical = 2.dp) //
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp)) //
 
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.fillMaxWidth(), //
+                    horizontalAlignment = Alignment.CenterHorizontally //
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth().padding(8.dp), //
+                        horizontalArrangement = Arrangement.SpaceBetween //
                     ) {
                         Button(
                             onClick = {
                                 if (selectedTopics.count() == 1) {
-                                    showRenameDialog = true // Show dialog
+                                    val topicName = selectedTopics.first()
+                                    if (Global.DEFAULT_TOPICS.any { defaultTopic -> defaultTopic.equals(topicName, ignoreCase = true) }) {
+                                        bibleViewModel.postUserMessage("Default topic \"$topicName\" cannot be renamed.")
+                                        Log.i("ShowVerseBYTopic", "Default topic \"$topicName\" cannot be renamed." )
+                                        errMessage.value = "Default topic \"$topicName\" cannot be renamed."
+                                        showErrorDialog.value = true
+                                    } else {
+                                        showRenameDialog = true
+                                    }
                                 }
                             },
-                            enabled = selectedTopics.count() == 1,
+                            enabled = selectedTopics.count() == 1, //
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp)
+                                .weight(1f) //
+                                .padding(start = 8.dp) //
                         ) {
-                            Text("Rename topic")
+                            Text("Rename topic") //
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp)) //
 
                         Button(
-                            onClick = {
-                                val topicsToDelete = selectedTopics.filter { selectedTopic ->
-                                    allTopicsWithCountState.find { it.topic == selectedTopic }?.verseCount == 0
+                            onClick = { //
+                                // Use topicsForDisplay to check uiVerseCount for deletion eligibility
+                                val topicsPotentiallyDeletable = selectedTopics.filter { selectedTopicName ->
+                                    topicsForDisplay.find { it.name == selectedTopicName }?.uiVerseCount == 0
                                 }
-                                if (topicsToDelete.isNotEmpty()) {
-                                    bibleViewModel.deleteTopics(topicsToDelete)
-                                    selectedTopics =
-                                        selectedTopics.filterNot { topicsToDelete.contains(it) }
+
+                                if (topicsPotentiallyDeletable.isNotEmpty()) {
+                                    val defaultTopicsAttempted = topicsPotentiallyDeletable.filter { topicName ->
+                                        Global.DEFAULT_TOPICS.any { defaultTopic -> defaultTopic.equals(topicName, ignoreCase = true) } //
+                                    }
+
+                                    var messageToUser = ""
+
+                                    if (defaultTopicsAttempted.isNotEmpty()) {
+                                        val names = defaultTopicsAttempted.joinToString(", ") { "\"$it\"" }
+                                        messageToUser = "Default topic(s) $names cannot be deleted. " //
+                                        Log.i("ShowVerseBYTopic", "Default topic $names cannot be deleted." )
+                                        errMessage.value = "Default topic $names cannot be deleted."
+                                        showErrorDialog.value = true
+                                    }
+
+                                    val actualTopicsToDelete = topicsPotentiallyDeletable.filterNot { topicName ->
+                                        defaultTopicsAttempted.contains(topicName)
+                                    }
+
+                                    if (actualTopicsToDelete.isNotEmpty()) {
+                                        bibleViewModel.deleteTopics(actualTopicsToDelete) //
+                                        selectedTopics = selectedTopics.filterNot { actualTopicsToDelete.contains(it) } //
+                                        messageToUser += if (defaultTopicsAttempted.isEmpty()) "Selected topic(s) with 0 verses submitted for deletion." else "Other selected topics with 0 verses submitted for deletion." //
+                                    }
+
+                                    if (messageToUser.isNotBlank()) {
+                                        bibleViewModel.postUserMessage(messageToUser.trim()) //
+                                    }
                                 }
                             },
-                            enabled = selectedTopics.isNotEmpty() && selectedTopics.any { selTopic ->
-                                allTopicsWithCountState.find { it.topic == selTopic }?.verseCount == 0
+                            // Update enabled logic to use topicsForDisplay and uiVerseCount
+                            enabled = selectedTopics.isNotEmpty() && selectedTopics.all { selTopic ->
+                                topicsForDisplay.find { it.name == selTopic }?.uiVerseCount == 0
                             },
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
+                                .weight(1f) //
+                                .padding(end = 8.dp) //
                         ) {
-                            Text("Delete Topic(s)")
+                            Text("Delete Topic(s)") //
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp)) //
+                HorizontalDivider() //
+                Spacer(modifier = Modifier.height(8.dp)) //
 
-                if (showRenameDialog && selectedTopics.count() == 1) {
-                    val topicToRename = selectedTopics.first()
+                if (showRenameDialog && selectedTopics.count() == 1) { //
+                    val topicToRename = selectedTopics.first() //
                     RenameTopicDialog(
-                        currentTopicName = topicToRename,
-                        allExistingTopicNames = allTopicsWithCountState.map { it.topic },
-                        onDismiss = { showRenameDialog = false },
-                        onConfirm = { newName, isMerge ->
-                            showRenameDialog = false
-                            // old name is topicToRename, new name is newName
-                            bibleViewModel.renameOrMergeTopic(topicToRename, newName, isMerge)
-
-                            // Update selection: if old topic was selected, it should now be the newName (target of rename/merge)
-                            if (selectedTopics.contains(topicToRename)) {
-                                selectedTopics = (selectedTopics.filterNot { it == topicToRename } + newName).distinct()
+                        currentTopicName = topicToRename, //
+                        allExistingTopicNames = topicsForDisplay.map { it.name }, // Use names from topicsForDisplay
+                        onDismiss = { showRenameDialog = false }, //
+                        onConfirm = { newName, isMerge -> //
+                            showRenameDialog = false //
+                            bibleViewModel.renameOrMergeTopic(topicToRename, newName, isMerge) //
+                            if (selectedTopics.contains(topicToRename)) { //
+                                selectedTopics = (selectedTopics.filterNot { it == topicToRename } + newName).distinct() //
                             }
                         }
                     )
                 }
-
-                val allVerseToList by bibleViewModel.allVerses.collectAsState()
-                ListVerses(selectedTopics, allVerseToList, navController)
+                ListVerses(selectedTopics, allVerseToList, navController) //
             }
         }
     )
 
-    BackPressHandler {
-        navController.navigate(Screen.Home) {
-            popUpTo(navController.graph.id) { inclusive = true }
-            launchSingleTop = true
+    BackPressHandler { //
+        navController.navigate(Screen.Home) { //
+            popUpTo(navController.graph.id) { inclusive = true } //
+            launchSingleTop = true //
         }
     }
+
+    ErrorDialog(
+        showDialog = showErrorDialog,
+        errorMessage = errMessage.value
+    )
 }
 
 
@@ -358,47 +404,48 @@ private fun ColumnScope.ListVerses(
     navController: NavController
 ) {
     if (selectedTopics.isNotEmpty()) {
-        val filteredVerses = allVerseToList.filter { verseItem ->
-            selectedTopics.any { selectedTopicNormalized ->
-                verseItem.topics.any { verseTopicFromDb ->
-                    verseTopicFromDb.equals(selectedTopicNormalized, ignoreCase = true)
+        val filteredVerses = allVerseToList.filter { verseItem -> //
+            selectedTopics.any { selectedTopicNormalized -> //
+                verseItem.topics.any { verseTopicFromDb -> //
+                    verseTopicFromDb.equals(selectedTopicNormalized, ignoreCase = true) //
                 }
             }
         }
 
-        Log.i("ShowVerseByTopic", "Found ${filteredVerses.size} verses matching ANY selected topics.")
+        Log.i("ShowVerseByTopic", "Found ${filteredVerses.size} verses matching ANY selected topics.") //
 
         if (filteredVerses.isNotEmpty()) {
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(filteredVerses) { verseItem ->
-                    VerseCard(verseItem, navController) // Assuming VerseCard is defined elsewhere
-                    Spacer(modifier = Modifier.height(2.dp))
+            LazyColumn(modifier = Modifier.weight(1f)) { //
+                items(filteredVerses) { verseItem -> //
+                    VerseCard(verseItem, navController) //
+                    Spacer(modifier = Modifier.height(2.dp)) //
                 }
             }
         } else {
             Text(
-                text = "No verses found matching any of the selected topics.",
-                style = MaterialTheme.typography.bodyLarge,
+                text = "No verses found matching any of the selected topics.", //
+                style = MaterialTheme.typography.bodyLarge, //
                 modifier = Modifier
-                    .padding(vertical = 16.dp)
-                    .align(Alignment.CenterHorizontally) // Center if no verses
+                    .padding(vertical = 16.dp) //
+                    .align(Alignment.CenterHorizontally) //
             )
         }
     }
 }
 
+// Modify onSelectTopicCheckBox to accept topicName: String
 private fun onSelectTopicCheckBox(
     isChecked: Boolean,
     existingSelectedTopics: List<String>,
-    topicWithCount: TopicWithCount
+    topicName: String // Changed from TopicWithCount
 ): List<String> {
-    var newSelectedTopics = existingSelectedTopics.toMutableList() // Work with mutable list
+    val newSelectedTopics = existingSelectedTopics.toMutableList() //
     if (isChecked) {
-        if (!newSelectedTopics.any { it.equals(topicWithCount.topic, ignoreCase = false) }) {
-            newSelectedTopics.add(topicWithCount.topic)
+        if (!newSelectedTopics.any { it.equals(topicName, ignoreCase = false) }) { //
+            newSelectedTopics.add(topicName) //
         }
     } else {
-        newSelectedTopics.removeAll { it.equals(topicWithCount.topic, ignoreCase = false) }
+        newSelectedTopics.removeAll { it.equals(topicName, ignoreCase = false) } //
     }
-    return newSelectedTopics.toList()
+    return newSelectedTopics.toList() //
 }

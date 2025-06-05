@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
  */
 internal object Global {
     const val DEBUG_PREFIX = "InChrist:"
-    val DEFAULT_TOPICS = listOf("")
+    val DEFAULT_TOPICS = listOf("Faith", "Love")
     const val BUTTON_WIDTH = 60
     const val BUTTON_HEIGHT = 30
     val SMALL_ACTION_BUTTON_MODIFIER = Modifier.height(40.dp).width(80.dp)

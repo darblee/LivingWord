@@ -5,6 +5,7 @@ import android.util.Log
 import com.darblee.livingword.Global
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map // Ensure this import is present
 import kotlinx.coroutines.withContext
 
 class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
@@ -136,7 +137,42 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         }
     }
 
-    fun getAllTopicsWithCount(): Flow<List<TopicWithCount>> = bibleVerseDao.getAllTopicsWithCount()
+    /**
+     * Retrieves all topics along with their verse counts.
+     * This function ensures that all topics defined in Global.DEFAULT_TOPICS are included in the list.
+     * If a default topic is not found in the database, it's added to the list with a verse count of 0.
+     * The final list is sorted alphabetically by topic name.
+     *
+     * Note: This assumes the existence of a data class `TopicWithCount(val topic: String, val verseCount: Int)`.
+     */
+    fun getAllTopicsWithCount(): Flow<List<TopicWithCount>> {
+        return bibleVerseDao.getAllTopicsWithCount().map { dbTopicsWithCount ->
+            val mutableTopics = dbTopicsWithCount.toMutableList()
+            val existingTopicNamesLowercase = mutableTopics.map { it.topic.lowercase() }.toMutableSet()
+
+            Global.DEFAULT_TOPICS.forEach { defaultTopicName ->
+                val defaultTopicLowercase = defaultTopicName.lowercase()
+                if (!existingTopicNamesLowercase.contains(defaultTopicLowercase)) {
+                    // Check if a case-variant of the default topic already exists from the DB.
+                    // This handles scenarios where DB might have "Prayer" and default is "prayer".
+                    // The .any check is more robust if existingTopicNamesLowercase isn't perfectly synced
+                    // or if casing in Global.DEFAULT_TOPICS isn't consistent.
+                    val alreadyExistsWithDifferentCase = mutableTopics.any {
+                        it.topic.equals(defaultTopicName, ignoreCase = true)
+                    }
+                    if (!alreadyExistsWithDifferentCase) {
+                        mutableTopics.add(TopicWithCount(topic = defaultTopicName, verseCount = 0))
+                        // Add to set as well to prevent re-adding if multiple default topic entries are just case variations of each other
+                        existingTopicNamesLowercase.add(defaultTopicLowercase)
+                    }
+                }
+            }
+            // Sort the final list by topic name, case-insensitively, for consistent ordering.
+            mutableTopics.sortBy { it.topic.lowercase() }
+            mutableTopics.toList() // Return an immutable list
+        }
+    }
+
 
     // --- Support for Rename Topic ---
     /**
