@@ -174,7 +174,9 @@ fun SetUpNavGraph(
             val screenRouteParams = backStackEntry.toRoute<Screen.VerseDetailScreen>()
             VerseDetailScreen(navController = navController,
                 bibleViewModel = bibleViewModel,
-                verseID = screenRouteParams.verseID
+                verseID = screenRouteParams.verseID,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme
             )
         }
 

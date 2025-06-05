@@ -82,11 +82,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.unit.sp
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
-import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleData.removePassageRef
@@ -96,6 +94,8 @@ import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.domain.model.TTS_OperationMode
 import com.darblee.livingword.domain.model.VerseDetailSequencePart
+import com.darblee.livingword.ui.components.AppScaffold
+import com.darblee.livingword.ui.theme.ColorThemeOption
 
 // Helper extension function to append text with verse number styling
 fun AnnotatedString.Builder.appendWithVerseStyling(
@@ -141,7 +141,9 @@ fun VerseDetailScreen(
     navController: NavController,
     bibleViewModel: BibleVerseViewModel,
     ttsViewModel: TTSViewModel = viewModel(),
-    verseID: Long // Argument of the BibleVerse entity in "BibleVerse_Item" Database
+    verseID: Long,
+    onColorThemeUpdated: (ColorThemeOption) -> Unit,
+    currentTheme: ColorThemeOption,
 ) {
     // Remember scroll states for the text fields (UI concern)
     val aiResponseScrollState = rememberScrollState()
@@ -288,61 +290,30 @@ fun VerseDetailScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    var titleString =
-                        if (verseItem != null) {
-                            verseReference(verseItem)
-                        } else {
-                            "Loading..."
+    AppScaffold(
+        title = {
+            var titleString =
+                if (verseItem != null) {
+                    verseReference(verseItem)
+                } else {
+                    "Loading..."
+                }
+            Text(
+                buildAnnotatedString {
+                    append(titleString)
+                    if (inEditMode) {
+                        withStyle(style = SpanStyle(color = editModeColor)) { // Add this style for red color
+                            append(" [Edit Mode]")
                         }
-                    Text(
-                        buildAnnotatedString {
-                            append(titleString)
-                            if (inEditMode) {
-                                withStyle(style = SpanStyle(color = editModeColor)) { // Add this style for red color
-                                    append(" [Edit Mode]")
-                                }
-                            }
-                        }
-                    )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                    }
+                }
             )
         },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate(Screen.Home) },
-                    label = { Text("Home") },
-                    icon = { Icon(imageVector = Icons.Filled.Home, contentDescription = "Home") }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate(Screen.AllVersesScreen) },
-                    label = { Text("All Verses") },
-                    icon = {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_meditate_custom),
-                            contentDescription = "Review all verses",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate(Screen.VerseByTopicScreen) },
-                    label = { Text("Verse By Topics") },
-                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
-                )
-            }
-        }
-    ) { paddingValues ->
+        navController = navController,
+        currentScreenInstance = Screen.VerseDetailScreen(verseID),
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
+        content = {  paddingValues ->
         Column(
             modifier = Modifier
                 .padding(paddingValues) // Apply padding from Scaffold
@@ -923,6 +894,7 @@ fun VerseDetailScreen(
             }
         }
     }
+    )
 }
 
 // Helper function to build AnnotatedString with potential TTS highlighting & Markdown
