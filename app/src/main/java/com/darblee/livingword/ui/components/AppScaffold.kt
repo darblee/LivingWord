@@ -55,6 +55,7 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
 import com.darblee.livingword.AISettings
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -73,6 +74,7 @@ fun AppScaffold(
     var showMenu by remember { mutableStateOf(false) }
     var showAboutDialogBox by remember { mutableStateOf(false) }
     var showSettingDialogBox by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val preferenceStore = remember { PreferenceStore(context.applicationContext) }
 
@@ -104,6 +106,19 @@ fun AppScaffold(
                             text = { Text("Settings") },
                             onClick = {
                                 showSettingDialogBox = true
+                                showMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Cloud,
+                                    contentDescription = "Google Drive backup/restore"
+                                )
+                            },
+                            text = { Text("Google Drive") },
+                            onClick = {
+                                navController.navigate(route = Screen.GoogleDriveOpsScreen)
                                 showMenu = false
                             }
                         )

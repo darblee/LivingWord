@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,13 +24,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer // Import SelectionContainer
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,79 +63,59 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.darblee.livingword.Screen
 import com.darblee.livingword.R
+import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import java.text.BreakIterator
 import java.util.Locale
 
+// Unchanged function
 @Composable
 fun ProcessMorningPrayer(
-    modifier: Modifier = Modifier, // Use the modifier passed from parent (e.g., for width)
+    modifier: Modifier = Modifier,
     viewModel: TTSViewModel = viewModel(),
     textToSpeak: String,
 ) {
-    // Get the initialization state from the ViewModel
-    // collectAsStateWithLifecycle is generally safer for collecting flows in UI
-    val isTtsInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
-
     val currentlySpeakingIndex by viewModel.currentSentenceInBlockIndex.collectAsStateWithLifecycle()
-    val isSpeaking by viewModel.isSpeaking.collectAsStateWithLifecycle() // Get speaking state
+    val isSpeaking by viewModel.isSpeaking.collectAsStateWithLifecycle()
     val isPaused by viewModel.isPaused.collectAsStateWithLifecycle()
-
-    val context = LocalContext.current // Needed for locale
-
-    // Remember the scroll state
     val scrollState = rememberScrollState()
-
-    // Split text into sentences for display using BreakIterator
-    // Remember this based on the text and current locale
     val displaySentences = remember(textToSpeak, Locale.getDefault()) {
-        splitIntoSentences(textToSpeak, Locale.getDefault()) // Use local or ViewModel's split logic
+        splitIntoSentences(textToSpeak, Locale.getDefault())
     }
-
-    // Build the AnnotatedString for highlighting
     val annotatedText = buildAnnotatedString {
         displaySentences.forEachIndexed { index, sentence ->
-
-            // Highlight if speaking and not paused, or if paused at this index
             val shouldHighlight = (isSpeaking && !isPaused && index == currentlySpeakingIndex) ||
                     (isPaused && index == currentlySpeakingIndex)
-
             if (shouldHighlight) {
-                withStyle(style = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) { // Or another highlight color
+                withStyle(style = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) {
                     append(sentence)
                 }
             } else {
                 append(sentence)
             }
             if (index < displaySentences.size - 1) {
-                append("\n") // Or " " for space, ensure consistent with splitting for highlighting
+                append("\n")
             }
         }
     }
-
     Column(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 20.dp) // Internal padding for content
+            .padding(horizontal = 16.dp, vertical = 20.dp)
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Wrap the Text composable with SelectionContainer
         SelectionContainer {
-            Text(annotatedText, style = MaterialTheme.typography.bodyLarge) // Apply a base style
+            Text(annotatedText, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
 
-// Helper function (can be private or moved to a utility file)
-// Note: Duplicated here for composable preview/remember; ViewModel has its own copy.
-// Consider placing in a shared utility object if preferred.
+// Unchanged function
 private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     if (text.isBlank()) return emptyList()
-
     val iterator = BreakIterator.getSentenceInstance(locale)
     iterator.setText(text)
     val sentenceList = mutableListOf<String>()
@@ -160,21 +139,12 @@ fun HomeScreen(
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption
 ) {
-
-    // Get the current configuration
-    val configuration = LocalConfiguration.current
-
-    // Get ViewModel instance to access state for the Icon
     val viewModel: TTSViewModel = viewModel()
-
-    // Collect necessary states from the ViewModel
     val isTtsInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
     val isSpeaking by viewModel.isSpeaking.collectAsStateWithLifecycle()
     val isPaused by viewModel.isPaused.collectAsStateWithLifecycle()
-    val context = LocalContext.current // For Toast messages
-
-    // Hardcoded text to be spoken
-    var textToSpeak = remember { // Use remember so it's not recreated on every recomposition
+    val context = LocalContext.current
+    val textToSpeak = remember {
         """
             Thank you Lord for the privilege of another day.
             Heavenly Father, I come to you with a heart full of gratitude this morning.
@@ -189,16 +159,12 @@ fun HomeScreen(
             Thank you for the people that you have placed in my life those I meet today, and to those I will impact whether I know it or not.                      
             I commit this day to You. May I bring you Glory. Amen.
             """.trimIndent()
-            .replace(Regex("\\s+\\."), ".") // Clean up space before periods for better splitting
+            .replace(Regex("\\s+\\."), ".")
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            // This will run when HomeScreen leaves the composition,
-            // including navigating away.
             Log.d("HomeScreen", "Disposing HomeScreen, stopping TTS.")
-            // Call a method in your ViewModel to stop TTS
-            // Ensure this method exists in your TtsViewModel
             viewModel.stopAllSpeaking()
         }
     }
@@ -206,114 +172,65 @@ fun HomeScreen(
     AppScaffold(
         title = { Text("Prepare your heart") },
         navController = navController,
-        currentScreenInstance = Screen.Home, // Pass the actual Screen instance
-        content = { paddingValues -> // Content lambda receives padding values
-            // Determine layout based on orientation
-            when (configuration.orientation) {
-                Configuration.ORIENTATION_LANDSCAPE -> {
-                    // Landscape: Logo on Left, Text on Right
-                    Row(
-                        // Apply padding from Scaffold, fill screen, add overall padding
-                        modifier = Modifier
-                            .padding(paddingValues) // Apply Scaffold padding
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically // Center items vertically
-                    ) {
-                        // Column for Logo and Icons (Stacked Vertically)
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) { // Center icons under logo
-                            DisplayAppLogo()
-                            Spacer(Modifier.height(4.dp)) // Add a small vertical space
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
-                                Spacer(Modifier.width(8.dp)) // Space between play/pause and restart icons
-                                // DisplayRestartIcon(isTtsInitialized, context, viewModel, textToSpeak)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp)) // Space between logo/icon group and text
-
-                        // Prayer Text (Right) - Takes remaining space
-                        // The ProcessMorningPrayer already has vertical scroll
-                        ProcessMorningPrayer(
-                            modifier = Modifier.weight(1f).fillMaxHeight(), // Allow text to use full height,
-                            textToSpeak = textToSpeak
-                        )
-                    }
-                }
-
-                else -> { // Default to Portrait layout
-                    // Portrait: Logo on Top, Text Below
-                    Column(
-                        modifier = Modifier
-                            .padding(paddingValues) // Apply Scaffold padding
-                            .fillMaxSize(), // Apply padding from Scaffold, fill screen
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Top // Keep logo/icon  at the top
-                    ) {
-                        // Row for Logo and Icon
+        currentScreenInstance = Screen.Home,
+        content = { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                val configuration = LocalConfiguration.current
+                when (configuration.orientation) {
+                    Configuration.ORIENTATION_LANDSCAPE -> {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(
-                                top = 32.dp,
-                                bottom = 16.dp
-                            ) // Padding for the top row
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            DisplayAppLogo()
-                            Spacer(Modifier.width(8.dp)) // Space between logo and icon
-
-                            // Column for pause/resume icon and replay icon (STacked vertically)
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {  // Center icons
-                                DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
-                                Spacer(Modifier.height(16.dp)) // Space between play/pause and replay icons
-                                // DisplayRestartIcon(isTtsInitialized, context, viewModel, textToSpeak)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                DisplayAppLogo()
+                                Spacer(Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
+                                    Spacer(Modifier.width(8.dp))
+                                }
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            ProcessMorningPrayer(
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                textToSpeak = textToSpeak
+                            )
                         }
-
-                        // Prayer Text (Below)
-                        ProcessMorningPrayer(
-                            // Use fillMaxWidth with a fraction for 95% width
-                            modifier = Modifier.fillMaxWidth(0.95f).weight(1f), // Allow text to take remaining space
-                            textToSpeak = textToSpeak
-                        )
+                    }
+                    else -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Top
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)
+                            ) {
+                                DisplayAppLogo()
+                                Spacer(Modifier.width(8.dp))
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
+                            ProcessMorningPrayer(
+                                modifier = Modifier.fillMaxWidth(0.95f).weight(1f),
+                                textToSpeak = textToSpeak
+                            )
+                        }
                     }
                 }
             }
         },
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme
-    )
-}
-
-@Composable
-private fun DisplayRestartIcon(
-    isTtsInitialized: Boolean,
-    context: Context,
-    viewModel: TTSViewModel,
-    textToSpeak: String
-) {
-    Icon( // Restart Icon - CLICKABLE
-        imageVector = Icons.Default.Replay,
-        contentDescription = "Restart Speech",
-        modifier = Modifier
-            .size(48.dp) // Adjust icon size as needed
-            .clickable( // Make the icon clickable
-                enabled = isTtsInitialized, // Only enable if TTS is ready
-                onClickLabel = "Restart Speech", // Accessibility label for action
-                onClick = {
-                    Log.d("TTS_UI", "Restart Icon clicked.")
-                    if (!isTtsInitialized) {
-                        Toast.makeText(
-                            context,
-                            "TTS initializing...",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        // Call restart function, passing the text
-                        viewModel.restartSingleText(textToSpeak)
-                    }
-                }
-            )
     )
 }
 
@@ -326,7 +243,7 @@ private fun DisplayPlayPauseIcon(
     viewModel: TTSViewModel,
     textToSpeak: String
 ) {
-    Icon( // Play/Pause Icon
+    Icon(
         imageVector = when {
             isSpeaking && !isPaused -> Icons.Default.PauseCircleOutline
             isPaused -> Icons.Default.PlayCircleOutline
@@ -338,14 +255,12 @@ private fun DisplayPlayPauseIcon(
             else -> "Play Speech"
         },
         modifier = Modifier
-            .size(48.dp) // Adjust icon size as needed
-            .pointerInput(Unit) { // Added pointerInput for double-tap
+            .size(48.dp)
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = {
-                        // Action to perform on single click
                         Log.d("TTS_UI", "Icon single-tapped.")
                         if (!isTtsInitialized) {
-                            // Inform user if TTS isn't ready
                             Toast
                                 .makeText(
                                     context,
@@ -354,7 +269,6 @@ private fun DisplayPlayPauseIcon(
                                 )
                                 .show()
                         } else {
-                            // Call the centralized toggle function in ViewModel
                             viewModel.togglePlayPauseResumeSingleText(textToSpeak)
                         }
                     },
@@ -369,33 +283,24 @@ private fun DisplayPlayPauseIcon(
                                 )
                                 .show()
                         } else {
-                            // Call restart function, passing the text
                             Log.d("TTS_UI", "Calling ViewModel to restart from icon double-tap...")
                             viewModel.restartSingleText(textToSpeak)
                         }
                     }
                 )
             }
-        // Removed the .clickable modifier as its functionality is now handled by detectTapGestures
     )
 }
 
 @Composable
 private fun DisplayAppLogo() {
     Image(
-        painter = painterResource(id = R.mipmap.ic_launcher_foreground), // Application Icon Placeholder
+        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
         contentDescription = "App Logo",
-        modifier = Modifier.size(125.dp) // Logo size
+        modifier = Modifier.size(125.dp)
     )
 }
 
-
-/**
- * Confirm user if it needs to exit or not
- *
- * @param onDismiss lambda function to cancel the exit
- * @param onExit lambda function to perform the exit
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExitAlertDialog(onDismiss: () -> Unit, onExit: () -> Unit) {
@@ -442,7 +347,6 @@ fun ExitAlertDialog(onDismiss: () -> Unit, onExit: () -> Unit) {
                         .width(1.dp), color = Color.Gray
                 )
                 Row(Modifier.padding(top = 0.dp)) {
-
                     TextButton(
                         onClick = { onDismiss() },
                         Modifier
@@ -457,13 +361,11 @@ fun ExitAlertDialog(onDismiss: () -> Unit, onExit: () -> Unit) {
                     ) {
                         Text(text = "Not now", color = Color.Gray)
                     }
-
                     HorizontalDivider(
                         modifier = Modifier
                             .fillMaxHeight()
                             .width(1.dp), color = Color.Gray
                     )
-
                     TextButton(
                         onClick = {
                             onExit.invoke()

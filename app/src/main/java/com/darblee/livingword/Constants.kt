@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
  * Global variables used throughout the entire app
  */
 internal object Global {
-    const val DEBUG_PREFIX = "InChrist:"
     val DEFAULT_TOPICS = listOf("Faith", "Love")
     const val BUTTON_WIDTH = 60
     const val BUTTON_HEIGHT = 30
@@ -21,6 +20,8 @@ internal object Global {
     val SMALL_ACTION_BUTTON_PADDING = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
     const val VERSE_RESULT_KEY = "selectedVerseResult" // Key to transfer saveStateHandle info from GetEndVerseNumberScreen to NewVerseScreen
     const val TOPIC_SELECTION_RESULT_KEY = "selected_topics_result"   // Key to transfer saveStateHandle info from TopicSelectionScreen to LearnScreen
+    const val DATABASE_NAME = "bible_verse_database"
+    const val BACKUP_FOLDER_PATH = "Android/LivingWord/Backup"
 }
 
 /**

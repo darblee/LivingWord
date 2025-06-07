@@ -60,7 +60,6 @@ import com.darblee.livingword.domain.model.MemorizeVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemorizeScreen(
     navController: NavController,

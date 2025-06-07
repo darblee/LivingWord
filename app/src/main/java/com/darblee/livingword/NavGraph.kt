@@ -25,6 +25,7 @@ import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
 import com.darblee.livingword.ui.screens.GetStartVerseNumberScreen
 import com.darblee.livingword.ui.screens.HomeScreen
 import com.darblee.livingword.ui.screens.AddNewVerseScreen
+import com.darblee.livingword.ui.screens.GoogleDriveOpsScreen
 import com.darblee.livingword.ui.screens.MemorizeScreen
 import com.darblee.livingword.ui.screens.ShowVerseByTopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
@@ -91,6 +92,9 @@ sealed class Screen {
 
     @Serializable
     data class MemorizeScreen(val verseID: Long) : Screen()  // New screen
+
+    @Serializable
+    data object GoogleDriveOpsScreen : Screen()
 }
 
 
@@ -189,6 +193,12 @@ fun SetUpNavGraph(
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme
             )
+        }
+
+        composable<Screen.GoogleDriveOpsScreen> { // Use composable<Type> for type safety
+            GoogleDriveOpsScreen(navController = navController,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme)
         }
     }
 

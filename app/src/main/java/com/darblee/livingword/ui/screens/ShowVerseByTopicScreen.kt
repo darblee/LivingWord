@@ -194,18 +194,18 @@ fun ShowVerseByTopicScreen(
     val errMessage = remember { mutableStateOf("Something went wrong!") }
 
     AppScaffold(
-        title = { Text("Meditate God's Word by Topic(s)") }, //
-        navController = navController, //
-        currentScreenInstance = Screen.VerseByTopicScreen, //
-        onColorThemeUpdated = onColorThemeUpdated, //
-        currentTheme = currentTheme, //
+        title = { Text("Meditate God's Word by Topic(s)") },
+        navController = navController,
+        currentScreenInstance = Screen.VerseByTopicScreen,
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
         content = { paddingValues ->
             Column(
                 modifier = Modifier
                     .padding(paddingValues) //
                     .fillMaxSize() //
-                    .padding(16.dp), //
-                horizontalAlignment = Alignment.CenterHorizontally //
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box { //
                     Text(
@@ -275,15 +275,15 @@ fun ShowVerseByTopicScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp)) //
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Column(
-                    modifier = Modifier.fillMaxWidth(), //
-                    horizontalAlignment = Alignment.CenterHorizontally //
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp), //
-                        horizontalArrangement = Arrangement.SpaceBetween //
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Button(
                             onClick = {
@@ -359,9 +359,9 @@ fun ShowVerseByTopicScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp)) //
-                HorizontalDivider() //
-                Spacer(modifier = Modifier.height(8.dp)) //
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
 
                 if (showRenameDialog && selectedTopics.count() == 1) { //
                     val topicToRename = selectedTopics.first() //
