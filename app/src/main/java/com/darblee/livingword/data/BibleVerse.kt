@@ -19,6 +19,10 @@ data class BibleVerse(
     val topics: List<String>,
     val memorizedSuccessCount: Int = 0,
     val memorizedFailedCount: Int = 0,
+    val userDirectQuote: String = "",
+    val userDirectQuoteScore: Int = 0,
+    val userContext: String = "",
+    val userContextScore: Int = 0,
     val dateCreated: Long = System.currentTimeMillis(),
     val lastModified: Long = System.currentTimeMillis()
 )
