@@ -20,7 +20,7 @@ data class ScoreData(
     val ContextScore: Int,
     val DirectQuoteExplanation: String,
     val ContextExplanation: String,
-    )
+)
 
 
 class MemorizeVerseViewModel() : ViewModel(){
@@ -66,6 +66,35 @@ class MemorizeVerseViewModel() : ViewModel(){
                 aiResponseError = if (it.aiResponseError == null && initError != null) initError else it.aiResponseError, // Preserve existing errors unless this is the first check
                 generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || initError?.contains("API Key missing", ignoreCase = true) == true) initError else null
             )
+        }
+    }
+
+    fun loadScores(directQuoteScore: Int, contextScore: Int) {
+        _state.update {
+            it.copy(
+                directQuoteScore = directQuoteScore,
+                contextScore = contextScore,
+                // Reset explanations as they are tied to a specific evaluation
+                aiDirectQuoteExplanationText = null,
+                aiContextExplanationText = null,
+                aiResponseError = null,
+                aiResponseLoading = false // ensure loading is off
+            )
+        }
+    }
+
+    fun resetScore() {
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    aiResponseLoading = true,
+                    directQuoteScore = -1,
+                    contextScore = -1,
+                    aiDirectQuoteExplanationText = null,
+                    aiContextExplanationText = null,
+                    aiResponseError = null
+                )
+            }
         }
     }
 

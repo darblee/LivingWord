@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.AppDatabase
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
@@ -109,6 +110,56 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
             }
         }
     }
+
+
+    /**
+     * Updates a verse with the user's memorized direct quote, context, and the scores.
+     * This function assumes the BibleVerse data class has fields for this data.
+     */
+    fun updateUserMemorizationData(
+        verseId: Long,
+        userDirectQuote: String,
+        userDirectQuoteScore: Int,
+        userContext: String,
+        userContextScore: Int
+    ) {
+        viewModelScope.launch {
+            try {
+                // Get the existing verse from the repository
+                val verseToUpdate = repository.getVerseById(verseId)
+
+                // Create an updated instance of the verse using the .copy() method
+                val updatedVerse = verseToUpdate.copy(
+                    userDirectQuote = userDirectQuote,
+                    userDirectQuoteScore = userDirectQuoteScore,
+                    userContext = userContext,
+                    userContextScore = userContextScore
+                )
+
+                // Call the repository to update the verse in the database
+                repository.updateVerse(updatedVerse)
+                SnackBarController.showMessage("Memorized Content is saved")
+                Log.i("BibleVerseViewModel", "Successfully updated user memorization data for verse ID: $verseId")
+                _errorMessage.value = "Memorization progress saved!"
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error updating user memorization data for verse ID: $verseId", e)
+                _errorMessage.value = "Error saving memorization data: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    /**
+     * Checks if a BibleVerse has any user memorization data saved.
+     * The determination is based on whether the user-provided text fields are empty or not.
+     *
+     * @param bibleVerse The BibleVerse object to check.
+     * @return True if user-entered text exists in either the direct quote or context fields, false otherwise.
+     */
+    fun hasUserMemorizationData(bibleVerse: BibleVerse): Boolean {
+        // Data is considered "set" if either the direct quote or context text is not empty.
+        return bibleVerse.userDirectQuote.isNotEmpty() || bibleVerse.userContext.isNotEmpty()
+    }
+
 
     /**
      * Retrieves a specific Bible verse by its ID using the repository.

@@ -52,8 +52,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.domain.model.MemorizeVerseViewModel
@@ -134,6 +134,19 @@ fun MemorizeScreen(
 
     // State to control the visibility of the score dialog
     var showScoreDialog by remember { mutableStateOf(false) }
+
+    // State to track if saved data has been loaded and modified
+    var isSavedDataLoaded by remember { mutableStateOf(false) }
+    var hasContentChangedSinceLoad by remember { mutableStateOf(false) }
+    var showCompareDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(directQuoteTextFieldValue, contextTextFieldValue, verse) {
+        if (isSavedDataLoaded && verse != null) {
+            val quoteChanged = directQuoteTextFieldValue.text != verse!!.userDirectQuote
+            val contextChanged = contextTextFieldValue.text != verse!!.userContext
+            hasContentChangedSinceLoad = quoteChanged || contextChanged
+        }
+    }
 
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
@@ -405,13 +418,6 @@ fun MemorizeScreen(
         }
     }
 
-    // LaunchedEffect to observe changes in score and AI response text to show the dialog
-    LaunchedEffect(state.contextScore, state.aiDirectQuoteExplanationText, state.aiResponseLoading) {
-        if (state.aiResponseLoading || (state.contextScore >= 0)) {
-            showScoreDialog = true
-        }
-    }
-
     // Combine direct quote text and partial text for display or for enabling buttons
     val combinedDirectQuoteDisplayAnnotatedText = remember(directQuoteTextFieldValue, directQuotePartialText, isDirectQuoteTextFieldFocused) {
         buildAnnotatedString {
@@ -571,6 +577,7 @@ fun MemorizeScreen(
                                     value = directQuoteTextFieldValue,
                                     onValueChange = { newValue ->
                                         directQuoteTextFieldValue = newValue
+                                        memorizedViewModel.resetScore()
                                     },
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -619,7 +626,7 @@ fun MemorizeScreen(
 
                                 // Overlapping label positioned at top-left corner on the border
                                 Text(
-                                    text = "Direct Quote",
+                                    text = if (state.directQuoteScore >= 0) "Direct Quote Score: ${state.directQuoteScore}" else "Direct Quote",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = if (isDirectQuoteTextFieldFocused)
                                         MaterialTheme.colorScheme.primary
@@ -733,6 +740,7 @@ fun MemorizeScreen(
                                     value = contextTextFieldValue,
                                     onValueChange = { newValue ->
                                         contextTextFieldValue = newValue
+                                        memorizedViewModel.resetScore()
                                     },
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -781,7 +789,7 @@ fun MemorizeScreen(
 
                                 // Overlapping label positioned at top-left corner on the border
                                 Text(
-                                    text = "Context",
+                                    text = if (state.contextScore >= 0) "Context Score: ${state.contextScore}" else "Context",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = if (isContextTextFieldFocused)
                                         MaterialTheme.colorScheme.primary
@@ -920,17 +928,45 @@ fun MemorizeScreen(
 
                         Spacer(modifier = Modifier.height(16.dp)) // Spacer after the Row
 
+                        // Determine button states
+                        val hasSavedData = remember(verse) {
+                            verse?.let { bibleViewModel.hasUserMemorizationData(it) } ?: false
+                        }
+                        // "Show Saved" mode: if data exists, fields are blank, and data hasn't been loaded yet in this session.
+                        val isShowDataMode = hasSavedData && directQuoteTextFieldValue.text.isBlank() && !isSavedDataLoaded
+
+                        // "Compare" mode: if saved data has been loaded and the user has since changed the text.
+                        val isCompareMode = verse?.let { ((directQuoteTextFieldValue.text != verse!!.userDirectQuote) ||
+                                (contextTextFieldValue.text != verse!!.userContext)) } ?: false
+
+                        // "Evaluate" button enabled logic
+                        val evaluateButtonEnabled =
+                            verse?.let { ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
+                                    ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) &&
+                                    ((state.directQuoteScore == -1) || (state.contextScore == -1))} ?: false
+
+                        val saveButtonEnabled = verse?.let {
+                            ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
+                                    ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) &&
+                                    ((state.directQuoteScore >= 0) || (state.contextScore >= 0)) &&
+                                    ((directQuoteTextFieldValue.text != verse!!.userDirectQuote) ||
+                                    (contextTextFieldValue.text != verse!!.userContext)) } ?: false
+
+                        // Second button ("Save"/"Show"/"Compare") text logic
+                        val secondButtonText = if (isShowDataMode) "Show Saved" else "Compare with saved"
+
+                        // Second button enabled logic
+                        val secondButtonEnabled = isShowDataMode || isCompareMode
+
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             FloatingActionButton(
                                 onClick = {
-                                    val directQuoteToEvaluate = directQuoteTextFieldValue.text + directQuotePartialText // Consider combined text
-                                    val contextToEvaluate = contextTextFieldValue.text + contextPartialText // Consider combined text
-
-                                    if (directQuoteToEvaluate.length >= 5) {
-                                        Log.i("Memorize Screen", "Do the evaluation with text: $directQuoteToEvaluate")
+                                    if (evaluateButtonEnabled) {
+                                        val directQuoteToEvaluate = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
+                                        val contextToEvaluate = (contextTextFieldValue.text + contextPartialText).trim()
                                         if (verse != null) {
                                             val verseInfo = BibleVerseRef(
                                                 book = verse!!.book,
@@ -943,21 +979,94 @@ fun MemorizeScreen(
                                                 directQuoteToEvaluate,
                                                 contextToEvaluate
                                             )
+                                            showScoreDialog = true
+                                            hasContentChangedSinceLoad = false
                                         }
                                     }
                                 },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
-                                containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) { // Use the combined text
+                                containerColor = if (evaluateButtonEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                                 }
                             ) {
                                 Text(
-                                    "Evaluate",
-                                    color = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) {
+                                    text = "Evaluate",
+                                    color = if (evaluateButtonEnabled) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    },
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            FloatingActionButton(
+                                onClick = {
+                                    if (saveButtonEnabled) {
+                                        verse?.let { currentVerse ->
+                                            val directQuoteToSave = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
+                                            val contextToSave = (contextTextFieldValue.text + contextPartialText).trim()
+                                            val directQuoteScoreToSave = state.directQuoteScore.coerceAtLeast(0)
+                                            val contextScoreToSave = state.contextScore.coerceAtLeast(0)
+
+                                            bibleViewModel.updateUserMemorizationData(
+                                                verseId = currentVerse.id,
+                                                userDirectQuote = directQuoteToSave,
+                                                userDirectQuoteScore = directQuoteScoreToSave,
+                                                userContext = contextToSave,
+                                                userContextScore = contextScoreToSave
+                                            )
+
+                                            // Optimistically update all relevant local state.
+                                            // This triggers a recomposition where `saveButtonEnabled` will evaluate to false.
+                                            directQuoteTextFieldValue = TextFieldValue(
+                                                text = directQuoteToSave,
+                                                selection = TextRange(directQuoteToSave.length)
+                                            )
+                                            contextTextFieldValue = TextFieldValue(
+                                                text = contextToSave,
+                                                selection = TextRange(contextToSave.length)
+                                            )
+                                            directQuotePartialText = ""
+                                            contextPartialText = ""
+
+                                            // Update the local verse object to match the saved data.
+                                            verse = currentVerse.copy(
+                                                userDirectQuote = directQuoteToSave,
+                                                userContext = contextToSave,
+                                                userDirectQuoteScore = directQuoteScoreToSave,
+                                                userContextScore = contextScoreToSave
+                                            )
+
+                                            // Reset the change tracking flags
+                                            hasContentChangedSinceLoad = false
+                                            isSavedDataLoaded = true
+
+                                            // The coroutine now serves to verify and sync with the database post-write.
+                                            coroutineScope.launch {
+                                                delay(200) // Allow DB write to complete.
+                                                verse = bibleViewModel.getVerseById(currentVerse.id)
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                containerColor = if (saveButtonEnabled) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                }
+                            ) {
+                                Text(
+                                    text = if (verse != null) { if (verse!!.userDirectQuote.isNotEmpty())  "Save current" else "Save" } else "Save",
+                                    textAlign = TextAlign.Center,
+                                    color = if (saveButtonEnabled) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -967,20 +1076,44 @@ fun MemorizeScreen(
 
                             FloatingActionButton(
                                 onClick = {
-                                    /* TODO */
+                                    when {
+                                        isShowDataMode -> {
+                                            // "Show saved data" action: Load data from verse object into the UI state
+                                            verse?.let { savedVerse ->
+                                                directQuoteTextFieldValue = TextFieldValue(
+                                                    text = savedVerse.userDirectQuote,
+                                                    selection = TextRange(savedVerse.userDirectQuote.length)
+                                                )
+                                                contextTextFieldValue = TextFieldValue(
+                                                    text = savedVerse.userContext,
+                                                    selection = TextRange(savedVerse.userContext.length)
+                                                )
+                                                memorizedViewModel.loadScores(
+                                                    directQuoteScore = savedVerse.userDirectQuoteScore,
+                                                    contextScore = savedVerse.userContextScore
+                                                )
+                                                isSavedDataLoaded = true
+                                                hasContentChangedSinceLoad = false // Reset on load
+                                            }
+                                        }
+                                        isCompareMode -> {
+                                            showCompareDialog = true
+                                        }
+                                        else -> {}
+                                    }
                                 },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
-                                containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) { // Use the combined text
+                                containerColor = if (secondButtonEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                                 }
                             ) {
                                 Text(
-                                    "Save",
-                                    color = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) {
+                                    text = secondButtonText,
+                                    color = if (secondButtonEnabled) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -996,6 +1129,61 @@ fun MemorizeScreen(
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        if (showCompareDialog) {
+                            AlertDialog(
+                                properties = DialogProperties(usePlatformDefaultWidth = false),
+                                onDismissRequest = { showCompareDialog = false },
+                                title = { Text("Compare With Saved") },
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // Saved Content Column
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            Text("Saved", style = MaterialTheme.typography.titleMedium)
+
+                                            // Box for Saved Direct Quote
+                                            val savedDirectQuoteLabel = "Direct Quote" + if ((verse?.userDirectQuoteScore ?: -1) >= 0) " (${verse!!.userDirectQuoteScore})" else ""
+                                            CompareContentBox(label = savedDirectQuoteLabel, content = verse?.userDirectQuote ?: "")
+
+                                            // Box for Saved Context
+                                            val savedContextLabel = "Context" + if ((verse?.userContextScore ?: -1) >= 0) " (${verse!!.userContextScore})" else ""
+                                            CompareContentBox(label = savedContextLabel, content = verse?.userContext ?: "")
+                                        }
+
+                                        // Current Content Column
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            Text("Current", style = MaterialTheme.typography.titleMedium)
+
+                                            // Box for Current Direct Quote
+                                            val currentDirectQuoteLabel = "Direct Quote" + if (state.directQuoteScore >= 0) " (${state.directQuoteScore})" else ""
+                                            CompareContentBox(label = currentDirectQuoteLabel, content = directQuoteTextFieldValue.text)
+
+                                            // Box for Current Context
+                                            val currentContextLabel = "Context" + if (state.contextScore >= 0) " (${state.contextScore})" else ""
+                                            CompareContentBox(label = currentContextLabel, content = contextTextFieldValue.text)
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = { showCompareDialog = false }) {
+                                        Text("OK")
+                                    }
+                                }
                             )
                         }
 
@@ -1117,16 +1305,16 @@ fun MemorizeScreen(
                                         background = MaterialTheme.colorScheme.primaryContainer,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     ))
-                                    SelectionContainer {
-                                        Text(
-                                            text = scriptureAnnotatedText,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .verticalScroll(rememberScrollState())
-                                                .padding(8.dp),
-                                        )
-                                    }
+                                SelectionContainer {
+                                    Text(
+                                        text = scriptureAnnotatedText,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(8.dp),
+                                    )
+                                }
                             } else {
                                 Box(
                                     modifier = Modifier
@@ -1375,4 +1563,40 @@ private fun processPunctuation(text: String): String {
     }
 
     return processedText
+}
+
+@Composable
+private fun CompareContentBox(label: String, content: String) {
+    Box {
+        // The main container with border and internal padding for content.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 120.dp) // Set a minimum height to ensure it's not too small
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline,
+                    shape = RoundedCornerShape(4.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 16.dp) // Padding for the content text
+        ) {
+            Text(text = content, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.verticalScroll(
+                rememberScrollState()))
+        }
+
+        // The overlapping label that "cuts" the border.
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .offset(x = 12.dp, y = (-8).dp) // Position on the top-left of the border
+                .background(
+                    // Dialogs use Surface color, so this creates the "cut-out" effect
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(2.dp)
+                )
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        )
+    }
 }
