@@ -544,26 +544,27 @@ fun MemorizeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 LabeledOutlinedBox(
-                    label = "Memorized Verse (with context)",
+                    label = "Memorized context",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 30.dp)
+                        .fillMaxHeight()
+                        .weight(0.7F)
                 ) {
-                    Column(modifier = Modifier.padding(4.dp)) {
+                    Column(modifier = Modifier.padding(4.dp).fillMaxSize()) {
                         DisplayListeningStatus(isListening)
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         // Direct Quote: This Row arranges the TextField and the Button Column side-by-side
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.4F),
                             verticalAlignment = Alignment.Top // Align items to the top of the Row
                         ) {
                             // OutlinedTextField takes 80% of the width
                             // Replace both OutlinedTextField instances with this structure:
 
                             Box(
-                                modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
+                                modifier = Modifier.weight(0.8f) // Takes 80% of the width
                             ) {
                                 // Text field with border
                                 BasicTextField(
@@ -720,12 +721,12 @@ fun MemorizeScreen(
 
                         // Context: This Row arranges the TextField and the Button Column side-by-side
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.7F),
                             verticalAlignment = Alignment.Top // Align items to the top of the Row
                         ) {
                             // OutlinedTextField takes 80% of the width
                             Box(
-                                modifier = Modifier.weight(0.8f).height(125.dp) // Takes 80% of the width
+                                modifier = Modifier.weight(0.8f) // Takes 80% of the width
                             ) {
                                 // Text field with border
                                 BasicTextField(
@@ -963,6 +964,29 @@ fun MemorizeScreen(
                                     }
                                 )
                             }
+
+                            FloatingActionButton(
+                                onClick = {
+                                    /* TODO */
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) { // Use the combined text
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                }
+                            ) {
+                                Text(
+                                    "Save",
+                                    color = if ((directQuoteTextFieldValue.text + directQuotePartialText).length >= 5) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    }
+                                )
+                            }
                         }
 
                         if (!hasPermission) {
@@ -1057,13 +1081,13 @@ fun MemorizeScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 LabeledOutlinedBox(
                     label = "Scripture",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 30.dp) // Ensure enough height for button and text
+                        .weight(0.3F)
                 ) {
                     Column(modifier = Modifier.padding(4.dp)) {
                         Column(
@@ -1150,27 +1174,6 @@ fun MemorizeScreen(
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp)) // Space before the new button
-
-                // New Button to navigate back
-                Button(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back to detail screen",
-                        modifier = Modifier.size(ButtonDefaults.IconSize)
-                    )
-                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                    Text("back to detail screen")
-                }
-
-                Spacer(modifier = Modifier.height(16.dp)) // Space after new button (optional)
 
                 // Dialog to display score and AI explanation
                 if (showScoreDialog) {
