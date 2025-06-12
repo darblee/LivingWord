@@ -2,7 +2,6 @@ package com.darblee.livingword.ui.screens
 
 
 import android.content.Context
-import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -41,14 +40,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -71,49 +72,6 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
 import java.text.BreakIterator
 import java.util.Locale
 
-// Unchanged function
-@Composable
-fun ProcessMorningPrayer(
-    modifier: Modifier = Modifier,
-    viewModel: TTSViewModel = viewModel(),
-    textToSpeak: String,
-) {
-    val currentlySpeakingIndex by viewModel.currentSentenceInBlockIndex.collectAsStateWithLifecycle()
-    val isSpeaking by viewModel.isSpeaking.collectAsStateWithLifecycle()
-    val isPaused by viewModel.isPaused.collectAsStateWithLifecycle()
-    val scrollState = rememberScrollState()
-    val displaySentences = remember(textToSpeak, Locale.getDefault()) {
-        splitIntoSentences(textToSpeak, Locale.getDefault())
-    }
-    val annotatedText = buildAnnotatedString {
-        displaySentences.forEachIndexed { index, sentence ->
-            val shouldHighlight = (isSpeaking && !isPaused && index == currentlySpeakingIndex) ||
-                    (isPaused && index == currentlySpeakingIndex)
-            if (shouldHighlight) {
-                withStyle(style = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) {
-                    append(sentence)
-                }
-            } else {
-                append(sentence)
-            }
-            if (index < displaySentences.size - 1) {
-                append("\n")
-            }
-        }
-    }
-    Column(
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 20.dp)
-            .verticalScroll(scrollState),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        SelectionContainer {
-            Text(annotatedText, style = MaterialTheme.typography.bodyLarge)
-        }
-    }
-}
-
-// Unchanged function
 private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     if (text.isBlank()) return emptyList()
     val iterator = BreakIterator.getSentenceInstance(locale)
@@ -139,10 +97,9 @@ fun HomeScreen(
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption
 ) {
-    val viewModel: TTSViewModel = viewModel()
-    val isTtsInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
-    val isSpeaking by viewModel.isSpeaking.collectAsStateWithLifecycle()
-    val isPaused by viewModel.isPaused.collectAsStateWithLifecycle()
+    val TTSViewModel: TTSViewModel = viewModel()
+    val isTtsInitialized by TTSViewModel.isInitialized.collectAsStateWithLifecycle()
+
     val context = LocalContext.current
     val textToSpeak = remember {
         """
@@ -165,7 +122,68 @@ fun HomeScreen(
     DisposableEffect(Unit) {
         onDispose {
             Log.d("HomeScreen", "Disposing HomeScreen, stopping TTS.")
-            viewModel.stopAllSpeaking()
+            TTSViewModel.stopAllSpeaking()
+        }
+    }
+
+    // --- NEW EXPLICIT STATE COLLECTION ---
+    // Instead of using collectAsStateWithLifecycle, we will manage the state manually
+    // to ensure updates are always processed.
+    var currentlySpeakingIndex by remember { mutableIntStateOf(-1) }
+
+    var isSpeaking by remember { mutableStateOf(false) }
+    var isPaused by remember { mutableStateOf(false) }
+
+    // LaunchedEffect will run once and collect the flow from the ViewModel.
+    // Every time the ViewModel's StateFlow emits a new value, this block will execute
+    // and update our local 'currentlySpeakingIndex' state, forcing a recomposition.
+    LaunchedEffect(TTSViewModel.currentSentenceInBlockIndex) {
+        TTSViewModel.currentSentenceInBlockIndex.collect { newIndex ->
+            Log.d("ProcessMorningPrayer", "Manual collector received new index: $newIndex. Updating local state.")
+            currentlySpeakingIndex = newIndex
+        }
+    }
+
+    LaunchedEffect(TTSViewModel.isSpeaking) {
+        TTSViewModel.isSpeaking.collect { newIsSpeaking ->
+            Log.d(
+                "ProcessMorningPrayer",
+                "Manual collector received new isSpeaking: $newIsSpeaking. Updating local state."
+            )
+            isSpeaking = newIsSpeaking
+        }
+    }
+
+    LaunchedEffect(TTSViewModel.isPaused) {
+        TTSViewModel.isPaused.collect { newIsPaused ->
+            Log.d(
+                "ProcessMorningPrayer",
+                "Manual collector received new isPaused: $newIsPaused. Updating local state."
+            )
+            isPaused = newIsPaused
+        }
+    }
+
+    val scrollState = rememberScrollState()
+    val displaySentences = remember(textToSpeak, Locale.getDefault()) {
+        splitIntoSentences(textToSpeak, Locale.getDefault())
+    }
+
+    val annotatedText = buildAnnotatedString {
+        displaySentences.forEachIndexed { index, sentence ->
+            val shouldHighlight = (isSpeaking && !isPaused && index == currentlySpeakingIndex) ||
+                    (isPaused && index == currentlySpeakingIndex)
+
+            if (shouldHighlight) {
+                withStyle(style = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) {
+                    append(sentence)
+                }
+            } else {
+                append(sentence)
+            }
+            if (index < displaySentences.size - 1) {
+                append("\n")
+            }
         }
     }
 
@@ -173,64 +191,44 @@ fun HomeScreen(
         title = { Text("Prepare your heart") },
         navController = navController,
         currentScreenInstance = Screen.Home,
+        onColorThemeUpdated = onColorThemeUpdated,
+        currentTheme = currentTheme,
         content = { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                val configuration = LocalConfiguration.current
-                when (configuration.orientation) {
-                    Configuration.ORIENTATION_LANDSCAPE -> {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                DisplayAppLogo()
-                                Spacer(Modifier.height(4.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
-                                    Spacer(Modifier.width(8.dp))
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            ProcessMorningPrayer(
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                textToSpeak = textToSpeak
-                            )
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)
+                    ) {
+                        DisplayAppLogo()
+                        Spacer(Modifier.width(8.dp))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, TTSViewModel, textToSpeak)
+                            Spacer(Modifier.height(16.dp))
                         }
                     }
-                    else -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Top
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)
-                            ) {
-                                DisplayAppLogo()
-                                Spacer(Modifier.width(8.dp))
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, viewModel, textToSpeak)
-                                    Spacer(Modifier.height(16.dp))
-                                }
-                            }
-                            ProcessMorningPrayer(
-                                modifier = Modifier.fillMaxWidth(0.95f).weight(1f),
-                                textToSpeak = textToSpeak
-                            )
+
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 20.dp)
+                            .verticalScroll(scrollState),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        SelectionContainer {
+                            Text(annotatedText, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
             }
         },
-        onColorThemeUpdated = onColorThemeUpdated,
-        currentTheme = currentTheme
     )
 }
 
