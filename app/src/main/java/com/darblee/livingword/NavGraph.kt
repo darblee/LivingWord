@@ -27,7 +27,7 @@ import com.darblee.livingword.ui.screens.HomeScreen
 import com.darblee.livingword.ui.screens.AddNewVerseScreen
 import com.darblee.livingword.ui.screens.GoogleDriveOpsScreen
 import com.darblee.livingword.ui.screens.MemorizeScreen
-import com.darblee.livingword.ui.screens.ShowVerseByTopicScreen
+import com.darblee.livingword.ui.screens.TopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
 import com.darblee.livingword.ui.screens.VerseDetailScreen
 import com.darblee.livingword.ui.theme.ColorThemeOption
@@ -48,7 +48,7 @@ sealed class Screen {
     data object GetBookScreen : Screen()
 
     @Serializable
-    data object VerseByTopicScreen : Screen()
+    data object TopicScreen : Screen()
 
     @Serializable
     data class TopicSelectionScreen(val selectedTopicsJson: String? = null) : Screen()
@@ -125,8 +125,8 @@ fun SetUpNavGraph(
                 )
         }
         // Define the Prayer Screen destination.
-        composable<Screen.VerseByTopicScreen> {
-            ShowVerseByTopicScreen(navController = navController, bibleViewModel = bibleViewModel,
+        composable<Screen.TopicScreen> {
+            TopicScreen(navController = navController, bibleViewModel = bibleViewModel,
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme)
         }

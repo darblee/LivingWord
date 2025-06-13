@@ -1,6 +1,8 @@
 package com.darblee.livingword.ui.screens
 
 import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -41,10 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarHost
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Global
@@ -155,12 +156,14 @@ fun RenameTopicDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShowVerseByTopicScreen(
+fun TopicScreen(
     navController: NavController,
     bibleViewModel: BibleVerseViewModel,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
 ) {
+    val context = LocalContext.current
+
     val allDbTopicsWithCount by bibleViewModel.allTopicsWithCount.collectAsState() //
     val allVerseToList by bibleViewModel.allVerses.collectAsState() //
 
@@ -196,7 +199,7 @@ fun ShowVerseByTopicScreen(
     AppScaffold(
         title = { Text("Meditate God's Word by Topic(s)") },
         navController = navController,
-        currentScreenInstance = Screen.VerseByTopicScreen,
+        currentScreenInstance = Screen.TopicScreen,
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = { paddingValues ->
@@ -383,10 +386,14 @@ fun ShowVerseByTopicScreen(
         }
     )
 
-    BackPressHandler { //
-        navController.navigate(Screen.Home) { //
-            popUpTo(navController.graph.id) { inclusive = true } //
-            launchSingleTop = true //
+    val activity = LocalActivity.current
+    var backPressedTime by remember { mutableStateOf(0L) }
+    BackPressHandler {
+        if (System.currentTimeMillis() - backPressedTime < 2000) {
+            activity?.finish()
+        } else {
+            backPressedTime = System.currentTimeMillis()
+            Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show()
         }
     }
 

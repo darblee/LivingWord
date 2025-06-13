@@ -21,7 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Church
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert // Icon for dropdown
@@ -45,21 +49,16 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.darblee.livingword.AISettings
 import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen // Your sealed class for routes
 import com.darblee.livingword.click
+import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
-import com.darblee.livingword.AISettings
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import com.darblee.livingword.data.remote.AiServiceResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +84,20 @@ fun AppScaffold(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = colorScheme.primaryContainer
                 ),
+                navigationIcon = {
+                    val showBackButton = currentScreenInstance is Screen.VerseDetailScreen ||
+                            currentScreenInstance is Screen.MemorizeScreen ||
+                            currentScreenInstance is Screen.NewVerseScreen
+
+                    if (showBackButton) {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { showMenu = !showMenu }) {
                         Icon(
@@ -175,10 +188,10 @@ fun AppScaffold(
                     }
                 )
                 NavigationBarItem(
-                    selected = currentScreenInstance is Screen.VerseByTopicScreen,
+                    selected = currentScreenInstance is Screen.TopicScreen,
                     onClick = {
-                        if (currentScreenInstance !is Screen.VerseByTopicScreen) {
-                            navController.navigate(route = Screen.VerseByTopicScreen) {
+                        if (currentScreenInstance !is Screen.TopicScreen) {
+                            navController.navigate(route = Screen.TopicScreen) {
                                 popUpTo(navController.graph.findStartDestination().id) { // Or your specific graph's route name if not nested
                                     saveState = true // Optional if you don't need to save its state
                                 }

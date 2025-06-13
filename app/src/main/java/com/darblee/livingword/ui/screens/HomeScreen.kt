@@ -1,9 +1,11 @@
 package com.darblee.livingword.ui.screens
 
 
+import android.app.Activity
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -64,6 +66,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.domain.model.TTSViewModel
@@ -230,6 +233,17 @@ fun HomeScreen(
             }
         },
     )
+
+    val activity = LocalActivity.current
+    var backPressedTime by remember { mutableStateOf(0L) }
+    BackPressHandler {
+        if (System.currentTimeMillis() - backPressedTime < 2000) {
+            activity?.finish()
+        } else {
+            backPressedTime = System.currentTimeMillis()
+            Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show()
+        }
+    }
 }
 
 @Composable

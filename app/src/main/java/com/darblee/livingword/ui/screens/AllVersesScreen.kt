@@ -1,5 +1,7 @@
 package com.darblee.livingword.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -15,8 +17,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
@@ -33,6 +39,7 @@ fun AllVersesScreen(
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
 ) {
+    val context = LocalContext.current
 
     val allVerses by bibleViewModel.allVerses.collectAsState()
 
@@ -69,22 +76,14 @@ fun AllVersesScreen(
         }
     )
 
-    // Handle back press to navigate to Home and clear backstack
+    val activity = LocalActivity.current
+    var backPressedTime by remember { mutableStateOf(0L) }
     BackPressHandler {
-        navController.navigate(Screen.Home) {
-            /**
-             * Clears the entire back stack before navigating to All Verses screen. navController.graph.id
-             * refers to the root of your navigation graph.
-             */
-            popUpTo(navController.graph.id) { // Pop the entire back stack
-                inclusive = true
-            }
-            /**
-             * launchSingleTop = true ensures that if HomeScreen is already at the top of the stack
-             * (which it won't be in this specific scenario after popping everything, but it's good
-             * practice for navigations to Home), a new instance isn't created.
-             */
-            launchSingleTop = true // Avoid multiple instances of Home Screen
+        if (System.currentTimeMillis() - backPressedTime < 2000) {
+            activity?.finish()
+        } else {
+            backPressedTime = System.currentTimeMillis()
+            Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show()
         }
     }
 }
