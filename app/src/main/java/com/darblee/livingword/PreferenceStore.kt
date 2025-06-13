@@ -35,7 +35,7 @@ internal class PreferenceStore(private val context: Context) {
         val AI_TEMPERATURE_KEY = floatPreferencesKey("ai_temperature")
 
         // Default AI Settings
-        val DEFAULT_AI_MODEL_NAME = "gemini-1.5-flash"
+        val DEFAULT_AI_MODEL_NAME = "gemini-2.0-flash"
         val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
         const val DEFAULT_AI_TEMPERATURE = 0.7f
     }
