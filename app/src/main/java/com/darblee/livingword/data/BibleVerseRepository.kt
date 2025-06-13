@@ -26,8 +26,59 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
 
     fun getAllTopics(): Flow<List<Topic>> = bibleVerseDao.getAllTopics()
 
+    /**
+     * Updates an existing Bible verse and its associated topics.
+     * This function will:
+     * 1. Atomically update the verse data, including its list of topics.
+     * 2. Add any new topics from the list to the main Topics table if they don't already exist.
+     * 3. Update the relationship table (CrossRefBibleVerseTopics) to reflect the new set of topics.
+     * 4. After the update, it cleans up any topics that are no longer associated with any verses ("orphaned" topics),
+     * as long as they are not designated as default topics.
+     *
+     * @param bibleVerse The [BibleVerse] object with the updated information.
+     */
     suspend fun updateVerse(bibleVerse: BibleVerse) {
-        bibleVerseDao.updateVerse(bibleVerse)
+        withContext(Dispatchers.IO) {
+            // First, get the original verse from the database to find out which topics were associated with it before the update.
+            val originalVerse = bibleVerseDao.getVerseById(bibleVerse.id)
+            val originalTopics = originalVerse.topics
+
+            // The new list of topics is in the `bibleVerse` object being passed to this function.
+            val newTopics = bibleVerse.topics
+
+            // Determine which topics, if any, were removed during the update.
+            val removedTopics = originalTopics.toSet() - newTopics.toSet()
+
+            // Call the DAO transaction to atomically update the verse, its topics, and the cross-references.
+            // This transaction will also create any new topics that don't exist in the Topics table.
+            bibleVerseDao.updateVerseAndTopics(bibleVerse)
+
+            // After the update is committed, check if any of the removed topics have become "orphaned"
+            // (i.e., they are no longer associated with any verses).
+            for (topicName in removedTopics) {
+                // Do not delete default topics, even if they become orphaned.
+                if (Global.DEFAULT_TOPICS.any { it.equals(topicName, ignoreCase = true) }) {
+                    Log.d("BibleVerseRepository", "Topic '$topicName' is a default topic, not checking for orphan status.")
+                    continue
+                }
+
+                // Find the topic entity to get its ID.
+                val topicEntity = bibleVerseDao.getTopicByName(topicName)
+                if (topicEntity != null) {
+                    // Check how many verses are currently associated with this topic.
+                    val usageCount = bibleVerseDao.countVersesForTopicId(topicEntity.id)
+                    Log.d("BibleVerseRepository", "Post-update check for topic '$topicName' (ID: ${topicEntity.id}), usage count: $usageCount")
+
+                    // If the usage count is zero, it's safe to delete the topic.
+                    if (usageCount == 0) {
+                        Log.i("BibleVerseRepository", "Deleting orphaned topic after update: '$topicName' (ID: ${topicEntity.id})")
+                        bibleVerseDao.deleteTopicById(topicEntity.id)
+                    }
+                } else {
+                    Log.w("BibleVerseRepository", "Could not find topic '$topicName' during orphan check. It may have already been deleted.")
+                }
+            }
+        }
     }
 
     /**

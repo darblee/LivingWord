@@ -33,6 +33,32 @@ interface BibleVerseDao {
     @Update
     suspend fun updateVerse(bibleVerse: BibleVerse)
 
+    @Query("DELETE FROM CrossRefBibleVerseTopics WHERE bibleVerseId = :verseId")
+    suspend fun deleteAllCrossRefsForVerseId(verseId: Long)
+
+    @Transaction
+    suspend fun updateVerseAndTopics(bibleVerse: BibleVerse) {
+        // 1. First, clear all existing topic associations for this verse in the join table.
+        deleteAllCrossRefsForVerseId(bibleVerse.id)
+
+        // 2. Now, iterate through the list of topics in the passed BibleVerse object.
+        // For each topic, ensure it exists in the Topics table and create a new cross-reference.
+        val newTopics = bibleVerse.topics
+        newTopics.forEach { topicName ->
+            // Find if the topic already exists.
+            val existingTopic = getTopicByName(topicName)
+            // If topic doesn't exist, create it and get its new ID. Otherwise, use existing ID.
+            val topicId = existingTopic?.id ?: insertTopic(Topic(topic = topicName))
+            // Create the new cross-reference linking the verse and the topic.
+            insertCrossRef(CrossRefBibleVerseTopics(bibleVerseId = bibleVerse.id, topicId = topicId))
+        }
+
+        // 3. Finally, update the BibleVerse entity itself in the BibleVerse_Items table.
+        // The `bibleVerse` object contains all the latest data, including the updated `topics`
+        // list (which Room will convert to a string), scripture, aiResponse, etc.
+        updateVerse(bibleVerse)
+    }
+
     @Delete
     suspend fun deleteVerse(bibleVerse: BibleVerse)
 
