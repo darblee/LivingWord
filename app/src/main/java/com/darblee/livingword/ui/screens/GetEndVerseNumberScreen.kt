@@ -123,7 +123,6 @@ fun GetEndVerseNumberScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         )
-                    // .padding(horizontal = 4.dp) // Deliberately no padding here
                 ) {
                     val annotatedString = buildAnnotatedString {
                         withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
@@ -200,6 +199,7 @@ fun GetEndVerseNumberScreen(
                     ) {
                         items(verses) { verse ->
                             VerseButton(verse = verse) { selectedVerse ->
+
                                 // --- Pass Result Back ---
                                 // 1. Create the result data object
                                 val result = BibleVerseRef(
@@ -212,28 +212,17 @@ fun GetEndVerseNumberScreen(
                                 val resultJson =
                                     Json.encodeToString(BibleVerseRef.serializer(), result)
 
-                                // 2. Get the SavedStateHandle of the *destination* screen (TopicScreen)
-                                //    This requires TopicScreen to be on the back stack.
-                                //    Use the correct Screen object from the updated navigation package
                                 val NewVerseScreenBackStackEntry =
-                                    navController.getBackStackEntry(Screen.NewVerseScreen)
+                                    navController.getBackStackEntry(Screen.AllVersesScreen)
                                 val NewVerseScreenSavedStateHandle =
                                     NewVerseScreenBackStackEntry.savedStateHandle
 
-                                // 3. Set the result in the destination's SavedStateHandle
-                                //    Make sure VERSE_RESULT_KEY is defined consistently (e.g., in AllVersesScreen.kt)
                                 NewVerseScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson // VERSE_RESULT_KEY needs to be accessible here or defined globally
 
-
-                                // 4. Pop the back stack up To (but not including) the TopicScreen.
-                                //    This makes TopicScreen the current destination and triggers its
-                                //    SavedStateHandle observer.
-                                //    Use the correct Screen object from the updated navigation package
                                 navController.popBackStack(
-                                    route = Screen.NewVerseScreen, // Destination to pop up to
-                                    inclusive = false    // Keep TopicScreen on the stack
+                                    route = Screen.AllVersesScreen,
+                                    inclusive = false
                                 )
-                                // --- Result Passing End ---
                             }
                         }
                     }
@@ -285,7 +274,6 @@ fun GetEndVerseNumberScreen(
                             navController.navigate(route = Screen.GetStartVerseNumberScreen(book = book, chapter = chapter))
                         },
                         shape = RoundedCornerShape(8.dp),
-                //        modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
                         contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
                     ) {
                         Icon(

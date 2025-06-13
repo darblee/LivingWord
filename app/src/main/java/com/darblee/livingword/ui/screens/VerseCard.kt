@@ -72,6 +72,6 @@ fun VerseCard(verseItem: BibleVerse, navController: NavController) {
     }
 
     if (showVerseDetail) {
-        navController.navigate(Screen.VerseDetailScreen(verseID = verseItem.id))
+        navController.navigate(Screen.VerseDetailScreen(verseID = verseItem.id, editMode = false))
     }
 }

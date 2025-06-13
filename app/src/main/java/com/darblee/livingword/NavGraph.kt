@@ -24,7 +24,6 @@ import com.darblee.livingword.ui.screens.GetChapterScreen
 import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
 import com.darblee.livingword.ui.screens.GetStartVerseNumberScreen
 import com.darblee.livingword.ui.screens.HomeScreen
-import com.darblee.livingword.ui.screens.AddNewVerseScreen
 import com.darblee.livingword.ui.screens.GoogleDriveOpsScreen
 import com.darblee.livingword.ui.screens.MemorizeScreen
 import com.darblee.livingword.ui.screens.TopicScreen
@@ -88,7 +87,7 @@ sealed class Screen {
      *
      */
     @Serializable
-    data class VerseDetailScreen(val verseID: Long) : Screen()
+    data class VerseDetailScreen(val verseID: Long, val editMode: Boolean) : Screen()
 
     @Serializable
     data class MemorizeScreen(val verseID: Long) : Screen()  // New screen
@@ -127,12 +126,6 @@ fun SetUpNavGraph(
         // Define the Prayer Screen destination.
         composable<Screen.TopicScreen> {
             TopicScreen(navController = navController, bibleViewModel = bibleViewModel,
-                onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme)
-        }
-
-        composable<Screen.NewVerseScreen> {
-            AddNewVerseScreen(navController = navController, bibleViewModel = bibleViewModel,
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme)
         }
@@ -180,7 +173,8 @@ fun SetUpNavGraph(
                 bibleViewModel = bibleViewModel,
                 verseID = screenRouteParams.verseID,
                 onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme
+                currentTheme = currentTheme,
+                editMode = screenRouteParams.editMode
             )
         }
 

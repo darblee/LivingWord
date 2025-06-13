@@ -129,7 +129,6 @@ class NewVerseViewModel() : ViewModel() {
         val geminiReady = _state.value.isAiServiceReady
         val geminiInitError = _state.value.aiResponseError ?: _state.value.generalError
 
-
         val currentState = _state.value
         // Avoid re-fetching if the exact same verse is already selected and loaded without errors
         if (verse == currentState.selectedVerse &&

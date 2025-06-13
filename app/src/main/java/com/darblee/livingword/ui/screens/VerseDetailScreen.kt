@@ -1,6 +1,7 @@
 package com.darblee.livingword.ui.screens
 
 import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,19 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,14 +30,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -144,7 +137,9 @@ fun VerseDetailScreen(
     verseID: Long,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
-) {
+    editMode: Boolean,
+
+    ) {
     // Remember scroll states for the text fields (UI concern)
     val aiResponseScrollState = rememberScrollState()
 
@@ -156,7 +151,7 @@ fun VerseDetailScreen(
     val verseItem = verseItemState.value
 
     // State for controlling the edit mode
-    var inEditMode by remember { mutableStateOf(false) }
+    var inEditMode by remember { mutableStateOf(editMode) }
 
     // State to hold the current values, so they can be edited and saved.
     // Initialize with default values, will be updated by LaunchedEffect
@@ -310,7 +305,7 @@ fun VerseDetailScreen(
             )
         },
         navController = navController,
-        currentScreenInstance = Screen.VerseDetailScreen(verseID),
+        currentScreenInstance = Screen.VerseDetailScreen(verseID, inEditMode),
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = {  paddingValues ->
@@ -502,54 +497,77 @@ fun VerseDetailScreen(
                     Column (
                         modifier = Modifier
                             .heightIn(max = (48 * 2).dp) // Set maximum height
-                            .verticalScroll(topicScrollState) // Enable vertical scrolling
+                            .verticalScroll(topicScrollState), // Enable vertical scrolling
                     ) {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp), // Space between chips horizontally
-                            verticalArrangement = Arrangement.spacedBy(2.dp) // Space between rows of chips
-                        ) {
-                            editedTopics.forEach { topic ->
-                                // Display each topic as a chip
-                                SuggestionChip(
-                                    onClick =
-                                        {
-                                            // Serialize editedTopics to JSON string
-                                            val editedTopicsJson = try {
-                                                Json.encodeToString(
-                                                    ListSerializer(String.serializer()),
-                                                    editedTopics
+                        if ((editedTopics.count() == 1) && (editedTopics[0] == "")) {
+                            Text(text = "Click here to add topic(s)", modifier = Modifier.clickable { // Serialize editedTopics to JSON string
+                                val editedTopicsJson = try {
+                                    Json.encodeToString(
+                                        ListSerializer(String.serializer()),
+                                        editedTopics
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e(
+                                        "VerseDetail",
+                                        "Error serializing edited topics: ${e.message}",
+                                        e
+                                    )
+                                    null // Pass null on error
+                                }
+                                // Navigate with the JSON string as an argument
+                                navController.navigate(
+                                    Screen.TopicSelectionScreen(
+                                        selectedTopicsJson = editedTopicsJson
+                                    )
+                                ) })
+                        } else {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp), // Space between chips horizontally
+                                verticalArrangement = Arrangement.spacedBy(2.dp) // Space between rows of chips
+                            ) {
+                                editedTopics.forEach { topic ->
+                                    // Display each topic as a chip
+                                    SuggestionChip(
+                                        onClick =
+                                            {
+                                                // Serialize editedTopics to JSON string
+                                                val editedTopicsJson = try {
+                                                    Json.encodeToString(
+                                                        ListSerializer(String.serializer()),
+                                                        editedTopics
+                                                    )
+                                                } catch (e: Exception) {
+                                                    Log.e(
+                                                        "VerseDetail",
+                                                        "Error serializing edited topics: ${e.message}",
+                                                        e
+                                                    )
+                                                    null // Pass null on error
+                                                }
+                                                // Navigate with the JSON string as an argument
+                                                navController.navigate(
+                                                    Screen.TopicSelectionScreen(
+                                                        selectedTopicsJson = editedTopicsJson
+                                                    )
                                                 )
-                                            } catch (e: Exception) {
-                                                Log.e(
-                                                    "VerseDetail",
-                                                    "Error serializing edited topics: ${e.message}",
-                                                    e
-                                                )
-                                                null // Pass null on error
-                                            }
-                                            // Navigate with the JSON string as an argument
-                                            navController.navigate(
-                                                Screen.TopicSelectionScreen(
-                                                    selectedTopicsJson = editedTopicsJson
-                                                )
+                                            },
+                                        label = {
+                                            Text(
+                                                topic,
+                                                color = if (inEditMode) editModeColor else LocalContentColor.current
                                             )
                                         },
-                                    label = {
-                                        Text(
-                                            topic,
-                                            color = if (inEditMode) editModeColor else LocalContentColor.current
-                                        )
-                                    },
-                                    colors = if (inEditMode) { // Conditionally apply chip colors
-                                        SuggestionChipDefaults.suggestionChipColors(
-                                            containerColor = editModeColor.copy(alpha = 0.1f), // Example: Light red background
-                                            labelColor = editModeColor // Text color handled in Text composable
-                                        )
-                                    } else {
-                                        SuggestionChipDefaults.suggestionChipColors() // Use default colors when not editing
-                                    }
-                                )
+                                        colors = if (inEditMode) { // Conditionally apply chip colors
+                                            SuggestionChipDefaults.suggestionChipColors(
+                                                containerColor = editModeColor.copy(alpha = 0.1f), // Example: Light red background
+                                                labelColor = editModeColor // Text color handled in Text composable
+                                            )
+                                        } else {
+                                            SuggestionChipDefaults.suggestionChipColors() // Use default colors when not editing
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
