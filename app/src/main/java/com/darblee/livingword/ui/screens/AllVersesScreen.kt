@@ -164,7 +164,7 @@ fun AllVersesScreen(
 
     // Show the transient dialog
     if (showRetreivingDataDialog) {
-        TransientRetreivingDataDialog(
+        TransientRetrievingDataDialog(
             savingComplete = savingComplete,
             onDismiss = { showRetreivingDataDialog = false }
         )
@@ -230,7 +230,7 @@ fun AllVersesScreen(
                         Text("Add specific verse...")
                     }
                     Button(
-                        onClick = { /* No action yet */ },
+                        onClick = { navController.navigate(Screen.AddVerseByDescriptionScreen) },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Add verse by description ...", textAlign = TextAlign.Center)
@@ -278,7 +278,7 @@ private fun readyToSave(state: NewVerseViewModel.NewVerseScreenState): Boolean{
 }
 
 @Composable
-fun TransientRetreivingDataDialog(
+fun TransientRetrievingDataDialog(
     savingComplete: Boolean,
     onDismiss: () -> Unit
 ) {

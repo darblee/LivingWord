@@ -87,7 +87,8 @@ fun AppScaffold(
                 navigationIcon = {
                     val showBackButton = currentScreenInstance is Screen.VerseDetailScreen ||
                             currentScreenInstance is Screen.MemorizeScreen ||
-                            currentScreenInstance is Screen.NewVerseScreen
+                            currentScreenInstance is Screen.NewVerseScreen ||
+                            currentScreenInstance is Screen.AddVerseByDescriptionScreen
 
                     if (showBackButton) {
                         IconButton(onClick = { navController.popBackStack() }) {

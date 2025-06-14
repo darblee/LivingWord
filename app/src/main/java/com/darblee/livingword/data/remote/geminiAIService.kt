@@ -2,9 +2,11 @@ package com.darblee.livingword.data.remote
 
 import android.util.Log
 import com.darblee.livingword.AISettings // Import AISettings
+import com.darblee.livingword.data.BibleVerseRef
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
 import com.google.ai.client.generativeai.type.generationConfig
+import kotlinx.serialization.json.Json
 
 /**
  * Sealed class to represent the result of an AI service call,
@@ -26,6 +28,10 @@ object GeminiAIService {
     private var initializationErrorMessage: String? = null
     private var isConfigured = false
     private var currentAISettings: AISettings? = null
+
+    // JSON parser for handling responses from the Gemini API.
+    private val jsonParser = Json { ignoreUnknownKeys = true }
+
 
     /**
      * Configures and initializes the Gemini GenerativeModel with the provided settings.
@@ -176,6 +182,58 @@ object GeminiAIService {
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
             AiServiceResult.Error("Could not get AI score from AI (${e.javaClass.simpleName}).", e)
+        }
+    }
+
+    /**
+     * Fetches a list of Bible verse references based on a textual description.
+     *
+     * @param description A natural language description of the verses to find.
+     * @return [AiServiceResult.Success] with a list of [BibleVerseRef] objects,
+     * or [AiServiceResult.Error] if an issue occurs.
+     */
+    suspend fun getNewVersesBasedOnDescription(description: String): AiServiceResult<List<BibleVerseRef>> {
+        if (!isConfigured) {
+            return AiServiceResult.Error("GeminiAIService has not been configured.")
+        }
+        if (generativeModel == null) {
+            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
+        }
+
+        return try {
+            val prompt = """
+            Please get me a list of verses that meet this description: "$description"
+
+            Respond in the following JSON format, which is an array of verse reference objects.
+            If no verses are found, return an empty array [].
+            [
+              {
+                "book": "BookName",
+                "chapter": 1,
+                "startVerse": 1,
+                "endVerse": 2
+              }
+            ]
+            """.trimIndent()
+
+            Log.d("GeminiAIService", "Sending prompt to Gemini for description-based verses: \"$prompt\"")
+
+            val response = generativeModel!!.generateContent(prompt)
+            val responseText = response.text
+
+            Log.d("GeminiAIService", "Gemini Response: $responseText")
+
+            if (responseText != null) {
+                // The model might wrap the JSON in markdown backticks, so we clean it.
+                val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
+                val verses = jsonParser.decodeFromString<List<BibleVerseRef>>(cleanedJson)
+                AiServiceResult.Success(verses)
+            } else {
+                AiServiceResult.Error("Received empty response from AI.")
+            }
+        } catch (e: Exception) {
+            Log.e("GeminiAIService", "Error calling Gemini API or parsing verse response: ${e.message}", e)
+            AiServiceResult.Error("Could not get verses from AI (${e.javaClass.simpleName}).", e)
         }
     }
 }

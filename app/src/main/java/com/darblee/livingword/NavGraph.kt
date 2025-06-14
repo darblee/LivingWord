@@ -13,18 +13,21 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.darblee.livingword.domain.model.BibleVerseViewModel
+import com.darblee.livingword.ui.screens.AddVerseByDescriptionScreen
+import com.darblee.livingword.ui.screens.AddVerseByDescriptionViewModel
 import com.darblee.livingword.ui.screens.AllVersesScreen
 import com.darblee.livingword.ui.screens.GetBookScreen
 import com.darblee.livingword.ui.screens.GetChapterScreen
 import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
 import com.darblee.livingword.ui.screens.GetStartVerseNumberScreen
-import com.darblee.livingword.ui.screens.HomeScreen
 import com.darblee.livingword.ui.screens.GoogleDriveOpsScreen
+import com.darblee.livingword.ui.screens.HomeScreen
 import com.darblee.livingword.ui.screens.MemorizeScreen
 import com.darblee.livingword.ui.screens.TopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
@@ -45,6 +48,9 @@ sealed class Screen {
 
     @Serializable
     data object GetBookScreen : Screen()
+
+    @Serializable
+    data object AddVerseByDescriptionScreen : Screen()
 
     @Serializable
     data object TopicScreen : Screen()
@@ -121,7 +127,7 @@ fun SetUpNavGraph(
                 bibleViewModel = bibleViewModel,
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme
-                )
+            )
         }
         // Define the Prayer Screen destination.
         composable<Screen.TopicScreen> {
@@ -132,6 +138,16 @@ fun SetUpNavGraph(
 
         composable<Screen.GetBookScreen> {
             GetBookScreen(navController = navController)
+        }
+
+        composable<Screen.AddVerseByDescriptionScreen> {
+            val viewModel: AddVerseByDescriptionViewModel = viewModel()
+            AddVerseByDescriptionScreen(
+                navController = navController,
+                viewModel = viewModel,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme
+            )
         }
 
         composable<Screen.GetChapterScreen> { backStackEntry ->
