@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,13 +23,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items // For LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -45,6 +52,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
@@ -54,6 +64,7 @@ import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import kotlinx.coroutines.launch
 
 // Define a new data class for display purposes in this screen
 data class TopicWithUiCount(
@@ -422,10 +433,75 @@ private fun ColumnScope.ListVerses(
         Log.i("ShowVerseByTopic", "Found ${filteredVerses.size} verses matching ANY selected topics.") //
 
         if (filteredVerses.isNotEmpty()) {
-            LazyColumn(modifier = Modifier.weight(1f)) { //
-                items(filteredVerses) { verseItem -> //
-                    VerseCard(verseItem, navController) //
-                    Spacer(modifier = Modifier.height(2.dp)) //
+            Box(modifier = Modifier.weight(1F)) {
+                val listState = rememberLazyListState()
+                val scope = rememberCoroutineScope()
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    items(filteredVerses) { verseItem ->
+                        VerseCard(verseItem, navController)
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+
+                val showScrollDownIndicator by remember {
+                    derivedStateOf {
+                        listState.canScrollForward
+                    }
+                }
+                val showScrollUpIndicator by remember {
+                    derivedStateOf {
+                        listState.firstVisibleItemIndex > 0
+                    }
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showScrollUpIndicator,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 8.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.clickable {
+                            scope.launch {
+                                listState.animateScrollToItem(0)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowUp,
+                            contentDescription = "Scroll Up",
+                            tint = MaterialTheme.colorScheme.onSecondary,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showScrollDownIndicator,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.clickable {
+                            scope.launch {
+                                listState.animateScrollToItem(filteredVerses.size - 1)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Scroll Down",
+                            tint = MaterialTheme.colorScheme.onSecondary,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
                 }
             }
         } else {

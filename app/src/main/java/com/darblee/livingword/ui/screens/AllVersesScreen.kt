@@ -3,7 +3,10 @@ package com.darblee.livingword.ui.screens
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,10 +16,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,9 +33,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -175,12 +186,9 @@ fun AllVersesScreen(
         val verseToShow = existingVerseForDialog!! // Safe due to the check
         AlertDialog(
             onDismissRequest = {
-                // This might be called if the user clicks outside the dialog or presses back.
-                // Decide if you want to navigate even then, or only on "OK".
-                // For this request, we only navigate on "OK".
                 showExistingVerseDialog = false
                 existingVerseForDialog = null
-                newVerseViewModel.clearVerseData() // Clear any pending fetches as we are not proceeding with a new fetch
+                newVerseViewModel.clearVerseData()
             },
             title = { Text("Verse Exists") },
             text = { Text("The verse '${verseToShow.book} ${verseToShow.chapter}:${verseToShow.startVerse}' " +
@@ -190,9 +198,9 @@ fun AllVersesScreen(
                     onClick = {
                         showExistingVerseDialog = false
                         navController.navigate(Screen.VerseDetailScreen(verseID = verseToShow.id, editMode = false)) {
-                            popUpTo(Screen.Home) // Ensure consistent behavior
+                            popUpTo(Screen.Home)
                         }
-                        newVerseViewModel.clearVerseData() // Clear any pending fetches
+                        newVerseViewModel.clearVerseData()
                         existingVerseForDialog = null
                     }
                 ) {
@@ -203,15 +211,15 @@ fun AllVersesScreen(
     }
 
     AppScaffold(
-        title = { Text("Bible Verse Listing") }, // Define the title for this screen
+        title = { Text("Bible Verse Listing") },
         navController = navController,
-        currentScreenInstance = Screen.AllVersesScreen, // Pass the actual Screen instance
+        currentScreenInstance = Screen.AllVersesScreen,
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
-        content = { paddingValues -> // Content lambda receives padding values
+        content = { paddingValues ->
             Column(
                 modifier = Modifier
-                    .padding(paddingValues) // Apply padding from AppScaffold
+                    .padding(paddingValues)
                     .fillMaxSize()
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -223,7 +231,7 @@ fun AllVersesScreen(
                 ) {
                     Button(
                         onClick = {
-                            newVerseViewModel.resetNavigationState() // Reset the ID and message flag in ViewModel after navigation
+                            newVerseViewModel.resetNavigationState()
                             navController.navigate(Screen.GetBookScreen) },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -246,10 +254,75 @@ fun AllVersesScreen(
                 if (allVerses.isEmpty()) {
                     Text("No verses added yet.", style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    LazyColumn {
-                        items(allVerses) { verseItem ->
-                            VerseCard(verseItem, navController) // Assuming VerseCard is defined elsewhere
-                            Spacer(modifier = Modifier.height(2.dp))
+                    Box(modifier = Modifier.weight(1f)) {
+                        val listState = rememberLazyListState()
+                        val scope = rememberCoroutineScope()
+                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                            items(allVerses) { verseItem ->
+                                VerseCard(verseItem, navController)
+                                Spacer(modifier = Modifier.height(2.dp))
+                            }
+                        }
+
+                        val showScrollDownIndicator by remember {
+                            derivedStateOf {
+                                listState.canScrollForward
+                            }
+                        }
+                        val showScrollUpIndicator by remember {
+                            derivedStateOf {
+                                listState.firstVisibleItemIndex > 0
+                            }
+                        }
+
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showScrollUpIndicator,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 8.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
+                                shadowElevation = 4.dp,
+                                modifier = Modifier.clickable {
+                                    scope.launch {
+                                        listState.animateScrollToItem(0)
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowUp,
+                                    contentDescription = "Scroll Up",
+                                    tint = MaterialTheme.colorScheme.onSecondary,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                        }
+
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showScrollDownIndicator,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
+                                shadowElevation = 4.dp,
+                                modifier = Modifier.clickable {
+                                    scope.launch {
+                                        listState.animateScrollToItem(allVerses.size - 1)
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Scroll Down",
+                                    tint = MaterialTheme.colorScheme.onSecondary,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
                         }
                     }
                 }
