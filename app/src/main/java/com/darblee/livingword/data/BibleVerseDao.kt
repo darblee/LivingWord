@@ -62,6 +62,7 @@ interface BibleVerseDao {
     @Delete
     suspend fun deleteVerse(bibleVerse: BibleVerse)
 
+    // Update the insertVerseWithTopics method to include new fields
     @Transaction
     suspend fun insertVerseWithTopics(
         book: String,
@@ -70,7 +71,9 @@ interface BibleVerseDao {
         endVerse: Int,
         scripture: String,
         aiResponse: String,
-        topics: List<String>
+        topics: List<String>,
+        translation: String = "ESV",
+        favorite: Boolean = false
     ): Long {
         val verseId = insertVerse(
             BibleVerse(
@@ -81,6 +84,8 @@ interface BibleVerseDao {
                 scripture = scripture,
                 aiResponse = aiResponse,
                 topics = emptyList(), // Insert with empty topics initially, will be updated
+                translation = translation,
+                favorite = favorite
             )
         )
         topics.forEach { topicName ->
@@ -89,13 +94,7 @@ interface BibleVerseDao {
             insertCrossRef(CrossRefBibleVerseTopics(bibleVerseId = verseId, topicId = topicId))
         }
 
-
         // Update the BibleVerse entity with the actual topics (for easier retrieval if needed later)
-
-        // Room DB is interpreting  the list of topics as multiple parameters in the SQL UPDATE statement, which is incorrect.
-        // To fix this, you need to store the list of topics as a single string in the database and then convert it back to a list
-        //
-        // Convert the list of topics to a string representation before updating
         val topicsString = topics.joinToString(",")
         updateVerseTopics(verseId, topicsString)
 
@@ -235,5 +234,23 @@ interface BibleVerseDao {
         deleteTopicById(oldTopicId)
     }
 
+    // Method to update favorite status
+    @Query("UPDATE BibleVerse_Items SET favorite = :isFavorite WHERE id = :verseId")
+    suspend fun updateFavoriteStatus(verseId: Long, isFavorite: Boolean)
 
+    // Method to update translation
+    @Query("UPDATE BibleVerse_Items SET translation = :translation WHERE id = :verseId")
+    suspend fun updateTranslation(verseId: Long, translation: String)
+
+    // Method to get all favorite verses
+    @Query("SELECT * FROM BibleVerse_Items WHERE favorite = 1 ORDER BY lastModified DESC")
+    fun getAllFavoriteVerses(): Flow<List<BibleVerse>>
+
+    // Method to get verses by translation
+    @Query("SELECT * FROM BibleVerse_Items WHERE translation = :translation ORDER BY lastModified DESC")
+    fun getVersesByTranslation(translation: String): Flow<List<BibleVerse>>
+
+    // Method to get favorite verses by translation
+    @Query("SELECT * FROM BibleVerse_Items WHERE favorite = 1 AND translation = :translation ORDER BY lastModified DESC")
+    fun getFavoriteVersesByTranslation(translation: String): Flow<List<BibleVerse>>
 }

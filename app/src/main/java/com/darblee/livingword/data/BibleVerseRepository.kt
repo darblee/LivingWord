@@ -235,5 +235,54 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         }
     }
 
+    suspend fun insertVerseWithTopics(
+        book: String,
+        chapter: Int,
+        startVerse: Int,
+        endVerse: Int,
+        scripture: String,
+        aiResponse: String,
+        topics: List<String>,
+        translation: String = "ESV",
+        favorite: Boolean = false
+    ): Long {
+        return bibleVerseDao.insertVerseWithTopics(
+            book, chapter, startVerse, endVerse, scripture, aiResponse, topics, translation, favorite
+        )
+    }
 
+    /**
+     * Updates the favorite status of a Bible verse.
+     */
+    suspend fun updateFavoriteStatus(verseId: Long, isFavorite: Boolean) {
+        withContext(Dispatchers.IO) {
+            bibleVerseDao.updateFavoriteStatus(verseId, isFavorite)
+        }
+    }
+
+    /**
+     * Updates the translation of a Bible verse.
+     */
+    suspend fun updateTranslation(verseId: Long, translation: String) {
+        withContext(Dispatchers.IO) {
+            bibleVerseDao.updateTranslation(verseId, translation)
+        }
+    }
+
+    /**
+     * Gets all favorite verses.
+     */
+    fun getAllFavoriteVerses(): Flow<List<BibleVerse>> = bibleVerseDao.getAllFavoriteVerses()
+
+    /**
+     * Gets verses by translation.
+     */
+    fun getVersesByTranslation(translation: String): Flow<List<BibleVerse>> =
+        bibleVerseDao.getVersesByTranslation(translation)
+
+    /**
+     * Gets favorite verses by translation.
+     */
+    fun getFavoriteVersesByTranslation(translation: String): Flow<List<BibleVerse>> =
+        bibleVerseDao.getFavoriteVersesByTranslation(translation)
 }

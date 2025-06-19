@@ -287,9 +287,9 @@ fun VerseDetailScreen(
 
     AppScaffold(
         title = {
-            var titleString =
+            val titleString =
                 if (verseItem != null) {
-                    verseReference(verseItem)
+                    verseReference(verseItem) + " (" + verseItem.translation + ")"
                 } else {
                     "Loading..."
                 }

@@ -23,6 +23,8 @@ data class BibleVerse(
     val userDirectQuoteScore: Int = 0,
     val userContext: String = "",
     val userContextScore: Int = 0,
+    val translation: String = "ESV",
+    val favorite: Boolean = false,
     val dateCreated: Long = System.currentTimeMillis(),
     val lastModified: Long = System.currentTimeMillis()
 )

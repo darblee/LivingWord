@@ -12,6 +12,7 @@ import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.BibleVerseRepository
 import com.darblee.livingword.data.TopicWithCount
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -28,9 +29,71 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
+    private val _favoriteVerses = MutableStateFlow<List<BibleVerse>>(emptyList())
+    val favoriteVerses: StateFlow<List<BibleVerse>> = _favoriteVerses
+
     init {
         getAllVerses()
-        getAllTopicsWithCount() // Changed from getAllTopics()
+        getAllTopicsWithCount()
+        getAllFavoriteVerses() // Add this line to your existing init block
+    }
+
+    /**
+     * Updates the favorite status of a verse.
+     */
+    fun updateFavoriteStatus(verseId: Long, isFavorite: Boolean) {
+        viewModelScope.launch {
+            try {
+                repository.updateFavoriteStatus(verseId, isFavorite)
+                val message = if (isFavorite) "Added to favorites" else "Removed from favorites"
+                Log.i("BibleVerseViewModel", "Updated favorite status for verse ID: $verseId to $isFavorite")
+                _errorMessage.value = message
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error updating favorite status for verse ID: $verseId", e)
+                _errorMessage.value = "Error updating favorite status: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    /**
+     * Updates the translation of a verse.
+     */
+    fun updateTranslation(verseId: Long, translation: String) {
+        viewModelScope.launch {
+            try {
+                repository.updateTranslation(verseId, translation)
+                Log.i("BibleVerseViewModel", "Updated translation for verse ID: $verseId to $translation")
+                _errorMessage.value = "Translation updated to $translation"
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error updating translation for verse ID: $verseId", e)
+                _errorMessage.value = "Error updating translation: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    /**
+     * Gets all favorite verses.
+     */
+    private fun getAllFavoriteVerses() {
+        viewModelScope.launch {
+            repository.getAllFavoriteVerses().collectLatest { favorites ->
+                _favoriteVerses.value = favorites
+            }
+        }
+    }
+
+    /**
+     * Gets verses by translation.
+     */
+    fun getVersesByTranslation(translation: String): Flow<List<BibleVerse>> {
+        return repository.getVersesByTranslation(translation)
+    }
+
+    /**
+     * Gets favorite verses by translation.
+     */
+    fun getFavoriteVersesByTranslation(translation: String): Flow<List<BibleVerse>> {
+        return repository.getFavoriteVersesByTranslation(translation)
     }
 
     fun saveNewVerse(
@@ -38,6 +101,8 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         scripture: String,
         aiResponse: String,
         topics: List<String>,
+        translation: String = "ESV",
+        favorite: Boolean = false,
         newVerseViewModel: NewVerseViewModel? = null
     ) {
         viewModelScope.launch {
@@ -49,17 +114,13 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                     endVerse = verse.endVerse,
                     scripture = scripture,
                     aiResponse = aiResponse,
-                    topics = topics
+                    topics = topics,
+                    translation = translation,
+                    favorite = favorite
                 )
                 newVerseViewModel?.contentSavedSuccessfully(newVerseID)
             } catch (e: Exception) {
-                // Log the exception
                 Log.e("BibleVerseViewModel", "Error saving verse with topics: ${e.message}", e)
-                // Notify LearnViewModel about the error
-                // Assuming LearnViewModel has a way to handle general errors or save errors.
-                // You might need to add a specific function in LearnViewModel for this.
-                // For example: learnViewModel?.handleSaveError(e.message ?: "Unknown error during save")
-                // For now, let's assume LearnViewModel's generalError can be used or you'll add a specific handler.
                 newVerseViewModel?.updateGeneralError("Failed to save content: ${e.localizedMessage}")
             }
         }
