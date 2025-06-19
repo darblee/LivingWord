@@ -33,11 +33,14 @@ internal class PreferenceStore(private val context: Context) {
         val AI_MODEL_NAME_KEY = stringPreferencesKey("ai_model_name")
         val AI_API_KEY_KEY = stringPreferencesKey("ai_api_key")
         val AI_TEMPERATURE_KEY = floatPreferencesKey("ai_temperature")
+        val TRANSLATION_KEY = stringPreferencesKey("translation")
+
 
         // Default AI Settings
         val DEFAULT_AI_MODEL_NAME = "gemini-2.0-flash"
         val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
         const val DEFAULT_AI_TEMPERATURE = 0.7f
+        val DEFAULT_TRANSLATION = "ESV"
     }
 
     // Save Color Mode
@@ -57,6 +60,20 @@ internal class PreferenceStore(private val context: Context) {
             else -> ColorThemeOption.System
         }
     }
+
+    // Save Translation
+    suspend fun saveTranslationToSetting(translation: String) {
+        context.datastore.edit { preferences ->
+            preferences[TRANSLATION_KEY] = translation
+        }
+    }
+
+    // Read Translation
+    suspend fun readTranslationFromSetting(): String {
+        val preferences = context.datastore.data.first()
+        return preferences[TRANSLATION_KEY] ?: DEFAULT_TRANSLATION
+    }
+
 
     // Save AI Settings
     suspend fun saveAISettings(aiSettings: AISettings) {

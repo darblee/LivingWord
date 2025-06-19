@@ -305,6 +305,7 @@ private fun AboutDialogPopup(
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingPopup(
     preferenceStore: PreferenceStore,
@@ -314,11 +315,13 @@ private fun SettingPopup(
     currentTheme: ColorThemeOption,
 ) {
     var currentAISettings by remember { mutableStateOf<AISettings?>(null) }
+    var translation by remember { mutableStateOf(PreferenceStore.DEFAULT_TRANSLATION) }
     val scope = rememberCoroutineScope()
 
     // Load initial AI settings
     LaunchedEffect(key1 = Unit) {
         currentAISettings = preferenceStore.readAISettings()
+        translation = preferenceStore.readTranslationFromSetting()
     }
 
     Dialog(
@@ -356,6 +359,14 @@ private fun SettingPopup(
                     Text("App Settings", style = MaterialTheme.typography.titleLarge) // Title for the dialog
 
                     ColorThemeSetting(onColorThemeUpdated, currentTheme, preferenceStore)
+
+                    HorizontalDivider()
+
+                    TranslationSetting(
+                        currentTranslation = translation,
+                        onTranslationChange = { translation = it },
+                        preferenceStore = preferenceStore
+                    )
 
                     HorizontalDivider()
 
@@ -472,6 +483,60 @@ private fun ColorThemeSetting(
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TranslationSetting(
+    currentTranslation: String,
+    onTranslationChange: (String) -> Unit,
+    preferenceStore: PreferenceStore
+) {
+    val translations = listOf("ESV", "NIV", "AMP", "NKJV", "KJV")
+    var expanded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Default Bible Translation",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = currentTranslation,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Translation") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                translations.forEach { translation ->
+                    DropdownMenuItem(
+                        text = { Text(translation) },
+                        onClick = {
+                            onTranslationChange(translation)
+                            expanded = false
+                            scope.launch {
+                                preferenceStore.saveTranslationToSetting(translation)
+                            }
+                        }
+                    )
                 }
             }
         }
