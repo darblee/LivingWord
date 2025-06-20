@@ -26,6 +26,7 @@ import androidx.navigation.compose.rememberNavController
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.domain.model.BibleVerseViewModel
+import com.darblee.livingword.ui.components.AIDisclaimerDialog
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.theme.SetColorTheme
 import kotlinx.coroutines.launch
@@ -74,9 +75,13 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(ColorThemeOption.System)
             }
 
-            // Load color theme from preferences
+            var showAIDisclaimer by remember { mutableStateOf(false) }
+
+            // Load color theme and AI disclaimer status from preferences
             LaunchedEffect(Unit) {
                 colorTheme = preferenceStore.readColorModeFromSetting()
+                val disclaimerShown = preferenceStore.readAIDisclaimerShown()
+                showAIDisclaimer = !disclaimerShown
             }
 
             SetColorTheme(colorTheme) {
@@ -101,6 +106,20 @@ class MainActivity : ComponentActivity() {
                     snackBarEvent = currentSnackBarEvent,
                     onDismiss = { currentSnackBarEvent = null }
                 )
+
+                // Show AI Disclaimer Dialog
+                if (showAIDisclaimer) {
+                    AIDisclaimerDialog(
+                        onDismiss = { doNotShowAgain ->
+                            showAIDisclaimer = false
+                            if (doNotShowAgain) {
+                                lifecycleScope.launch {
+                                    preferenceStore.saveAIDisclaimerShown(true)
+                                }
+                            }
+                        }
+                    )
+                }
             }
         }
     }

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.flow.Flow
@@ -35,12 +36,15 @@ internal class PreferenceStore(private val context: Context) {
         val AI_TEMPERATURE_KEY = floatPreferencesKey("ai_temperature")
         val TRANSLATION_KEY = stringPreferencesKey("translation")
 
+        // Key for AI Disclaimer Dialog
+        val AI_DISCLAIMER_SHOWN_KEY = booleanPreferencesKey("ai_disclaimer_shown")
 
         // Default AI Settings
         val DEFAULT_AI_MODEL_NAME = "gemini-2.0-flash"
         val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
         const val DEFAULT_AI_TEMPERATURE = 0.7f
         val DEFAULT_TRANSLATION = "ESV"
+        const val DEFAULT_AI_DISCLAIMER_SHOWN = false
     }
 
     // Save Color Mode
@@ -74,6 +78,18 @@ internal class PreferenceStore(private val context: Context) {
         return preferences[TRANSLATION_KEY] ?: DEFAULT_TRANSLATION
     }
 
+    // Save AI Disclaimer Shown Status
+    suspend fun saveAIDisclaimerShown(shown: Boolean) {
+        context.datastore.edit { preferences ->
+            preferences[AI_DISCLAIMER_SHOWN_KEY] = shown
+        }
+    }
+
+    // Read AI Disclaimer Shown Status
+    suspend fun readAIDisclaimerShown(): Boolean {
+        val preferences = context.datastore.data.first()
+        return preferences[AI_DISCLAIMER_SHOWN_KEY] ?: DEFAULT_AI_DISCLAIMER_SHOWN
+    }
 
     // Save AI Settings
     suspend fun saveAISettings(aiSettings: AISettings) {
