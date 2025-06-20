@@ -1,8 +1,10 @@
 package com.darblee.livingword.domain.model
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
@@ -19,7 +21,7 @@ import kotlinx.coroutines.launch
  * ViewModel for the Learn Screen, responsible for managing state and fetching data for a
  * single verse display.
  */
-class NewVerseViewModel() : ViewModel() {
+class NewVerseViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Represents the UI state for the LearnScreen.
@@ -41,7 +43,8 @@ class NewVerseViewModel() : ViewModel() {
         val isContentSaved: Boolean = false, // Track if current content has been saved
         val newlySavedVerseId: Long? = null,
         val isLoading: Boolean = false,
-        val isAiServiceReady: Boolean = false // To track AI service status
+        val isAiServiceReady: Boolean = false, // To track AI service status
+        val translation: String = ""
     )
 
     private val _state = MutableStateFlow(NewVerseScreenState())
@@ -49,7 +52,7 @@ class NewVerseViewModel() : ViewModel() {
 
     private var fetchDataJob: Job? = null
 
-    private val esvBibleLookupService: ESVBibleLookupService = ESVBibleLookupService()
+    private val preferenceStore = PreferenceStore(application)
     private val geminiService = GeminiAIService // Singleton instance
 
     init {
@@ -67,7 +70,6 @@ class NewVerseViewModel() : ViewModel() {
             )
         }
     }
-
 
     fun updateSelectedTopics(selectedTopics: List<String>) {
         selectedTopics.forEach {
@@ -160,47 +162,60 @@ class NewVerseViewModel() : ViewModel() {
         }
 
         fetchDataJob = viewModelScope.launch {
-            val scriptureResult = esvBibleLookupService.fetchScripture(verse)
+            val translation = preferenceStore.readTranslationFromSetting()
 
-            _state.update {
-                it.copy(
-                    isScriptureLoading = false,
-                    scriptureText = if (scriptureResult.isSuccess) scriptureResult.getOrDefault("") else "",
-                    scriptureError = if (scriptureResult.isFailure) scriptureResult.exceptionOrNull()?.message else null
-                )
-            }
-
-            if (scriptureResult.isSuccess && geminiReady) {
-                val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
-                when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
-                    is AiServiceResult.Success -> {
-                        _state.update {
-                            it.copy(
-                                aiResponseLoading = false,
-                                aiResponseText = takeAwayResult.data,
-                                aiResponseError = null
-                            )
-                        }
-                    }
-                    is AiServiceResult.Error -> {
-                        _state.update {
-                            it.copy(
-                                aiResponseLoading = false,
-                                aiResponseText = "",
-                                aiResponseError = takeAwayResult.message
-                            )
-                        }
-                    }
-                }
-            } else if (geminiReady) { // Scripture fetch failed, but Gemini service was ready.
+            if (!geminiReady) {
                 _state.update {
                     it.copy(
                         aiResponseLoading = false,
                         aiResponseError = it.aiResponseError ?: "Cannot fetch take-away due to scripture error."
                     )
                 }
-            } else { // Gemini service not ready
-                _state.update { it.copy(aiResponseLoading = false) }
+                return@launch
+            }
+
+            when (val scriptureResult = geminiService.fetchScripture(verse, translation)) {
+                is AiServiceResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            isScriptureLoading = false,
+                            scriptureText = scriptureResult.data,
+                            translation = translation
+                        )
+                    }
+                }
+
+                is AiServiceResult.Error -> {
+                    _state.update {
+                        it.copy(
+                            isScriptureLoading = false,
+                            scriptureText = "",
+                            scriptureError = scriptureResult.message
+                        )
+                    }
+                }
+            }
+
+            val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
+            when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
+                is AiServiceResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            aiResponseLoading = false,
+                            aiResponseText = takeAwayResult.data,
+                            aiResponseError = null
+                        )
+                    }
+                }
+                is AiServiceResult.Error -> {
+                    _state.update {
+                        it.copy(
+                            aiResponseLoading = false,
+                            aiResponseText = "",
+                            aiResponseError = takeAwayResult.message
+                        )
+                    }
+                }
             }
         }
     }

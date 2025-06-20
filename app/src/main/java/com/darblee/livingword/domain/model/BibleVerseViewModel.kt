@@ -101,7 +101,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         scripture: String,
         aiResponse: String,
         topics: List<String>,
-        translation: String = "ESV",
+        translation: String,
         favorite: Boolean = false,
         newVerseViewModel: NewVerseViewModel? = null
     ) {

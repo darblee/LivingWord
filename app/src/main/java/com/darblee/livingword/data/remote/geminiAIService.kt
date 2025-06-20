@@ -96,6 +96,49 @@ object GeminiAIService {
 
 
     /**
+     * Fetches scripture text for a given Bible verse reference and translation using the Gemini API.
+     * This function can be used as a replacement for traditional Bible APIs like the ESV API,
+     * with the advantage of supporting multiple translations.
+     *
+     * @param verseRef The Bible verse reference object containing book, chapter, and verse numbers.
+     * @param translation The desired Bible translation (e.g., "Amplified Bible", "NIV", "KJV").
+     * @return [AiServiceResult.Success] with the scripture text, or [AiServiceResult.Error] if an issue occurs.
+     */
+    suspend fun fetchScripture(verseRef: BibleVerseRef, translation: String): AiServiceResult<String> {
+        if (!isConfigured) {
+            return AiServiceResult.Error("GeminiAIService has not been configured.")
+        }
+        if (generativeModel == null) {
+            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
+        }
+
+        return try {
+            val verseString = if (verseRef.endVerse > verseRef.startVerse) {
+                "${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse}"
+            } else {
+                "${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}"
+            }
+
+            val prompt = "Show $verseString using $translation translation and only include verse numbers in \"[]\". Just respond with scripture and verse number content and no need to provide description comment."
+            Log.d("GeminiAIService", "Sending prompt to Gemini for scripture lookup: \"$prompt\"")
+
+            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt)
+            val responseText = response.text
+
+            Log.d("GeminiAIService", "Gemini Response for scripture: $responseText")
+
+            if (responseText != null) {
+                AiServiceResult.Success(responseText.trim())
+            } else {
+                AiServiceResult.Error("Received empty response from AI for scripture lookup.")
+            }
+        } catch (e: Exception) {
+            Log.e("GeminiAIService", "Error calling Gemini API for scripture: ${e.message}", e)
+            AiServiceResult.Error("Could not get scripture from AI (${e.javaClass.simpleName}).", e)
+        }
+    }
+
+    /**
      * Fetches a key take-away for the given Bible verse reference from the Gemini API.
      *
      * @param verseRef The Bible verse reference (e.g., "John 3:16-17").

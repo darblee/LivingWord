@@ -72,7 +72,7 @@ interface BibleVerseDao {
         scripture: String,
         aiResponse: String,
         topics: List<String>,
-        translation: String = "ESV",
+        translation: String,
         favorite: Boolean = false
     ): Long {
         val verseId = insertVerse(

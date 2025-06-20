@@ -156,7 +156,8 @@ fun AllVersesScreen(
                 scripture = newVerseState.scriptureText,
                 aiResponse = newVerseState.aiResponseText,
                 topics = newVerseState.selectedTopics,
-                newVerseViewModel = newVerseViewModel
+                newVerseViewModel = newVerseViewModel,
+                translation = newVerseState.translation
             )
         }
     }

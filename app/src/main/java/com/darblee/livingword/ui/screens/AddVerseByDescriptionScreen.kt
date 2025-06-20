@@ -1,5 +1,6 @@
 package com.darblee.livingword.ui.screens
 
+import android.app.Application
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,14 +29,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.darblee.livingword.Global.VERSE_RESULT_KEY
+import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.ESVBibleLookupService
 import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
@@ -46,11 +47,11 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class AddVerseByDescriptionViewModel : ViewModel() {
+class AddVerseByDescriptionViewModel (application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(AddVerseByDescriptionUiState())
     val uiState: StateFlow<AddVerseByDescriptionUiState> = _uiState.asStateFlow()
-    private val bibleLookupService = ESVBibleLookupService()
+    private val preferenceStore = PreferenceStore(application)
 
     fun onDescriptionChange(description: String) {
         _uiState.value = _uiState.value.copy(description = description)
@@ -62,22 +63,27 @@ class AddVerseByDescriptionViewModel : ViewModel() {
 
     fun onPreviewVerse(verse: BibleVerseRef) {
         viewModelScope.launch {
+            val translation = preferenceStore.readTranslationFromSetting()
+
             _uiState.value = _uiState.value.copy(
                 isPreviewLoading = true,
                 previewVerse = verse,
                 previewError = null
             )
-            val result = bibleLookupService.fetchScripture(verse)
-            result.onSuccess {
-                _uiState.value = _uiState.value.copy(
-                    isPreviewLoading = false,
-                    previewContent = it
-                )
-            }.onFailure {
-                _uiState.value = _uiState.value.copy(
-                    isPreviewLoading = false,
-                    previewError = it.message
-                )
+            when (val result = GeminiAIService.fetchScripture(verse, translation)) {
+                is AiServiceResult.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isPreviewLoading = false,
+                        previewError = result.message
+                    )
+                }
+                is AiServiceResult.Success<*> -> {
+                    _uiState.value = _uiState.value.copy(
+                        isPreviewLoading = false,
+                        previewContent = result.data.toString(),
+                        translation = translation
+                    )
+                }
             }
         }
     }
@@ -118,7 +124,8 @@ data class AddVerseByDescriptionUiState(
     val previewVerse: BibleVerseRef? = null,
     val previewContent: String? = null,
     val isPreviewLoading: Boolean = false,
-    val previewError: String? = null
+    val previewError: String? = null,
+    val translation: String = ""
 )
 
 @Composable
@@ -136,7 +143,8 @@ fun AddVerseByDescriptionScreen(
             content = uiState.previewContent,
             isLoading = uiState.isPreviewLoading,
             error = uiState.previewError,
-            onDismiss = { viewModel.dismissPreview() }
+            onDismiss = { viewModel.dismissPreview() },
+            translation = uiState.translation
         )
     }
 
@@ -242,11 +250,12 @@ fun ScripturePreviewDialog(
     content: String?,
     isLoading: Boolean,
     error: String?,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    translation: String
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse}") },
+        title = { Text(text = "${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse} ($translation)") },
         text = {
             when {
                 isLoading -> {

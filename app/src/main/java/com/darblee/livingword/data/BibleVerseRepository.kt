@@ -17,9 +17,10 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         endVerse: Int,
         scripture: String,
         aiResponse: String,
-        topics: List<String>
+        topics: List<String>,
+        translation: String
     ): Long {
-        return bibleVerseDao.insertVerseWithTopics(book, chapter, startVerse, endVerse, scripture, aiResponse, topics )
+        return bibleVerseDao.insertVerseWithTopics(book, chapter, startVerse, endVerse, scripture, aiResponse, topics, translation = translation )
     }
 
     fun getAllVerses(): Flow<List<BibleVerse>> = bibleVerseDao.getAllVerses()
