@@ -28,7 +28,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
@@ -36,6 +43,8 @@ import com.darblee.livingword.Global.VERSE_RESULT_KEY
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerseRef
+import com.darblee.livingword.data.ScriptureContent
+import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.ui.components.AppScaffold
@@ -61,16 +70,17 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
         _uiState.value = _uiState.value.copy(selectedVerse = verse)
     }
 
-    fun onPreviewVerse(verse: BibleVerseRef) {
+    fun onPreviewVerseJson(verse: BibleVerseRef) {
         viewModelScope.launch {
             val translation = preferenceStore.readTranslationFromSetting()
 
             _uiState.value = _uiState.value.copy(
                 isPreviewLoading = true,
                 previewVerse = verse,
-                previewError = null
+                previewError = null,
+                translation = translation
             )
-            when (val result = GeminiAIService.fetchScripture(verse, translation)) {
+            when (val result = GeminiAIService.fetchScriptureJson(verse, translation)) {
                 is AiServiceResult.Error -> {
                     _uiState.value = _uiState.value.copy(
                         isPreviewLoading = false,
@@ -80,7 +90,7 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
                 is AiServiceResult.Success<*> -> {
                     _uiState.value = _uiState.value.copy(
                         isPreviewLoading = false,
-                        previewContent = result.data.toString(),
+                        previewContentJson = result.data as ScriptureContent,
                         translation = translation
                     )
                 }
@@ -123,6 +133,7 @@ data class AddVerseByDescriptionUiState(
     val error: String? = null,
     val previewVerse: BibleVerseRef? = null,
     val previewContent: String? = null,
+    val previewContentJson: ScriptureContent = ScriptureContent(translation = "", verses = emptyList()),
     val isPreviewLoading: Boolean = false,
     val previewError: String? = null,
     val translation: String = ""
@@ -138,9 +149,9 @@ fun AddVerseByDescriptionScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     if (uiState.previewVerse != null) {
-        ScripturePreviewDialog(
+        ScripturePreviewDialogJson(
             verseRef = uiState.previewVerse!!,
-            content = uiState.previewContent,
+            contentJson = uiState.previewContentJson,
             isLoading = uiState.isPreviewLoading,
             error = uiState.previewError,
             onDismiss = { viewModel.dismissPreview() },
@@ -212,7 +223,7 @@ fun AddVerseByDescriptionScreen(
                                             .padding(start = 8.dp),
                                         style = MaterialTheme.typography.bodyLarge
                                     )
-                                    Button(onClick = { viewModel.onPreviewVerse(verse) }) {
+                                    Button(onClick = { viewModel.onPreviewVerseJson(verse) }) {
                                         Text("Preview")
                                     }
                                 }
@@ -245,9 +256,9 @@ fun AddVerseByDescriptionScreen(
 }
 
 @Composable
-fun ScripturePreviewDialog(
+fun ScripturePreviewDialogJson(
     verseRef: BibleVerseRef,
-    content: String?,
+    contentJson: ScriptureContent,
     isLoading: Boolean,
     error: String?,
     onDismiss: () -> Unit,
@@ -266,14 +277,23 @@ fun ScripturePreviewDialog(
                     ) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Loading preview...")
+                        Text("Fetching scripture...")
                     }
                 }
                 error != null -> {
                     Text(text = "Error: $error", color = MaterialTheme.colorScheme.error)
                 }
-                content != null -> {
-                    Text(text = content, modifier = Modifier.verticalScroll(rememberScrollState()))
+                contentJson.verses.isNotEmpty() -> {
+                    LabeledOutlinedBox(label = "Scripture") {
+                        val annotatedVerse = buildAnnotatedVerseString(contentJson.verses)
+                        Text(
+                            text = annotatedVerse,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                        )
+                    }
                 }
             }
         },
@@ -283,4 +303,29 @@ fun ScripturePreviewDialog(
             }
         }
     )
+}
+
+fun buildAnnotatedVerseString(verses: List<Verse>) : AnnotatedString  {
+    return buildAnnotatedString {
+        verses.forEach { verse ->
+            // Style for the verse number (superscript, red, small font)
+            withStyle(
+                style = SpanStyle(
+                    color = Color.Red,
+                    fontSize = 10.sp,
+                    baselineShift = BaselineShift.Superscript
+                )
+            ) {
+                append(verse.verseNum.toString())
+            }
+            // Add a space after the verse number.
+            append(" ")
+
+            // The verse content itself. It will inherit the style from the Text composable.
+            append(verse.verseString)
+
+            // Add a space after the verse content to separate it from the next verse.
+            append(" ")
+        }
+    }
 }

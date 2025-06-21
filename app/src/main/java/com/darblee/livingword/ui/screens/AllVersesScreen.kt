@@ -3,7 +3,6 @@ package com.darblee.livingword.ui.screens
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -157,7 +156,7 @@ fun AllVersesScreen(
                 aiResponse = newVerseState.aiResponseText,
                 topics = newVerseState.selectedTopics,
                 newVerseViewModel = newVerseViewModel,
-                translation = newVerseState.translation
+                scriptureContent = newVerseState.scriptureJson,
             )
         }
     }

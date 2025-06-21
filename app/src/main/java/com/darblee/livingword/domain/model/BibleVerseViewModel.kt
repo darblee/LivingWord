@@ -11,6 +11,7 @@ import com.darblee.livingword.data.AppDatabase
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.BibleVerseRepository
+import com.darblee.livingword.data.ScriptureContent
 import com.darblee.livingword.data.TopicWithCount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,9 +102,9 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         scripture: String,
         aiResponse: String,
         topics: List<String>,
-        translation: String,
         favorite: Boolean = false,
-        newVerseViewModel: NewVerseViewModel? = null
+        newVerseViewModel: NewVerseViewModel? = null,
+        scriptureContent: ScriptureContent
     ) {
         viewModelScope.launch {
             try {
@@ -115,8 +116,8 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                     scripture = scripture,
                     aiResponse = aiResponse,
                     topics = topics,
-                    translation = translation,
-                    favorite = favorite
+                    favorite = favorite,
+                    scriptureContent = scriptureContent // Pass the object
                 )
                 newVerseViewModel?.contentSavedSuccessfully(newVerseID)
             } catch (e: Exception) {

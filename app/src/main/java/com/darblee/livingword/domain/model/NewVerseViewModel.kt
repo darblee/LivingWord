@@ -7,8 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerseRef
+import com.darblee.livingword.data.ScriptureContent
+import com.darblee.livingword.data.ScriptureUtils.scriptureContentToString
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.ESVBibleLookupService
 import com.darblee.livingword.data.remote.GeminiAIService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         // State for the currently displayed single verse
         val selectedVerse: BibleVerseRef? = null,
         val scriptureText: String = "",
+        val scriptureJson: ScriptureContent = ScriptureContent(translation = "", verses = emptyList()),
         val aiResponseText: String = "",
         val isScriptureLoading: Boolean = false,
         val aiResponseLoading: Boolean = false,
@@ -174,13 +176,15 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 return@launch
             }
 
-            when (val scriptureResult = geminiService.fetchScripture(verse, translation)) {
+            when (val scriptureResult = geminiService.fetchScriptureJson(verse, translation)) {
                 is AiServiceResult.Success -> {
+                    val scriptureContent = scriptureResult.data
                     _state.update {
                         it.copy(
                             isScriptureLoading = false,
-                            scriptureText = scriptureResult.data,
-                            translation = translation
+                            scriptureText = scriptureContentToString(scriptureContent),
+                            translation = translation,
+                            scriptureJson = scriptureContent
                         )
                     }
                 }

@@ -75,7 +75,6 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
     // For VERSE_DETAIL_SEQUENCE mode (VerseDetailScreen)
     private var sequenceScriptureReference: String? = null
-    private var sequenceScriptureText: String? = null
     private var sequenceAiResponseText: String? = null
     private var sequenceScriptureSentences: List<String> = emptyList()
     private var sequenceAiResponseSentences: List<String> = emptyList()
@@ -133,18 +132,18 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
     private fun setupUtteranceListener() {
 
         /**
-         *  An anonymous `UtteranceProgressListener` object is created and set on the TTS engine using
-         *  `tts?.setOnUtteranceProgressListener(...)`.  This listener provides three callback methods:
-         *  `onStart()`, `onDone()`, and `onError()`.
+         * An anonymous `UtteranceProgressListener` object is created and set on the TTS engine using
+         * `tts?.setOnUtteranceProgressListener(...)`.  This listener provides three callback methods:
+         * `onStart()`, `onDone()`, and `onError()`.
          */
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
 
 
             /**
-             *  * Called when the TTS engine begins speaking an utterance.
-             *  * Determines the context of the utterance based on the `utteranceId` (which indicates whether it's part of a single text or a verse detail sequence).
-             *  * Updates the  `_currentOperationMode` and `_sequenceCurrentPart`  StateFlows.
-             *  * Extracts the sentence index from the utterance ID and updates `_currentSentenceInBlockIndex.value`.
+             * Called when the TTS engine begins speaking an utterance.
+             * Determines the context of the utterance based on the `utteranceId` (which indicates whether it's part of a single text or a verse detail sequence).
+             * Updates the  `_currentOperationMode` and `_sequenceCurrentPart`  StateFlows.
+             * Extracts the sentence index from the utterance ID and updates `_currentSentenceInBlockIndex.value`.
              */
             override fun onStart(utteranceId: String?) {
                 // Logs the start event with the utterance ID.
@@ -198,8 +197,8 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
             }
 
             /**
-             *  * Called when the TTS engine finishes speaking an utterance.
-             *  * Calls `handlePlaybackCompletion(utteranceId)` to determine the next action based on the current operation mode and the completed utterance.
+             * Called when the TTS engine finishes speaking an utterance.
+             * Calls `handlePlaybackCompletion(utteranceId)` to determine the next action based on the current operation mode and the completed utterance.
              */
             override fun onDone(utteranceId: String?) {
 
@@ -389,7 +388,6 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
     // --- Public Methods for VerseDetailScreen (Sequence Playback) ---
     fun startVerseDetailSequence(
-        scripture: String,
         aiResponse: String,
         verseItem: BibleVerse
     ) {
@@ -397,7 +395,7 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
             Log.w("TtsViewModel", "startVerseDetailSequence: TTS not ready.")
             return
         }
-        Log.d("TtsViewModel", "Starting verse detail sequence.")
+        Log.d("TtsViewModel", "Starting verse detail sequence using scriptureJson.")
         stopAllSpeaking()
 
         _currentOperationMode.value = TTS_OperationMode.VERSE_DETAIL_SEQUENCE
@@ -407,12 +405,13 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
         else
             "${verseItem.book} chapter ${verseItem.chapter} verse ${verseItem.startVerse} to ${verseItem.endVerse}"
 
-        sequenceScriptureText = scripture // Store raw text
+
+        // Populate sentences directly from scriptureJson
+        sequenceScriptureSentences = verseItem.scriptureJson.verses.map { it.verseString }
         sequenceAiResponseText = aiResponse // Store raw text
 
-        // Split sentences here so they are ready for initial queueing and resumption
-        sequenceScriptureSentences = splitIntoSentences(sequenceScriptureText ?: "", locale)
-        sequenceAiResponseSentences = splitIntoSentences(cleanupTextForTts(sequenceAiResponseText ?: ""), locale)
+        // Split AI response sentences as before
+        sequenceAiResponseSentences = splitIntoSentences(cleanupTextForTts(sequenceAiResponseText.toString()), locale)
 
         _isPaused.value = false // Ensure not paused
         sequencePausedPart = VerseDetailSequencePart.NONE // Reset pause state
@@ -452,8 +451,8 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
             // UI should ideally call startVerseDetailSequence to restart.
             Log.w("TtsViewModel", "togglePlayPauseResumeVerseDetailSequence called when sequence not speaking/paused. Restart needed via startVerseDetailSequence.")
             // To be safe, let's try to re-trigger the start if essential data is still around.
-            // This assumes sequenceScriptureText etc. are still valid from the last start.
-            if (sequenceScriptureText != null && sequenceAiResponseText != null && sequenceScriptureReference != null) {
+            // This assumes sequenceAiResponseText etc. are still valid from the last start.
+            if (sequenceAiResponseText != null && sequenceScriptureReference != null) {
                 Log.d("TtsViewModel", "Attempting to restart sequence from beginning as it was stopped/finished.")
                 // Reset pause state before restarting the queue from reference
                 sequencePausedPart = VerseDetailSequencePart.NONE
@@ -592,7 +591,6 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
         // Clear sequence specific data
         sequenceScriptureReference = null
-        sequenceScriptureText = null
         sequenceAiResponseText = null
         sequenceScriptureSentences = emptyList()
         sequenceAiResponseSentences = emptyList()

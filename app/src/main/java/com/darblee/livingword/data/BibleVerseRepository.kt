@@ -16,16 +16,25 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         startVerse: Int,
         endVerse: Int,
         scripture: String,
+        ScriptureContent : ScriptureContent,
         aiResponse: String,
         topics: List<String>,
         translation: String
     ): Long {
-        return bibleVerseDao.insertVerseWithTopics(book, chapter, startVerse, endVerse, scripture, aiResponse, topics, translation = translation )
+        return bibleVerseDao.insertVerseWithTopics(
+            book,
+            chapter,
+            startVerse,
+            endVerse,
+            scripture,
+            aiResponse,
+            topics,
+            translation,
+            scriptureContent = ScriptureContent
+        )
     }
 
     fun getAllVerses(): Flow<List<BibleVerse>> = bibleVerseDao.getAllVerses()
-
-    fun getAllTopics(): Flow<List<Topic>> = bibleVerseDao.getAllTopics()
 
     /**
      * Updates an existing Bible verse and its associated topics.
@@ -245,11 +254,11 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         aiResponse: String,
         topics: List<String>,
         translation: String = "ESV",
-        favorite: Boolean = false
+        favorite: Boolean = false,
+        scriptureContent: ScriptureContent
     ): Long {
         return bibleVerseDao.insertVerseWithTopics(
-            book, chapter, startVerse, endVerse, scripture, aiResponse, topics, translation, favorite
-        )
+            book, chapter, startVerse, endVerse, scripture, aiResponse, topics, translation, favorite, scriptureContent)
     }
 
     /**

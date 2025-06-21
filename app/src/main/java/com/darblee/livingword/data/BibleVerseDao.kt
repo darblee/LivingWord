@@ -62,7 +62,6 @@ interface BibleVerseDao {
     @Delete
     suspend fun deleteVerse(bibleVerse: BibleVerse)
 
-    // Update the insertVerseWithTopics method to include new fields
     @Transaction
     suspend fun insertVerseWithTopics(
         book: String,
@@ -73,7 +72,8 @@ interface BibleVerseDao {
         aiResponse: String,
         topics: List<String>,
         translation: String,
-        favorite: Boolean = false
+        favorite: Boolean = false,
+        scriptureContent: ScriptureContent
     ): Long {
         val verseId = insertVerse(
             BibleVerse(
@@ -84,10 +84,12 @@ interface BibleVerseDao {
                 scripture = scripture,
                 aiResponse = aiResponse,
                 topics = emptyList(), // Insert with empty topics initially, will be updated
-                translation = translation,
-                favorite = favorite
+                translation = scriptureContent.translation,
+                favorite = favorite,
+                scriptureJson = scriptureContent
             )
         )
+
         topics.forEach { topicName ->
             val existingTopic = getTopicByName(topicName)
             val topicId = existingTopic?.id ?: insertTopic(Topic(topic = topicName))
@@ -188,7 +190,6 @@ interface BibleVerseDao {
     @Query("DELETE FROM CrossRefBibleVerseTopics WHERE topicId = :topicId")
     suspend fun deleteAllCrossRefsForTopicId(topicId: Long)
 
-
     @Transaction
     suspend fun mergeTopics(oldTopicId: Long, oldTopicName: String, targetTopicId: Long, targetTopicName: String) {
         // 1. Re-associate BibleVerses from oldTopicId to targetTopicId in CrossRefBibleVerseTopics
@@ -253,4 +254,37 @@ interface BibleVerseDao {
     // Method to get favorite verses by translation
     @Query("SELECT * FROM BibleVerse_Items WHERE favorite = 1 AND translation = :translation ORDER BY lastModified DESC")
     fun getFavoriteVersesByTranslation(translation: String): Flow<List<BibleVerse>>
+
+    // Helper method to create ScriptureContent from existing data
+    @Query("SELECT * FROM BibleVerse_Items WHERE scriptureJson = '' OR scriptureJson IS NULL")
+    suspend fun getVersesWithEmptyScriptureJson(): List<BibleVerse>
+
+    // Method to update scriptureJson for a specific verse
+    @Query("UPDATE BibleVerse_Items SET scriptureJson = :scriptureJson WHERE id = :verseId")
+    suspend fun updateScriptureJson(verseId: Long, scriptureJson: String)
+
+    /**
+     * Helper function to parse scripture string into Verse objects
+     * This should be added to your BibleVerseDao.kt or as a utility function
+     */
+    private fun parseScriptureToVerses(scripture: String): List<Verse> {
+        val verses = mutableListOf<Verse>()
+        val regex = "\\[(\\d+)\\]\\s*([^\\[]+?)(?=\\s*\\[\\d+\\]|\\$)".toRegex()
+
+
+        regex.findAll(scripture).forEach { matchResult ->
+            val verseNum = matchResult.groupValues[1].toIntOrNull() ?: 0
+            val verseText = matchResult.groupValues[2].trim()
+            if (verseText.isNotEmpty()) {
+                verses.add(Verse(verseNum = verseNum, verseString = verseText))
+            }
+        }
+
+        // If no verses were parsed (maybe different format), create a single verse
+        if (verses.isEmpty() && scripture.isNotEmpty()) {
+            verses.add(Verse(verseNum = 1, verseString = scripture))
+        }
+
+        return verses
+    }
 }

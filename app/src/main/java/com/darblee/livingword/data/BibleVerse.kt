@@ -4,6 +4,10 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 @Entity(tableName = "BibleVerse_Items")
 @TypeConverters(Converters::class)
@@ -23,10 +27,25 @@ data class BibleVerse(
     val userDirectQuoteScore: Int = 0,
     val userContext: String = "",
     val userContextScore: Int = 0,
-    val translation: String = "ESV",
+    val translation: String = "",
     val favorite: Boolean = false,
+    val scriptureJson: ScriptureContent = ScriptureContent(translation = "", verses = emptyList()),
     val dateCreated: Long = System.currentTimeMillis(),
     val lastModified: Long = System.currentTimeMillis()
+)
+
+@Serializable
+data class Verse(
+    @SerialName("verse_num")
+    val verseNum: Int,
+    @SerialName("verse_string")
+    val verseString: String
+)
+
+@Serializable
+data class ScriptureContent(
+    val translation: String,
+    val verses: List<Verse>
 )
 
 class Converters {
@@ -39,10 +58,27 @@ class Converters {
     fun toList(value: String): List<String> {
         return value.split(",").map { it.trim() }
     }
+
+    @TypeConverter
+    fun fromScriptureContent(value: ScriptureContent): String {
+        return Json.encodeToString(value)
+    }
+
+    @TypeConverter
+    fun toScriptureContent(value: String): ScriptureContent {
+        return if (value.isEmpty()) {
+            ScriptureContent(translation = "", verses = emptyList())
+        } else {
+            try {
+                Json.decodeFromString<ScriptureContent>(value)
+            } catch (e: Exception) {
+                ScriptureContent(translation = "", verses = emptyList())
+            }
+        }
+    }
 }
 
-fun verseReference(verseItem: BibleVerse): String
-{
+fun verseReference(verseItem: BibleVerse): String {
     val book = verseItem.book
     val chapter = verseItem.chapter
     val startVerse = verseItem.startVerse
@@ -53,14 +89,22 @@ fun verseReference(verseItem: BibleVerse): String
     return ("$book $chapter:$startVerse-$endVerse")
 }
 
-fun verseReferenceT(verseItem: BibleVerseRef): String
-{
-    val book = verseItem.book
-    val chapter = verseItem.chapter
-    val startVerse = verseItem.startVerse
-    val endVerse = verseItem.endVerse
-    if (startVerse == endVerse) {
-        return ("$book $chapter:$startVerse")
+/**
+ * Parses a scripture string with format like "[1] verse text [2] more verse text"
+ * and converts it to a list of Verse objects.
+ */
+fun parseScriptureToVerses(scripture: String): List<Verse> {
+    val verses = mutableListOf<Verse>()
+    val regex = "\\[(\\d+)\\]\\s*([^\\[]+?)(?=\\s*\\[\\d+\\]|\\$)".toRegex()
+
+
+    regex.findAll(scripture).forEach { matchResult ->
+        val verseNum = matchResult.groupValues[1].toIntOrNull() ?: 0
+        val verseText = matchResult.groupValues[2].trim()
+        if (verseText.isNotEmpty()) {
+            verses.add(Verse(verseNum = verseNum, verseString = verseText))
+        }
     }
-    return ("$book $chapter:$startVerse-$endVerse")
+
+    return verses
 }

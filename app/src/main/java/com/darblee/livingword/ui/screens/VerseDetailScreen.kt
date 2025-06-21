@@ -80,8 +80,8 @@ import androidx.compose.ui.unit.sp
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
 import com.darblee.livingword.Screen
 import com.darblee.livingword.SnackBarController
-import com.darblee.livingword.data.BibleData.removePassageRef
 import com.darblee.livingword.data.BibleVerse
+import com.darblee.livingword.data.ScriptureContent
 import com.darblee.livingword.data.verseReference
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.TTSViewModel
@@ -309,611 +309,664 @@ fun VerseDetailScreen(
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = {  paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues) // Apply padding from Scaffold
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp), // Adjusted vertical padding
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            val scriptureTextContent = verseItem?.scripture ?: "Loading scripture...."
-
-            // --- Scripture Box ---
-            LabeledOutlinedBox(
-                label = "Scripture",
-                modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues) // Apply padding from Scaffold
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp), // Adjusted vertical padding
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Scripture Box
-                val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+                // --- Scripture Box ---
+                LabeledOutlinedBox(
+                    label = "Scripture",
+                    modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
+                ) {
+                    // Scripture Box
+                    val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
 
-                // Determine if scripture should be highlighted (either single TTS or sequence TTS)
-                val isScriptureTargetedForTts =
-                    (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
-                            (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.SCRIPTURE)
+                    // Determine if scripture should be highlighted (either single TTS or sequence TTS)
+                    val isScriptureTargetedForTts =
+                        (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
+                                (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.SCRIPTURE)
 
-                val scriptureAnnotatedText = buildAnnotatedStringForTTS(
-                    fullText = scriptureTextContent,
-                    isTargeted = isScriptureTargetedForTts,
-                    highlightSentenceIndex = currentTtsSentenceIndex,
-                    isSpeaking = isTtsSpeaking,
-                    isPaused = isTtsPaused,
-                    baseStyle = SpanStyle(color = baseTextColor),
-                    highlightStyle = SpanStyle(
-                        background = MaterialTheme.colorScheme.primaryContainer,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                )
 
-                Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
-                    Text(
-                        text = scriptureAnnotatedText,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
-                                        if (isTtsInitialized && scriptureTextContent.isNotBlank()) {
-                                            scriptureDropdownMenuOffset = touchOffset // Store the touch position
-                                            showScriptureDropdownMenu = true
-                                        }
-                                    }
-                                )
-                            }
-                    )
-
-                    // Approximate height of a single menu item plus some padding
-                    val menuItemVerticalShift = 300.dp
-
-                    DropdownMenu(
-                        expanded = showScriptureDropdownMenu,
-                        onDismissRequest = { showScriptureDropdownMenu = false },
-                        offset = DpOffset(
-                            x = with(localDensity) { scriptureDropdownMenuOffset.x.toDp() },
-                            y = with(localDensity) { scriptureDropdownMenuOffset.y.toDp() } - menuItemVerticalShift
+                    // Use the new composable for scriptureJson
+                    val scriptureAnnotatedText = if (verseItem != null) {
+                        buildAnnotatedStringForScripture(
+                            scriptureContent = verseItem.scriptureJson,
+                            isTargeted = isScriptureTargetedForTts,
+                            highlightSentenceIndex = currentTtsSentenceIndex,
+                            isSpeaking = isTtsSpeaking,
+                            isPaused = isTtsPaused,
+                            baseStyle = SpanStyle(color = baseTextColor),
+                            highlightStyle = SpanStyle(
+                                background = MaterialTheme.colorScheme.primaryContainer,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         )
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Read from beginning") },
-                            onClick = {
-                                showScriptureDropdownMenu = false
-                                if (isTtsInitialized && scriptureTextContent.isNotBlank()) {
-                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
-                                    // Stop any other TTS (like sequence) before starting this single text
-                                    if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
-                                        ttsViewModel.stopAllSpeaking()
-                                    }
-                                    ttsViewModel.restartSingleText(scriptureTextContent.removePassageRef())
-                                }
-                            }
-                        )
-                }
-            }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp)) // Space between boxes
-
-            // --- Key Take-away Box ---
-            LabeledOutlinedBox(
-                label = "Key Take-away",
-                modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
-            ) {
-                if (inEditMode) {
-                    BasicTextField(
-                        value = editedAiResponse,
-                        onValueChange = {
-                            editedAiResponse = it
-                            newContentNeedToBeSaved = true
-                        },
-                        modifier = Modifier.fillMaxSize().verticalScroll(aiResponseScrollState),
-                        readOnly = false, // Editable in edit mode
-                        textStyle = LocalTextStyle.current.copy(color = editModeColor),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    )
-                } else {
-                    val baseTextColor =
-                        MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
-
-                    val isAiResponseTargetedForTts =
-                        (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
-                                (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.AI_RESPONSE)
-
-                    val aiResponseAnnotatedText = buildAnnotatedStringForTTS(
-                        fullText = editedAiResponse,
-                        isTargeted = isAiResponseTargetedForTts,
-                        highlightSentenceIndex = currentTtsSentenceIndex,
-                        isSpeaking = isTtsSpeaking,
-                        isPaused = isTtsPaused,
-                        baseStyle = SpanStyle(color = baseTextColor),
-                        highlightStyle = SpanStyle(
-                            background = MaterialTheme.colorScheme.primaryContainer,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                    )
+                    } else {
+                        buildAnnotatedString { append("Loading scripture....") }
+                    }
 
                     Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
                         Text(
-                            text = aiResponseAnnotatedText,
+                            text = scriptureAnnotatedText,
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
                                 .pointerInput(Unit) {
                                     detectTapGestures(
-                                        onLongPress = { offset ->
-                                            aiResponseDropdownMenuOffset = offset
-                                            showAiResponseDropdownMenu = true
+                                        onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
+                                            if (isTtsInitialized && verseItem != null) {
+                                                scriptureDropdownMenuOffset =
+                                                    touchOffset // Store the touch position
+                                                showScriptureDropdownMenu = true
+                                            }
                                         }
                                     )
                                 }
                         )
+
+                        // Approximate height of a single menu item plus some padding
+                        val menuItemVerticalShift = 300.dp
+
                         DropdownMenu(
-                            expanded = showAiResponseDropdownMenu,
-                            onDismissRequest = { showAiResponseDropdownMenu = false },
-                            offset = DpOffset(x = with(localDensity){aiResponseDropdownMenuOffset.x.toDp()}, y = with(localDensity){aiResponseDropdownMenuOffset.y.toDp()})
+                            expanded = showScriptureDropdownMenu,
+                            onDismissRequest = { showScriptureDropdownMenu = false },
+                            offset = DpOffset(
+                                x = with(localDensity) { scriptureDropdownMenuOffset.x.toDp() },
+                                y = with(localDensity) { scriptureDropdownMenuOffset.y.toDp() } - menuItemVerticalShift
+                            )
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Read from beginning") },
-                                enabled = isTtsInitialized && editedAiResponse.isNotBlank(),
                                 onClick = {
-                                    showAiResponseDropdownMenu = false
-                                    if (isTtsInitialized && editedAiResponse.isNotBlank()) {
-                                        activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.AI_RESPONSE
+                                    showScriptureDropdownMenu = false
+                                    if (isTtsInitialized && verseItem != null) {
+                                        activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
+                                        // Stop any other TTS (like sequence) before starting this single text
                                         if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
                                             ttsViewModel.stopAllSpeaking()
                                         }
-                                        ttsViewModel.restartSingleText(editedAiResponse)
+                                        val fullScriptureTextForTTS = verseItem.scriptureJson.verses.joinToString(" ") { it.verseString }
+                                        ttsViewModel.restartSingleText(fullScriptureTextForTTS)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp)) // Space between boxes
+
+                // --- Key Take-away Box ---
+                LabeledOutlinedBox(
+                    label = "Key Take-away",
+                    modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
+                ) {
+                    if (inEditMode) {
+                        BasicTextField(
+                            value = editedAiResponse,
+                            onValueChange = {
+                                editedAiResponse = it
+                                newContentNeedToBeSaved = true
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(aiResponseScrollState),
+                            readOnly = false, // Editable in edit mode
+                            textStyle = LocalTextStyle.current.copy(color = editModeColor),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        )
+                    } else {
+                        val baseTextColor =
+                            MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+
+                        val isAiResponseTargetedForTts =
+                            (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
+                                    (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.AI_RESPONSE)
+
+                        val aiResponseAnnotatedText = buildAnnotatedStringForTTS(
+                            fullText = editedAiResponse,
+                            isTargeted = isAiResponseTargetedForTts,
+                            highlightSentenceIndex = currentTtsSentenceIndex,
+                            isSpeaking = isTtsSpeaking,
+                            isPaused = isTtsPaused,
+                            baseStyle = SpanStyle(color = baseTextColor),
+                            highlightStyle = SpanStyle(
+                                background = MaterialTheme.colorScheme.primaryContainer,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                        )
+
+                        Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
+                            Text(
+                                text = aiResponseAnnotatedText,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onLongPress = { offset ->
+                                                aiResponseDropdownMenuOffset = offset
+                                                showAiResponseDropdownMenu = true
+                                            }
+                                        )
+                                    }
+                            )
+                            DropdownMenu(
+                                expanded = showAiResponseDropdownMenu,
+                                onDismissRequest = { showAiResponseDropdownMenu = false },
+                                offset = DpOffset(x = with(localDensity){aiResponseDropdownMenuOffset.x.toDp()}, y = with(localDensity){aiResponseDropdownMenuOffset.y.toDp()})
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Read from beginning") },
+                                    enabled = isTtsInitialized && editedAiResponse.isNotBlank(),
+                                    onClick = {
+                                        showAiResponseDropdownMenu = false
+                                        if (isTtsInitialized && editedAiResponse.isNotBlank()) {
+                                            activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.AI_RESPONSE
+                                            if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
+                                                ttsViewModel.stopAllSpeaking()
+                                            }
+                                            ttsViewModel.restartSingleText(editedAiResponse)
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Edit") },
+                                    onClick = {
+                                        showAiResponseDropdownMenu = false
+                                        enterEditMode()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp)) // Space between "Key Take-away" box and "topic" box
+
+                // --- Topics Box ---
+
+                val topicScrollState = rememberScrollState()
+
+                var topicLabel = "Topic"
+                if (editedTopics.size > 1) topicLabel = "${editedTopics.count()} Topics"
+                LabeledOutlinedBox(
+                    label = topicLabel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    // Use FlowRow to allow chips to wrap to the next line
+                    if ((inEditMode) || (processEditTopics)) {
+                        Column (
+                            modifier = Modifier
+                                .heightIn(max = (48 * 2).dp) // Set maximum height
+                                .verticalScroll(topicScrollState), // Enable vertical scrolling
+                        ) {
+                            if ((editedTopics.count() == 1) && (editedTopics[0] == "")) {
+                                Text(text = "Click here to add topic(s)", modifier = Modifier.clickable { // Serialize editedTopics to JSON string
+                                    val editedTopicsJson = try {
+                                        Json.encodeToString(
+                                            ListSerializer(String.serializer()),
+                                            editedTopics
+                                        )
+                                    } catch (e: Exception) {
+                                        Log.e(
+                                            "VerseDetail",
+                                            "Error serializing edited topics: ${e.message}",
+                                            e
+                                        )
+                                        null // Pass null on error
+                                    }
+                                    // Navigate with the JSON string as an argument
+                                    navController.navigate(
+                                        Screen.TopicSelectionScreen(
+                                            selectedTopicsJson = editedTopicsJson
+                                        )
+                                    ) })
+                            } else {
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp), // Space between chips horizontally
+                                    verticalArrangement = Arrangement.spacedBy(2.dp) // Space between rows of chips
+                                ) {
+                                    editedTopics.forEach { topic ->
+                                        // Display each topic as a chip
+                                        SuggestionChip(
+                                            onClick =
+                                                {
+                                                    // Serialize editedTopics to JSON string
+                                                    val editedTopicsJson = try {
+                                                        Json.encodeToString(
+                                                            ListSerializer(String.serializer()),
+                                                            editedTopics
+                                                        )
+                                                    } catch (e: Exception) {
+                                                        Log.e(
+                                                            "VerseDetail",
+                                                            "Error serializing edited topics: ${e.message}",
+                                                            e
+                                                        )
+                                                        null // Pass null on error
+                                                    }
+                                                    // Navigate with the JSON string as an argument
+                                                    navController.navigate(
+                                                        Screen.TopicSelectionScreen(
+                                                            selectedTopicsJson = editedTopicsJson
+                                                        )
+                                                    )
+                                                },
+                                            label = {
+                                                Text(
+                                                    topic,
+                                                    color = if (inEditMode) editModeColor else LocalContentColor.current
+                                                )
+                                            },
+                                            colors = if (inEditMode) { // Conditionally apply chip colors
+                                                SuggestionChipDefaults.suggestionChipColors(
+                                                    containerColor = editModeColor.copy(alpha = 0.1f), // Example: Light red background
+                                                    labelColor = editModeColor // Text color handled in Text composable
+                                                )
+                                            } else {
+                                                SuggestionChipDefaults.suggestionChipColors() // Use default colors when not editing
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
+                            verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                        ) {
+                            editedTopics.forEach { topic ->
+                                // Display each topic as a read-only chip
+                                SuggestionChip(
+                                    onClick = { /* Read-only, do nothing on click */ },
+                                    label = { Text(topic) },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp)) // Space before the button
+
+                // --- Action Buttons ===
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                )
+                {
+                    val snackBarScope = rememberCoroutineScope()
+
+                    // Save Button
+                    Button(
+                        onClick = {
+                            if (inEditMode) {
+                                if (newContentNeedToBeSaved) { // Check if there are actual changes to save
+                                    verseItem?.let {
+                                        snackBarScope.launch {
+                                            // Perform save operation
+                                            if (processEditTopics) editedTopics = selectedTopics
+
+                                            Log.i(
+                                                "VerseDetailScreen",
+                                                "Passing in take away text to BibleVIewModel : $editedAiResponse"
+                                            )
+                                            bibleViewModel.updateVerse(
+                                                verseItem.copy(
+                                                    aiResponse = editedAiResponse,
+                                                    topics = editedTopics  // Use the latest editedTopics
+                                                )
+                                            )
+
+                                            // Since updateVerse is a suspend function, it will not return until
+                                            // verse has been updated in database.
+                                            // Now, we cam  notify user and do cleam-up
+
+                                            SnackBarController.showMessage("Verse is saved")
+
+                                            // Do final clean-up for these flags:
+                                            //  - inEditingMode will set to false
+                                            //  - processEditTopic will set to false
+                                            //  - isUpdatedContent will be set to false
+                                            exitEditMode()
+                                        }
+                                    }
+                                } else {
+                                    exitEditMode() // No changes, just exit edit mode
+                                }
+                            } else {
+                                enterEditMode()
+                            }
+                        },
+                        enabled = verseItem != null,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        if (inEditMode) {
+                            Text(if (newContentNeedToBeSaved) "Save" else "Done")
+                        } else {
+                            Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Delete / Read Aloud Button (Box for dropdown)
+                    // Use a Box to anchor the DropdownMenu to the Button
+                    Box(modifier = Modifier.weight(1f)) {
+                        Button(
+                            onClick = { /* onTap in pointerInput handles clicks */ },
+                            enabled = (verseItem != null && (!inEditMode || isTtsInitialized)), // Enable read aloud if not in edit mode
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+
+                            // Determine Icon based on state
+                            val iconToShow = when {
+                                inEditMode -> Icons.Filled.Delete // Or your preferred delete icon
+                                isTtsSpeaking && !isTtsPaused -> Icons.Filled.Pause
+                                isTtsPaused -> Icons.Filled.PlayArrow
+                                else -> Icons.Filled.RecordVoiceOver // Default "Read Aloud" icon
+                            }
+                            val contentDescription = when {
+                                inEditMode -> "Delete"
+                                isTtsSpeaking && !isTtsPaused -> "Pause"
+                                isTtsPaused -> "Resume"
+                                else -> "Read Aloud"
+                            }
+                            Icon(imageVector = iconToShow, contentDescription = contentDescription)
+                        }
+
+                        // Add a transparent overlay for detecting gestures
+                        Box(modifier = Modifier
+                            .matchParentSize()  // Match the size of the parent Box
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        showButtonDropdownMenu = true
+                                        Log.d("VerseDetailScreen", "Long press detected!")
+                                    },
+
+
+                                    onTap = {
+                                        if (inEditMode) {
+                                            processDeletion = true
+                                        } else {
+                                            // TTS related actions
+                                            if (isTtsInitialized && verseItem != null) {
+                                                val currentMode = currentTtsOperationMode
+                                                val speaking = isTtsSpeaking
+                                                val paused = isTtsPaused
+
+                                                // Scenario 1: Single text TTS is active for a block on THIS screen
+                                                if (currentMode == TTS_OperationMode.SINGLE_TEXT &&
+                                                    (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE ||
+                                                            activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE) &&
+                                                    (speaking || paused) // Make sure it's actually running/paused for single text
+                                                ) {
+                                                    val textToToggle = if (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE) {
+                                                        editedAiResponse
+                                                    } else {
+                                                        verseItem.scriptureJson.verses.joinToString(" ") { it.verseString }
+                                                    }
+                                                    ttsViewModel.togglePlayPauseResumeSingleText(textToToggle)
+                                                }
+                                                // Scenario 2: Verse detail sequence is active (speaking or paused)
+                                                else if (currentMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (speaking || paused)) {
+                                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE // Clear single text target
+                                                    ttsViewModel.togglePlayPauseResumeVerseDetailSequence()
+                                                }
+                                                // Scenario 3: No specific TTS is active/paused for this screen's content, or TTS is stopped
+                                                // Start the full verse detail sequence.
+                                                else {
+                                                    val aiTakeaway = editedAiResponse
+                                                    if (verseItem.scriptureJson.verses.isNotEmpty()) { // Ensure there's scripture to read
+                                                        activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
+                                                        ttsViewModel.startVerseDetailSequence(
+                                                            aiResponse = aiTakeaway,
+                                                            verseItem = verseItem
+                                                        )
+                                                    } else {
+                                                        Log.w(
+                                                            "VerseDetailScreen",
+                                                            "Scripture is blank, cannot start sequence."
+                                                        )
+                                                    }
+                                                }
+                                            } else if (!isTtsInitialized) {
+                                                Log.w(
+                                                    "VerseDetailScreen",
+                                                    "TTS not initialized. Cannot perform TTS action."
+                                                )
+                                                snackBarScope.launch { SnackBarController.showMessage("TTS is not ready yet.") }
+                                            }
+                                        }   // !inEditMode
+                                    }  // OnTap
+                                )  // detectTapGestures
+                            }   // ,pointerInput
+                        )  // Box
+
+                        // DropdownMenu for long press, anchored to the Button's parent Box
+                        DropdownMenu(
+                            expanded = showButtonDropdownMenu,
+                            onDismissRequest = { showButtonDropdownMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All") }, // Clarified label
+                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureJson.verses.isNotEmpty(),
+                                onClick = {
+                                    showButtonDropdownMenu = false
+                                    if (isTtsInitialized && verseItem != null) {
+                                        activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
+                                        ttsViewModel.startVerseDetailSequence(
+                                            aiResponse = verseItem.aiResponse,
+                                            verseItem = verseItem
+                                        )
                                     }
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Edit") },
+                                text = { Text("Scripture (Only)") },
+                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureJson.verses.isNotEmpty(),
                                 onClick = {
-                                    showAiResponseDropdownMenu = false
-                                    enterEditMode()
+                                    showButtonDropdownMenu = false
+                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
+                                    // If a sequence is running, stop it before starting single text.
+                                    if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
+                                        ttsViewModel.stopAllSpeaking()
+                                    }
+                                    val fullScriptureTextForTTS = verseItem?.scriptureJson?.verses?.joinToString(" ") { it.verseString } ?: ""
+                                    ttsViewModel.restartSingleText(fullScriptureTextForTTS) // Use restart to ensure clean start
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Key Take-Away (Only)") },
+                                enabled = isTtsInitialized && editedAiResponse.isNotBlank(),
+                                onClick = {
+                                    showButtonDropdownMenu = false
+                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.AI_RESPONSE
+                                    if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
+                                        ttsViewModel.stopAllSpeaking()
+                                    }
+                                    ttsViewModel.restartSingleText(editedAiResponse) // Use restart
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Stop Speaking") },
+                                enabled = isTtsInitialized && (isTtsSpeaking || isTtsPaused),
+                                onClick = {
+                                    showButtonDropdownMenu = false
+                                    ttsViewModel.stopAllSpeaking()
+                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                 }
                             )
                         }
-                    }
-                }
-            }
+                    }  // End of Box for Delete/Read Aloud Button
 
-            Spacer(modifier = Modifier.height(8.dp)) // Space between "Key Take-away" box and "topic" box
+                    Spacer(modifier = Modifier.width(8.dp))
 
-            // --- Topics Box ---
-
-            val topicScrollState = rememberScrollState()
-
-            var topicLabel = "Topic"
-            if (editedTopics.size > 1) topicLabel = "${editedTopics.count()} Topics"
-            LabeledOutlinedBox(
-                label = topicLabel,
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                // Use FlowRow to allow chips to wrap to the next line
-                if ((inEditMode) || (processEditTopics)) {
-                    Column (
-                        modifier = Modifier
-                            .heightIn(max = (48 * 2).dp) // Set maximum height
-                            .verticalScroll(topicScrollState), // Enable vertical scrolling
-                    ) {
-                        if ((editedTopics.count() == 1) && (editedTopics[0] == "")) {
-                            Text(text = "Click here to add topic(s)", modifier = Modifier.clickable { // Serialize editedTopics to JSON string
-                                val editedTopicsJson = try {
-                                    Json.encodeToString(
-                                        ListSerializer(String.serializer()),
-                                        editedTopics
-                                    )
-                                } catch (e: Exception) {
-                                    Log.e(
-                                        "VerseDetail",
-                                        "Error serializing edited topics: ${e.message}",
-                                        e
-                                    )
-                                    null // Pass null on error
+                    // Memorize/Cancel Button
+                    Button(
+                        onClick = {
+                            if (inEditMode) {
+                                if (newContentNeedToBeSaved) {
+                                    confirmExitWithoutSaving = true
+                                } else {
+                                    exitEditMode()
                                 }
-                                // Navigate with the JSON string as an argument
-                                navController.navigate(
-                                    Screen.TopicSelectionScreen(
-                                        selectedTopicsJson = editedTopicsJson
-                                    )
-                                ) })
-                        } else {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp), // Space between chips horizontally
-                                verticalArrangement = Arrangement.spacedBy(2.dp) // Space between rows of chips
-                            ) {
-                                editedTopics.forEach { topic ->
-                                    // Display each topic as a chip
-                                    SuggestionChip(
-                                        onClick =
-                                            {
-                                                // Serialize editedTopics to JSON string
-                                                val editedTopicsJson = try {
-                                                    Json.encodeToString(
-                                                        ListSerializer(String.serializer()),
-                                                        editedTopics
-                                                    )
-                                                } catch (e: Exception) {
-                                                    Log.e(
-                                                        "VerseDetail",
-                                                        "Error serializing edited topics: ${e.message}",
-                                                        e
-                                                    )
-                                                    null // Pass null on error
-                                                }
-                                                // Navigate with the JSON string as an argument
-                                                navController.navigate(
-                                                    Screen.TopicSelectionScreen(
-                                                        selectedTopicsJson = editedTopicsJson
-                                                    )
-                                                )
-                                            },
-                                        label = {
-                                            Text(
-                                                topic,
-                                                color = if (inEditMode) editModeColor else LocalContentColor.current
-                                            )
-                                        },
-                                        colors = if (inEditMode) { // Conditionally apply chip colors
-                                            SuggestionChipDefaults.suggestionChipColors(
-                                                containerColor = editModeColor.copy(alpha = 0.1f), // Example: Light red background
-                                                labelColor = editModeColor // Text color handled in Text composable
-                                            )
-                                        } else {
-                                            SuggestionChipDefaults.suggestionChipColors() // Use default colors when not editing
-                                        }
-                                    )
-                                }
+                            } else {
+                                // If Memorize also uses TTS, you might want to stop current TTS
+                                ttsViewModel.stopAllSpeaking() // Stop any TTS before memorize
+                                navController.navigate(Screen.MemorizeScreen(verseID))
                             }
-                        }
-                    }
-                } else {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp), // Space between chips horizontally
-                        verticalArrangement = Arrangement.spacedBy(4.dp) // Space between rows of chips
+                        },
+                        enabled = (!inEditMode) || (newContentNeedToBeSaved),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        editedTopics.forEach { topic ->
-                            // Display each topic as a read-only chip
-                            SuggestionChip(
-                                onClick = { /* Read-only, do nothing on click */ },
-                                label = { Text(topic) },
-                            )
+                        val buttonString = if (inEditMode) {
+                            "Cancel"
+                        } else {
+                            "Memorize"
                         }
+                        Text(buttonString)
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp)) // Space before the button
+                // Confirmation Dialog to delete the verse
+                if (processDeletion && (verseItem != null)) {
+                    val snackBarScope = rememberCoroutineScope()
 
-            // --- Action Buttons ===
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            )
-            {
-                val snackBarScope = rememberCoroutineScope()
-
-                // Save Button
-                Button(
-                    onClick = {
-                        if (inEditMode) {
-                            if (newContentNeedToBeSaved) { // Check if there are actual changes to save
-                                verseItem?.let {
+                    AlertDialog(
+                        onDismissRequest = { processDeletion = false },
+                        title = { Text("Confirm Delete") },
+                        text = { Text("Are you sure you want to delete this verse?") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
                                     snackBarScope.launch {
-                                        // Perform save operation
-                                        if (processEditTopics) editedTopics = selectedTopics
+                                        bibleViewModel.deleteVerse(verseItem)
 
-                                        Log.i(
-                                            "VerseDetailScreen",
-                                            "Passing in take away text to BibleVIewModel : $editedAiResponse"
-                                        )
-                                        bibleViewModel.updateVerse(
-                                            verseItem.copy(
-                                                aiResponse = editedAiResponse,
-                                                topics = editedTopics  // Use the latest editedTopics
-                                            )
-                                        )
+                                        // NOTE: deleteVerse() is a suspend call. Ii will wait
+                                        // until delete operation is completed before reaching here.
+                                        SnackBarController.showMessage("Verse is deleted")
 
-                                        // Since updateVerse is a suspend function, it will not return until
-                                        // verse has been updated in database.
-                                        // Now, we cam  notify user and do cleam-up
-
-                                        SnackBarController.showMessage("Verse is saved")
-
-                                        // Do final clean-up for these flags:
+                                        // The following will do the clean-up for these flags
                                         //  - inEditingMode will set to false
-                                        //  - processEditTopic will set to false
+                                        //  - processDeletion will set to false
                                         //  - isUpdatedContent will be set to false
-                                        exitEditMode()
+                                        exitEditMode() // Should navigate away or clear verse after deletion
+                                        navController.navigate(Screen.AllVersesScreen)
                                     }
                                 }
-                            } else {
-                                exitEditMode() // No changes, just exit edit mode
+                            ) {
+                                Text("Delete")
                             }
-                        } else {
-                            enterEditMode()
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { processDeletion = false }
+                            ) {
+                                Text("Cancel")
+                            }
                         }
-                    },
-                    enabled = verseItem != null,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    if (inEditMode) {
-                        Text(if (newContentNeedToBeSaved) "Save" else "Done")
-                    } else {
-                        Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
-                    }
+                    )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Delete / Read Aloud Button (Box for dropdown)
-                // Use a Box to anchor the DropdownMenu to the Button
-                Box(modifier = Modifier.weight(1f)) {
-                    Button(
-                        onClick = { /* onTap in pointerInput handles clicks */ },
-                        enabled = (verseItem != null && (!inEditMode || isTtsInitialized)), // Enable read aloud if not in edit mode
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-
-                        // Determine Icon based on state
-                        val iconToShow = when {
-                            inEditMode -> Icons.Filled.Delete // Or your preferred delete icon
-                            isTtsSpeaking && !isTtsPaused -> Icons.Filled.Pause
-                            isTtsPaused -> Icons.Filled.PlayArrow
-                            else -> Icons.Filled.RecordVoiceOver // Default "Read Aloud" icon
-                        }
-                        val contentDescription = when {
-                            inEditMode -> "Delete"
-                            isTtsSpeaking && !isTtsPaused -> "Pause"
-                            isTtsPaused -> "Resume"
-                            else -> "Read Aloud"
-                        }
-                        Icon(imageVector = iconToShow, contentDescription = contentDescription)
-                    }
-
-                    // Add a transparent overlay for detecting gestures
-                    Box(modifier = Modifier
-                        .matchParentSize()  // Match the size of the parent Box
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = {
-                                    showButtonDropdownMenu = true
-                                    Log.d("VerseDetailScreen", "Long press detected!")
-                                },
-
-
-                                onTap = {
-                                    if (inEditMode) {
-                                        processDeletion = true
-                                    } else {
-                                        // TTS related actions
-                                        if (isTtsInitialized && verseItem != null) {
-                                            val currentMode = currentTtsOperationMode
-                                            val speaking = isTtsSpeaking
-                                            val paused = isTtsPaused
-
-                                            // Scenario 1: Single text TTS is active for a block on THIS screen
-                                            if (currentMode == TTS_OperationMode.SINGLE_TEXT &&
-                                                (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE ||
-                                                        activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE) &&
-                                                (speaking || paused) // Make sure it's actually running/paused for single text
-                                            ) {
-                                                val textToToggle = if (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE) {
-                                                    editedAiResponse
-                                                } else {
-                                                    scriptureTextContent.removePassageRef()
-                                                }
-                                                ttsViewModel.togglePlayPauseResumeSingleText(textToToggle)
-                                            }
-                                            // Scenario 2: Verse detail sequence is active (speaking or paused)
-                                            else if (currentMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (speaking || paused)) {
-                                                activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE // Clear single text target
-                                                ttsViewModel.togglePlayPauseResumeVerseDetailSequence()
-                                            }
-                                            // Scenario 3: No specific TTS is active/paused for this screen's content, or TTS is stopped
-                                            // Start the full verse detail sequence.
-                                            else {
-                                                val scripture = verseItem.scripture
-                                                val aiTakeaway = editedAiResponse
-                                                if (scripture.isNotBlank()) { // Ensure there's scripture to read
-                                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
-                                                    ttsViewModel.startVerseDetailSequence(
-                                                        scripture = scripture.removePassageRef(),
-                                                        aiResponse = aiTakeaway,
-                                                        verseItem = verseItem
-                                                    )
-                                                } else {
-                                                    Log.w("VerseDetailScreen", "Scripture is blank, cannot start sequence.")
-                                                }
-                                            }
-                                        } else if (!isTtsInitialized) {
-                                            Log.w("VerseDetailScreen", "TTS not initialized. Cannot perform TTS action.")
-                                            snackBarScope.launch { SnackBarController.showMessage("TTS is not ready yet.") }
-                                        }
-                                    }   // !inEditMode
-                                }  // OnTap
-                            )  // detectTapGestures
-                        }   // ,pointerInput
-                    )  // Box
-
-                    // DropdownMenu for long press, anchored to the Button's parent Box
-                    DropdownMenu(
-                        expanded = showButtonDropdownMenu,
-                        onDismissRequest = { showButtonDropdownMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All") }, // Clarified label
-                            enabled = isTtsInitialized && verseItem != null && verseItem.scripture.isNotBlank(),
-                            onClick = {
-                                showButtonDropdownMenu = false
-                                if (isTtsInitialized && verseItem != null) {
-                                    activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
-                                    ttsViewModel.startVerseDetailSequence(
-                                        scripture = verseItem.scripture.removePassageRef(),
-                                        aiResponse = verseItem.aiResponse,
-                                        verseItem = verseItem
-                                    )
+                if ((confirmExitWithoutSaving) && (newContentNeedToBeSaved)) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            confirmExitWithoutSaving = false
+                        },
+                        title = { Text("Confirm Cancel") },
+                        text = {
+                            Text(
+                                "You have made changes that has not been saved. " +
+                                        "Are you sure you want to cancel?"
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    // Restore original values
+                                    verseItem?.let {
+                                        editedAiResponse = it.aiResponse
+                                        editedTopics = it.topics
+                                    }
+                                    confirmExitWithoutSaving = false
+                                    exitEditMode()
                                 }
+                            ) {
+                                Text("Yes, discard changes. Exit edit mode")
                             }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Scripture (Only)") },
-                            enabled = isTtsInitialized && scriptureTextContent.isNotBlank(),
-                            onClick = {
-                                showButtonDropdownMenu = false
-                                activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
-                                // If a sequence is running, stop it before starting single text.
-                                if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
-                                    ttsViewModel.stopAllSpeaking()
-                                }
-                                ttsViewModel.restartSingleText(scriptureTextContent.removePassageRef()) // Use restart to ensure clean start
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { confirmExitWithoutSaving = false }
+                            ) {
+                                Text("Cancel. Back to edit mode")
                             }
-                        )
-
-                        DropdownMenuItem(
-                            text = { Text("Key Take-Away (Only)") },
-                            enabled = isTtsInitialized && editedAiResponse.isNotBlank(),
-                            onClick = {
-                                showButtonDropdownMenu = false
-                                activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.AI_RESPONSE
-                                if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
-                                    ttsViewModel.stopAllSpeaking()
-                                }
-                                ttsViewModel.restartSingleText(editedAiResponse) // Use restart
-                            }
-                        )
-
-                        DropdownMenuItem(
-                            text = { Text("Stop Speaking") },
-                            enabled = isTtsInitialized && (isTtsSpeaking || isTtsPaused),
-                            onClick = {
-                                showButtonDropdownMenu = false
-                                ttsViewModel.stopAllSpeaking()
-                                activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
-                            }
-                        )
-                    }
-                }  // End of Box for Delete/Read Aloud Button
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Memorize/Cancel Button
-                Button(
-                    onClick = {
-                        if (inEditMode) {
-                            if (newContentNeedToBeSaved) {
-                                confirmExitWithoutSaving = true
-                            } else {
-                                exitEditMode()
-                            }
-                        } else {
-                            // If Memorize also uses TTS, you might want to stop current TTS
-                            ttsViewModel.stopAllSpeaking() // Stop any TTS before memorize
-                            navController.navigate(Screen.MemorizeScreen(verseID))
                         }
-                    },
-                    enabled = (!inEditMode) || (newContentNeedToBeSaved),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    val buttonString = if (inEditMode) {
-                        "Cancel"
-                    } else {
-                        "Memorize"
-                    }
-                    Text(buttonString)
+                    )
                 }
             }
+        }
+    )
+}
 
-            // Confirmation Dialog to delete the verse
-            if (processDeletion && (verseItem != null)) {
-                val snackBarScope = rememberCoroutineScope()
 
-                AlertDialog(
-                    onDismissRequest = { processDeletion = false },
-                    title = { Text("Confirm Delete") },
-                    text = { Text("Are you sure you want to delete this verse?") },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                snackBarScope.launch {
-                                    bibleViewModel.deleteVerse(verseItem)
+@Composable
+fun buildAnnotatedStringForScripture(
+    scriptureContent: ScriptureContent,
+    isTargeted: Boolean,
+    highlightSentenceIndex: Int,
+    isSpeaking: Boolean,
+    isPaused: Boolean,
+    baseStyle: SpanStyle,
+    highlightStyle: SpanStyle
+): AnnotatedString {
+    return buildAnnotatedString {
+        scriptureContent.verses.forEachIndexed { index, verse ->
+            // Determine if this verse should be highlighted
+            val shouldHighlight = isTargeted &&
+                    ((isSpeaking && !isPaused && index == highlightSentenceIndex) ||
+                            (isPaused && index == highlightSentenceIndex))
 
-                                    // NOTE: deleteVerse() is a suspend call. Ii will wait
-                                    // until delete operation is completed before reaching here.
-                                    SnackBarController.showMessage("Verse is deleted")
+            val currentStyle = if (shouldHighlight) highlightStyle else baseStyle
 
-                                    // The following will do the clean-up for these flags
-                                    //  - inEditingMode will set to false
-                                    //  - processDeletion will set to false
-                                    //  - isUpdatedContent will be set to false
-                                    exitEditMode() // Should navigate away or clear verse after deletion
-                                    navController.navigate(Screen.AllVersesScreen)
-                                }
-                            }
-                        ) {
-                            Text("Delete")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = { processDeletion = false }
-                        ) {
-                            Text("Cancel")
-                        }
-                    }
+            // Append the verse number with superscript styling
+            withStyle(
+                style = SpanStyle(
+                    color = Color.Red,
+                    fontSize = 10.sp,
+                    baselineShift = BaselineShift.Superscript,
+                    fontWeight = FontWeight.Bold
                 )
+            ) {
+                append(" ${verse.verseNum} ") // Add spacing around number for readability
             }
 
-            if ((confirmExitWithoutSaving) && (newContentNeedToBeSaved)) {
-                AlertDialog(
-                    onDismissRequest = {
-                        confirmExitWithoutSaving = false
-                    },
-                    title = { Text("Confirm Cancel") },
-                    text = {
-                        Text(
-                            "You have made changes that has not been saved. " +
-                                    "Are you sure you want to cancel?"
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                // Restore original values
-                                verseItem?.let {
-                                    editedAiResponse = it.aiResponse
-                                    editedTopics = it.topics
-                                }
-                                confirmExitWithoutSaving = false
-                                exitEditMode()
-                            }
-                        ) {
-                            Text("Yes, discard changes. Exit edit mode")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = { confirmExitWithoutSaving = false }
-                        ) {
-                            Text("Cancel. Back to edit mode")
-                        }
-                    }
-                )
+            // Append the verse text with the determined style (normal or highlighted)
+            withStyle(style = currentStyle) {
+                append(verse.verseString)
             }
         }
     }
-    )
 }
+
 
 // Helper function to build AnnotatedString with potential TTS highlighting & Markdown
 @Composable
