@@ -176,7 +176,6 @@ fun AllVersesScreen(
         if (readyToSave(newVerseState) && !newVerseState.isContentSaved) {
             bibleViewModel.saveNewVerse(
                 verse = (newVerseState.selectedVerse!!),
-                scripture = newVerseState.scriptureText,
                 aiResponse = newVerseState.aiResponseText,
                 topics = newVerseState.selectedTopics,
                 newVerseViewModel = newVerseViewModel,

@@ -99,7 +99,6 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
     fun saveNewVerse(
         verse: BibleVerseRef,
-        scripture: String,
         aiResponse: String,
         topics: List<String>,
         favorite: Boolean = false,
@@ -113,7 +112,6 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                     chapter = verse.chapter,
                     startVerse = verse.startVerse,
                     endVerse = verse.endVerse,
-                    scripture = scripture,
                     aiResponse = aiResponse,
                     topics = topics,
                     favorite = favorite,

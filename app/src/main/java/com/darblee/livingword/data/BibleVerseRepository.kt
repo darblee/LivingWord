@@ -1,6 +1,5 @@
 package com.darblee.livingword.data
 
-
 import android.util.Log
 import com.darblee.livingword.Global
 import kotlinx.coroutines.Dispatchers
@@ -9,30 +8,6 @@ import kotlinx.coroutines.flow.map // Ensure this import is present
 import kotlinx.coroutines.withContext
 
 class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
-
-    suspend fun insertVerseWithTopics(
-        book: String,
-        chapter: Int,
-        startVerse: Int,
-        endVerse: Int,
-        scripture: String,
-        ScriptureContent : ScriptureContent,
-        aiResponse: String,
-        topics: List<String>,
-        translation: String
-    ): Long {
-        return bibleVerseDao.insertVerseWithTopics(
-            book,
-            chapter,
-            startVerse,
-            endVerse,
-            scripture,
-            aiResponse,
-            topics,
-            translation,
-            scriptureContent = ScriptureContent
-        )
-    }
 
     fun getAllVerses(): Flow<List<BibleVerse>> = bibleVerseDao.getAllVerses()
 
@@ -250,7 +225,6 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         chapter: Int,
         startVerse: Int,
         endVerse: Int,
-        scripture: String,
         aiResponse: String,
         topics: List<String>,
         translation: String = "ESV",
@@ -258,7 +232,7 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         scriptureContent: ScriptureContent
     ): Long {
         return bibleVerseDao.insertVerseWithTopics(
-            book, chapter, startVerse, endVerse, scripture, aiResponse, topics, translation, favorite, scriptureContent)
+            book, chapter, startVerse, endVerse, "Unused text", aiResponse, topics, translation, favorite, scriptureContent)
     }
 
     /**

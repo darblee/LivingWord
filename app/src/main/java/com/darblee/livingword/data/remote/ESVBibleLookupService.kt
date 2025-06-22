@@ -3,6 +3,8 @@ package com.darblee.livingword.data.remote
 import android.util.Log
 import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.data.BibleVerseRef
+import com.darblee.livingword.data.ScriptureContent
+import com.darblee.livingword.data.Verse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -30,22 +32,22 @@ class ESVBibleLookupService {
     private val jsonParser = Json { ignoreUnknownKeys = true; isLenient = true }
 
     /**
-     * Fetches scripture text for a given Bible verse.
+     * Fetches scripture text for a given Bible verse reference.
      *
-     * @param verse The BibleVerseT object containing book, chapter, and verse numbers.
-     * @return A Result object containing the scripture text on success, or an Exception on failure.
+     * @param verse The BibleVerseRef object containing book, chapter, and verse numbers.
+     * @return An AiServiceResult containing the ScriptureContent on success, or an Error on failure.
      */
-    suspend fun fetchScripture(verse: BibleVerseRef): Result<String> {
+    suspend fun fetchScripture(verse: BibleVerseRef): AiServiceResult<ScriptureContent> {
         if (esvApiKey.isBlank()) {
             Log.e("ESVBibleLookupService", "ESV API Key is missing.")
-            return Result.failure(Exception("Error: ESV API Key is missing."))
+            return AiServiceResult.Error("Error: ESV API Key is missing.")
         }
 
         return withContext(Dispatchers.IO) {
             try {
                 val encodedBook = URLEncoder.encode(verse.book, "UTF-8")
-                val passage = "$encodedBook ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
-                val urlString = "https://api.esv.org/v3/passage/text/?q=$passage&include-passage-references=false&include-verse-numbers=true&include-footnotes=false&include-headings=false"
+                val passageQuery = "$encodedBook ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
+                val urlString = "https://api.esv.org/v3/passage/text/?q=$passageQuery&include-passage-references=false&include-verse-numbers=true&include-footnotes=false&include-headings=false"
                 val url = URL(urlString)
 
                 val connection = url.openConnection()
@@ -58,25 +60,50 @@ class ESVBibleLookupService {
                 Log.d("ESVBibleLookupService", "Raw ESV API Response: $responseText")
                 val apiResponse = jsonParser.decodeFromString<EsvApiResponse>(responseText)
 
-                val passageText = apiResponse.passages?.joinToString("\n")?.trim()
-                    ?: return@withContext Result.failure(Exception("Error: Passage not found in ESV response."))
-
-                val cleanedText = if (passageText.endsWith(" (ESV)")) {
-                    passageText.removeSuffix(" (ESV)").trim()
-                } else {
-                    passageText
+                val passagesList = apiResponse.passages
+                if (passagesList.isNullOrEmpty()) {
+                    return@withContext AiServiceResult.Error("Error: Passage not found in ESV response.")
                 }
-                Result.success(cleanedText)
+
+                // The API returns a single string with all verses. We need to parse it.
+                val combinedPassage = passagesList.joinToString(" ").trim()
+                val cleanedPassage = if (combinedPassage.endsWith(" (ESV)")) {
+                    combinedPassage.removeSuffix(" (ESV)").trim()
+                } else {
+                    combinedPassage
+                }
+
+                val collectedVerses = mutableListOf<Verse>()
+                // This regex finds a verse number like [1], captures the number, and then the text.
+                val verseRegex = Regex("""\[(\d+)]\s*([^\[]*)""")
+
+                verseRegex.findAll(cleanedPassage).forEach { matchResult ->
+                    val verseNum = matchResult.groupValues[1].toIntOrNull()
+                    val verseText = matchResult.groupValues[2].trim()
+
+                    if (verseNum != null && verseText.isNotEmpty()) {
+                        collectedVerses.add(Verse(verseNum, verseText))
+                    }
+                }
+
+                if (collectedVerses.isEmpty() && cleanedPassage.isNotEmpty()) {
+                    // Fallback for single-verse queries that might not have a number prefix
+                    Log.d("ESVBibleLookupService", "Regex found no verses. Treating response as a single verse.")
+                    collectedVerses.add(Verse(verse.startVerse, cleanedPassage))
+                }
+
+                val scriptureContent = ScriptureContent(translation = "ESV", verses = collectedVerses)
+                AiServiceResult.Success(scriptureContent)
 
             } catch (e: IOException) {
                 Log.e("ESVBibleLookupService", "Network error fetching scripture: ${e.message}", e)
-                Result.failure(Exception("Error: Network request failed fetching scripture.", e))
+                AiServiceResult.Error("Error: Network request failed fetching scripture.", e)
             } catch (e: SerializationException) {
                 Log.e("ESVBibleLookupService", "ESV JSON Parsing Error: ${e.message}", e)
-                Result.failure(Exception("Error: Could not parse scripture response.", e))
+                AiServiceResult.Error("Error: Could not parse scripture response.", e)
             } catch (e: Exception) {
                 Log.e("ESVBibleLookupService", "Unexpected error fetching scripture: ${e.message}", e)
-                Result.failure(Exception("Error: An unexpected error occurred fetching scripture.", e))
+                AiServiceResult.Error("Error: An unexpected error occurred fetching scripture.", e)
             }
         }
     }

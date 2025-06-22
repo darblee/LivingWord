@@ -102,7 +102,6 @@ fun GetEndVerseNumberScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         )
-                    // .padding(horizontal = 4.dp) // Deliberately no padding here
                 ) {
                     val annotatedString = buildAnnotatedString {
                         withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {

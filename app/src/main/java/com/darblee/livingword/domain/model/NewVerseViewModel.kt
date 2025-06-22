@@ -8,7 +8,6 @@ import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.ScriptureContent
-import com.darblee.livingword.data.ScriptureUtils.scriptureContentToString
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
 import kotlinx.coroutines.Job
@@ -34,7 +33,6 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
 
         // State for the currently displayed single verse
         val selectedVerse: BibleVerseRef? = null,
-        val scriptureText: String = "",
         val scriptureJson: ScriptureContent = ScriptureContent(translation = "", verses = emptyList()),
         val aiResponseText: String = "",
         val isScriptureLoading: Boolean = false,
@@ -90,7 +88,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             it.copy(
                 selectedTopics = emptyList(),
                 selectedVerse = null,
-                scriptureText = "",
+                scriptureJson = ScriptureContent(translation = "", verses = emptyList()),
                 aiResponseText = "",
                 isContentSaved = true,
                 newlySavedVerseId = newVerseId,
@@ -109,11 +107,11 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         _state.update {
             it.copy(
                 selectedVerse = null,
-                scriptureText = "",
                 aiResponseText = "",
                 selectedTopics = emptyList(),
                 isScriptureLoading = false,
                 aiResponseLoading = false,
+                scriptureJson = ScriptureContent(translation = "", verses = emptyList()),
                 scriptureError = null,
                 aiResponseError = currentAiStatus.aiResponseError, // Use refreshed error status
                 generalError = currentAiStatus.generalError,
@@ -137,7 +135,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
 
         // Avoid re-fetching if the exact same verse is already selected and loaded without errors
         if (verse == currentState.selectedVerse &&
-            currentState.scriptureText.isNotEmpty() && currentState.scriptureError == null &&
+            currentState.scriptureJson.verses.isNotEmpty() && currentState.scriptureError == null &&
             (currentState.aiResponseText.isNotEmpty() || currentState.aiResponseError != null || !geminiReady)
         ) {
             Log.d("NewVerseViewModel", "Verse $verse already loaded. Skipping fetch.")
@@ -155,7 +153,6 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 selectedVerse = verse,
                 isScriptureLoading = true,
                 aiResponseLoading = geminiReady,
-                scriptureText = "Fetching Scripture...",
                 aiResponseText = if (geminiReady) "Fetching insights from AI..." else (geminiInitError ?: "AI Service not ready."),
                 scriptureError = null,
                 aiResponseError = if (geminiReady) null else geminiInitError,
@@ -183,7 +180,6 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                     _state.update {
                         it.copy(
                             isScriptureLoading = false,
-                            scriptureText = scriptureContentToString(scriptureContent),
                             translation = translation,
                             scriptureJson = scriptureContent
                         )
@@ -194,7 +190,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                     _state.update {
                         it.copy(
                             isScriptureLoading = false,
-                            scriptureText = "",
+                            scriptureJson = ScriptureContent(translation = "", verses = emptyList()),
                             scriptureError = scriptureResult.message
                         )
                     }
