@@ -195,7 +195,7 @@ fun GetEndVerseNumberScreen(
                             .weight(1f), // Allow grid to take available vertical space,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 8.dp) // Add padding at the bottom of the grid
+                        contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
                         items(verses) { verse ->
                             VerseButton(verse = verse) { selectedVerse ->
@@ -212,12 +212,13 @@ fun GetEndVerseNumberScreen(
                                 val resultJson =
                                     Json.encodeToString(BibleVerseRef.serializer(), result)
 
-                                val NewVerseScreenBackStackEntry =
+                                val newVerseScreenBackStackEntry =
                                     navController.getBackStackEntry(Screen.AllVersesScreen)
-                                val NewVerseScreenSavedStateHandle =
-                                    NewVerseScreenBackStackEntry.savedStateHandle
+                                val newVerseScreenSavedStateHandle =
+                                    newVerseScreenBackStackEntry.savedStateHandle
 
-                                NewVerseScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson // VERSE_RESULT_KEY needs to be accessible here or defined globally
+                                // VERSE_RESULT_KEY needs to be accessible here or defined globally
+                                newVerseScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson
 
                                 navController.popBackStack(
                                     route = Screen.AllVersesScreen,

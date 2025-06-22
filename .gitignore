@@ -14,3 +14,17 @@
 .cxx
 local.properties
 secrets.properties
+/app/.idea/.gitignore
+/app/.idea/AndroidProjectSystem.xml
+/backup/app_database
+/backup/app_database-shm
+/backup/app_database-wal
+/backup/bible_verse_database
+/backup/bible_verse_database-shm
+/backup/bible_verse_database-wal
+/app/.idea/caches/deviceStreaming.xml
+/app/.idea/gradle.xml
+/app/.idea/migrations.xml
+/app/.idea/misc.xml
+/app/.idea/runConfigurations.xml
+/app/.idea/vcs.xml

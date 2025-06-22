@@ -134,6 +134,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         val geminiInitError = _state.value.aiResponseError ?: _state.value.generalError
 
         val currentState = _state.value
+
         // Avoid re-fetching if the exact same verse is already selected and loaded without errors
         if (verse == currentState.selectedVerse &&
             currentState.scriptureText.isNotEmpty() && currentState.scriptureError == null &&
@@ -154,8 +155,8 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 selectedVerse = verse,
                 isScriptureLoading = true,
                 aiResponseLoading = geminiReady,
-                scriptureText = "Loading Scripture...",
-                aiResponseText = if (geminiReady) "Getting AI Response ..." else (geminiInitError ?: "AI Service not ready."),
+                scriptureText = "Fetching Scripture...",
+                aiResponseText = if (geminiReady) "Getting Take-Away insights from AI ..." else (geminiInitError ?: "AI Service not ready."),
                 scriptureError = null,
                 aiResponseError = if (geminiReady) null else geminiInitError,
                 generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || geminiInitError?.contains("API Key missing", ignoreCase = true) == true) geminiInitError else null,
@@ -170,7 +171,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 _state.update {
                     it.copy(
                         aiResponseLoading = false,
-                        aiResponseError = it.aiResponseError ?: "Cannot fetch take-away due to scripture error."
+                        aiResponseError = it.aiResponseError ?: "Cannot fetch data as AI service is not ready."
                     )
                 }
                 return@launch

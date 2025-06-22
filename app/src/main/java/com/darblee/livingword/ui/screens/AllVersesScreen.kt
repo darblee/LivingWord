@@ -90,7 +90,33 @@ fun AllVersesScreen(
     var showExistingVerseDialog by remember { mutableStateOf(false) }
     var existingVerseForDialog by remember { mutableStateOf<BibleVerse?>(null) }
 
+    /**
+     * Handle Navigation results
+     *
+     * If the keys (savedStateHandle, lifecycleOwner.lifecycle) changes, the existing co-routine
+     * is canceled,and a new one is launched with the new key values. This ensures the effect
+     * always has the correct savedStateHandle and lifecycleOwner to work with.
+     */
     LaunchedEffect(savedStateHandle, lifecycleOwner.lifecycle) {
+        /**
+         * This line, nested inside the LaunchedEffect, is the modern, recommended way to safely
+         * collect data from a Flow in a way that respects the component's lifecycle.
+         *
+         * Purpose: It creates a new coroutine that only runs the code inside its block when the
+         * screen's lifecycle is at least in the STARTED state. The STARTED state means the UI is
+         * visible to the user (even if partially, like in split-screen mode).
+         *
+         * Safety and Efficiency:
+         * When the user navigates away from AllVersesScreen (and its lifecycle state drops below
+         * STARTED, e.g., to CREATED), the coroutine collecting the data is automatically canceled.
+         *
+         * When the user navigates back to AllVersesScreen (and the state becomes STARTED again),
+         * a new coroutine is automatically launched to resume listening for the result.
+         *
+         * This prevents the app from wasting resources trying to process a result when the screen
+         * isn't visible and avoids potential crashes from trying to update a UI that is no longer
+         * on screen.
+         */
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             // Observe Verse Result
             launch {
@@ -120,7 +146,8 @@ fun AllVersesScreen(
 
                                 // Navigation to VerseDetail will happen when dialog is dismissed
                             } else {
-                                // Verse does not exist, proceed with fetching take-away
+                                // Verse does not exist, proceed with fetching all the date -
+                                // scripture and take-away
                                 Log.i(
                                     "AllVerseScreen",
                                     "Verse ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.startVerse} not found in DB. Fetching new data."
@@ -129,22 +156,20 @@ fun AllVersesScreen(
                                 showRetreivingDataDialog = true
                                 newVerseViewModel.setSelectedVerseAndFetchData(selectedVerseRef)
 
-                                // Now ask user to select the topic
-
-                                Log.i("AllVerseScreen", "Start to fetch the take-away info. Book = ${selectedVerseRef.book}, chapter = ${selectedVerseRef.chapter}")
+                                Log.i("AllVerseScreen", "Start to fetch the scripture and take-away for Book = ${selectedVerseRef.book}, chapter = ${selectedVerseRef.chapter}")
                             }
 
                         } catch (e: Exception) {
-                            Log.e("NewVerseScreen", "Error deserializing BibleVerse: ${e.message}", e)
+                            Log.e("AllVerseScreen", "Error deserializing BibleVerse: ${e.message}", e)
                             newVerseViewModel.setSelectedVerseAndFetchData(null) // Clear data on error
                         } finally {
                             // Important: Remove the result from SavedStateHandle to prevent reprocessing
-                            Log.d("NewVerseScreen", "Removing key $VERSE_RESULT_KEY from SavedStateHandle")
+                            Log.d("AllVerseScreen", "Removing key $VERSE_RESULT_KEY from SavedStateHandle")
                             savedStateHandle.remove<String>(VERSE_RESULT_KEY)
                         }
-                    }
-            }
-        }
+                    }// savedStateHandle?.getStateFlow<String?>(VERSE_RESULT_KEY, null)
+            }  // launch()
+        } // lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
     }
     // --- End Handle Navigation Results ---
 
