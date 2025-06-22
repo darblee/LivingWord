@@ -41,7 +41,7 @@ fun AIDisclaimerDialog(
         text = {
             Column {
                 Text(
-                    text = "This app uses Generative AI to generate insights, which can make mistakes. Use this content as a guide, not as authoritative truth. Approach them with prayerful consideration.",
+                    text = "This app uses AI to generate insights and analysis. It is important to remember that AI-generated content can occasionally be flawed. Please use it as a tool to guide your understanding and always consider the information in prayer.",
                     style = MaterialTheme.typography.bodyMedium,
                     lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
                 )

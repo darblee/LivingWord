@@ -66,13 +66,13 @@ class ExportImportViewModel : ViewModel() {
                     // Use the new dynamic filename for the upload
                     driveService.uploadFile(exportFileName, dbPath, folderId)
                 }
-                _exportState.value = OperationState.Complete(true, "Backup Successful!")
+                _exportState.value = OperationState.Complete(true, "Export Successful!")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _exportState.value = OperationState.RequiresPermissions(e.intent)
             } catch (e: Exception) {
                 e.printStackTrace()
-                _exportState.value = OperationState.Complete(false, "Backup Failed: ${e.message}")
+                _exportState.value = OperationState.Complete(false, "Export Failed: ${e.message}")
             }
         }
     }
@@ -133,13 +133,13 @@ class ExportImportViewModel : ViewModel() {
                     val outputStream = java.io.FileOutputStream(dbPath)
                     driveService.downloadFile(fileId, outputStream)
                 }
-                _importState.value = OperationState.Complete(true, "Restore successful! Please restart the app.")
+                _importState.value = OperationState.Complete(true, "Import successful! Please restart the app.")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _importState.value = OperationState.RequiresPermissions(e.intent)
             } catch (e: Exception) {
                 e.printStackTrace()
-                _importState.value = OperationState.Complete(false, "Restore Failed: ${e.message}")
+                _importState.value = OperationState.Complete(false, "Import Failed: ${e.message}")
             }
         }
     }

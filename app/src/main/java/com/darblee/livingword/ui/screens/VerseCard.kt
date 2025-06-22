@@ -41,14 +41,19 @@ fun VerseCard(verseItem: BibleVerse, navController: NavController) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            Text(text =
+            var fullText = ""
+            verseItem.scriptureJson.verses.forEach { verse ->
+                fullText = verse.verseString + " " + fullText
+            }
+
+            Text(
                 buildAnnotatedString {
                     // Apply default style or theme style implicitly
                     append("")
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.surfaceTint)) {
                         append(verseReference(verseItem))
                     }
-                    append(" " + (verseItem.scripture).removePassageRef())
+                    append(" $fullText")
                 },
                 modifier = Modifier
                     .fillMaxWidth() // Use fillMaxWidth

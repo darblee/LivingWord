@@ -1292,19 +1292,26 @@ fun MemorizeScreen(
                         {
                             if (isScriptureVisible) {
                                 val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
-                                val scriptureTextContent = verse?.scripture ?: "Loading scripture...."
 
-                                val scriptureAnnotatedText = buildAnnotatedStringForTTS(
-                                    fullText = scriptureTextContent,
-                                    isTargeted = false,
-                                    highlightSentenceIndex = -1,
-                                    isSpeaking = false,
-                                    isPaused = false,
-                                    baseStyle = SpanStyle(color = baseTextColor),
-                                    highlightStyle = SpanStyle(
-                                        background = MaterialTheme.colorScheme.primaryContainer,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    ))
+                                var scriptureAnnotatedText = verse?.let {
+                                    buildAnnotatedStringForScripture(
+                                        scriptureContent = it.scriptureJson,
+                                        isTargeted = false,
+                                        highlightSentenceIndex = -1,
+                                        isSpeaking = false,
+                                        isPaused = false,
+                                        baseStyle = SpanStyle(color = baseTextColor),
+                                        highlightStyle = SpanStyle(
+                                            background = MaterialTheme.colorScheme.primaryContainer,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    )
+                                }
+
+                                if (scriptureAnnotatedText == null) {
+                                    scriptureAnnotatedText = buildAnnotatedString { append("Loading scripture....") }
+                                }
+
                                 SelectionContainer {
                                     Text(
                                         text = scriptureAnnotatedText,

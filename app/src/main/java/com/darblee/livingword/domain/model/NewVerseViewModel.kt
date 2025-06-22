@@ -10,6 +10,8 @@ import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.ScriptureContent
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.verseReference
+import com.darblee.livingword.data.verseReferenceBibleVerseRef
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -197,7 +199,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 }
             }
 
-            val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
+            val verseRef = verseReferenceBibleVerseRef(verse)
             when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     _state.update {
@@ -236,7 +238,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
 
         _state.update { it.copy(aiResponseLoading = true, aiResponseError = null, aiResponseText = "Getting key take-away...") }
 
-        val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
+        val verseRef = verseReferenceBibleVerseRef(verse)
 
         viewModelScope.launch {
             when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {

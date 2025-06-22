@@ -68,10 +68,8 @@ interface BibleVerseDao {
         chapter: Int,
         startVerse: Int,
         endVerse: Int,
-        scripture: String,
         aiResponse: String,
         topics: List<String>,
-        translation: String,
         favorite: Boolean = false,
         scriptureContent: ScriptureContent
     ): Long {
@@ -81,7 +79,6 @@ interface BibleVerseDao {
                 chapter = chapter,
                 startVerse = startVerse,
                 endVerse = endVerse,
-                scripture = scripture,
                 aiResponse = aiResponse,
                 topics = emptyList(), // Insert with empty topics initially, will be updated
                 translation = scriptureContent.translation,
@@ -263,28 +260,4 @@ interface BibleVerseDao {
     @Query("UPDATE BibleVerse_Items SET scriptureJson = :scriptureJson WHERE id = :verseId")
     suspend fun updateScriptureJson(verseId: Long, scriptureJson: String)
 
-    /**
-     * Helper function to parse scripture string into Verse objects
-     * This should be added to your BibleVerseDao.kt or as a utility function
-     */
-    private fun parseScriptureToVerses(scripture: String): List<Verse> {
-        val verses = mutableListOf<Verse>()
-        val regex = "\\[(\\d+)\\]\\s*([^\\[]+?)(?=\\s*\\[\\d+\\]|\\$)".toRegex()
-
-
-        regex.findAll(scripture).forEach { matchResult ->
-            val verseNum = matchResult.groupValues[1].toIntOrNull() ?: 0
-            val verseText = matchResult.groupValues[2].trim()
-            if (verseText.isNotEmpty()) {
-                verses.add(Verse(verseNum = verseNum, verseString = verseText))
-            }
-        }
-
-        // If no verses were parsed (maybe different format), create a single verse
-        if (verses.isEmpty() && scripture.isNotEmpty()) {
-            verses.add(Verse(verseNum = 1, verseString = scripture))
-        }
-
-        return verses
-    }
 }

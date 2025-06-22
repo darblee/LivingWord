@@ -89,20 +89,4 @@ object ScriptureUtils {
             Json.encodeToString(ScriptureContent(translation = "", verses = emptyList()))
         }
     }
-
-    /**
-     * Helper function to migrate existing BibleVerse objects to include scriptureJson
-     * This can be used if you need to update existing verses programmatically
-     *
-     * @param existingVerse The existing BibleVerse object
-     * @return Updated BibleVerse with scriptureJson populated
-     */
-    fun migrateBibleVerseWithScriptureJson(existingVerse: BibleVerse): BibleVerse {
-        val scriptureContent = createScriptureContent(
-            scripture = existingVerse.scripture,
-            translation = existingVerse.translation
-        )
-
-        return existingVerse.copy(scriptureJson = scriptureContent)
-    }
 }

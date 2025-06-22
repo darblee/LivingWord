@@ -18,7 +18,6 @@ data class BibleVerse(
     val chapter: Int,
     val startVerse: Int,
     val endVerse: Int,
-    val scripture: String,
     val aiResponse: String,
     val topics: List<String>,
     val memorizedSuccessCount: Int = 0,
@@ -89,22 +88,13 @@ fun verseReference(verseItem: BibleVerse): String {
     return ("$book $chapter:$startVerse-$endVerse")
 }
 
-/**
- * Parses a scripture string with format like "[1] verse text [2] more verse text"
- * and converts it to a list of Verse objects.
- */
-fun parseScriptureToVerses(scripture: String): List<Verse> {
-    val verses = mutableListOf<Verse>()
-    val regex = "\\[(\\d+)\\]\\s*([^\\[]+?)(?=\\s*\\[\\d+\\]|\\$)".toRegex()
-
-
-    regex.findAll(scripture).forEach { matchResult ->
-        val verseNum = matchResult.groupValues[1].toIntOrNull() ?: 0
-        val verseText = matchResult.groupValues[2].trim()
-        if (verseText.isNotEmpty()) {
-            verses.add(Verse(verseNum = verseNum, verseString = verseText))
-        }
+fun verseReferenceBibleVerseRef(verseItem: BibleVerseRef): String {
+    val book = verseItem.book
+    val chapter = verseItem.chapter
+    val startVerse = verseItem.startVerse
+    val endVerse = verseItem.endVerse
+    if (startVerse == endVerse) {
+        return ("$book $chapter:$startVerse")
     }
-
-    return verses
+    return ("$book $chapter:$startVerse-$endVerse")
 }

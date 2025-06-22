@@ -227,12 +227,11 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         endVerse: Int,
         aiResponse: String,
         topics: List<String>,
-        translation: String = "ESV",
         favorite: Boolean = false,
         scriptureContent: ScriptureContent
     ): Long {
         return bibleVerseDao.insertVerseWithTopics(
-            book, chapter, startVerse, endVerse, "Unused text", aiResponse, topics, translation, favorite, scriptureContent)
+            book, chapter, startVerse, endVerse, aiResponse, topics, favorite, scriptureContent)
     }
 
     /**
