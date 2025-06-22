@@ -75,8 +75,7 @@ fun AllVersesScreen(
 
     val allVerses by bibleViewModel.allVerses.collectAsState()
 
-    var savingComplete by remember { mutableStateOf(false) }
-    var showRetreivingDataDialog by remember { mutableStateOf(false) }
+    var showRetrievingDataDialog by remember { mutableStateOf(false) }
 
     // Use LaunchedEffect tied to lifecycle to observe results from SavedStateHandle
     // --- Handle Navigation Results ---
@@ -153,7 +152,7 @@ fun AllVersesScreen(
                                     "Verse ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.startVerse} not found in DB. Fetching new data."
                                 )
 
-                                showRetreivingDataDialog = true
+                                showRetrievingDataDialog = true
                                 newVerseViewModel.setSelectedVerseAndFetchData(selectedVerseRef)
 
                                 Log.i("AllVerseScreen", "Start to fetch the scripture and take-away for Book = ${selectedVerseRef.book}, chapter = ${selectedVerseRef.chapter}")
@@ -186,24 +185,26 @@ fun AllVersesScreen(
         }
     }
 
-
     // New verse is saved. Now navigate to edit verse screen
     LaunchedEffect(newVerseState.newlySavedVerseId) {
         if (newVerseState.newlySavedVerseId != null) {
+            showRetrievingDataDialog = false // Hide dialog before navigating
             navController.navigate(Screen.VerseDetailScreen(verseID = newVerseState.newlySavedVerseId!!, editMode = true)) {
-                popUpTo(Screen.Home) // pop up to home after navigating
+                popUpTo(Screen.Home)
             }
-            newVerseViewModel.resetNavigationState() // Reset the ID and message flag in ViewModel after navigation
-            savingComplete = true
+            newVerseViewModel.resetNavigationState()
         }
     }
 
     // Show the transient dialog
-    if (showRetreivingDataDialog) {
-        TransientRetrievingDataDialog(
-            savingComplete = savingComplete,
-            onDismiss = { showRetreivingDataDialog = false }
-        )
+    if (showRetrievingDataDialog) {
+        // Derive the message from the ViewModel's state
+        val loadingMessage = when {
+            newVerseState.isScriptureLoading -> "Fetching scripture..."
+            newVerseState.aiResponseLoading -> "Fetching insights from AI..."
+            else -> "Finalizing..." // Fallback message while waiting for save
+        }
+        TransientRetrievingDataDialog(loadingMessage = loadingMessage)
     }
 
 
@@ -377,22 +378,13 @@ private fun readyToSave(state: NewVerseViewModel.NewVerseScreenState): Boolean{
 
 @Composable
 fun TransientRetrievingDataDialog(
-    savingComplete: Boolean,
-    onDismiss: () -> Unit
+    loadingMessage: String
 ) {
-    // This LaunchedEffect will run when this composable enters the composition
-    // and will re-run whenever the 'savingComplete' value changes.
-    LaunchedEffect(savingComplete) {
-        if (savingComplete) {
-            // Add a small delay to allow the user to read the final message if needed
-            delay(500)
-            onDismiss()
-        }
-    }
-
-    Dialog(onDismissRequest = { /* We want to control dismissal via savingComplete */ }) {
+    Dialog(onDismissRequest = { /* Dialog is controlled by state, not user dismissal */ }) {
         Surface(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            shape = MaterialTheme.shapes.medium, // Give it some shape
+            shadowElevation = 8.dp
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -401,7 +393,8 @@ fun TransientRetrievingDataDialog(
             ) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Retrieving data....")
+                // Use the dynamic message passed into the function
+                Text(text = loadingMessage)
             }
         }
     }

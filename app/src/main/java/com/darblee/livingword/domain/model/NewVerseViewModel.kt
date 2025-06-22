@@ -156,7 +156,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 isScriptureLoading = true,
                 aiResponseLoading = geminiReady,
                 scriptureText = "Fetching Scripture...",
-                aiResponseText = if (geminiReady) "Getting Take-Away insights from AI ..." else (geminiInitError ?: "AI Service not ready."),
+                aiResponseText = if (geminiReady) "Fetching insights from AI..." else (geminiInitError ?: "AI Service not ready."),
                 scriptureError = null,
                 aiResponseError = if (geminiReady) null else geminiInitError,
                 generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || geminiInitError?.contains("API Key missing", ignoreCase = true) == true) geminiInitError else null,
