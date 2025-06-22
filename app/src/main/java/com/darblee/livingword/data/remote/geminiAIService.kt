@@ -132,50 +132,65 @@ object GeminiAIService {
             return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
         }
 
-        val collectedVerses = mutableListOf<Verse>()
-        val maxRetries = 3
-
         return try {
-            for (verseNum in verseRef.startVerse..verseRef.endVerse) {
-                val singleVerseRef = "${verseRef.book} ${verseRef.chapter}:$verseNum"
-                val prompt = "Provide the scripture text for $singleVerseRef from the $translation translation. Respond with only the verse text and nothing else."
-                var verseText: String? = null
-                var success = false
-
-                for (attempt in 1..maxRetries) {
-                    Log.d("GeminiAIService", "Fetching verse: $singleVerseRef (Attempt $attempt/$maxRetries)")
-                    try {
-                        val response = generativeModel!!.generateContent(prompt)
-                        val currentVerseText = response.text?.trim()
-                        if (!currentVerseText.isNullOrBlank()) {
-                            verseText = currentVerseText
-                            success = true
-                            break
-                        } else {
-                            Log.w("GeminiAIService", "Received empty response for $singleVerseRef on attempt $attempt.")
-                        }
-                    } catch (e: Exception) {
-                        Log.e("GeminiAIService", "Exception on attempt $attempt for $singleVerseRef: ${e.message}")
-                        if (attempt == maxRetries) throw e
-                    }
-                }
-
-                if (success) {
-                    collectedVerses.add(Verse(verseNum = verseNum, verseString = verseText!!))
-                } else {
-                    Log.e("GeminiAIService", "Failed to fetch verse $singleVerseRef after $maxRetries attempts.")
-                    collectedVerses.add(Verse(verseNum = verseNum, verseString = "[$singleVerseRef failed to load]"))
-                }
+            val verseString = if (verseRef.startVerse == verseRef.endVerse) {
+                "${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}"
+            } else {
+                "${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse}"
             }
 
-            if (collectedVerses.isEmpty()) {
-                AiServiceResult.Error("Failed to fetch any verses for the specified range.")
+            val prompt = if (verseRef.startVerse == verseRef.endVerse) {
+                    """
+                Provide the scripture for $verseString from the $translation translation.
+                Respond in the following JSON format:
+                {
+                  "translation": "$translation",
+                  "verses": [
+                    {
+                      "verse_num": ${verseRef.startVerse},
+                      "verse_string": "The content of the start verse."
+                    },
+                  ]
+                }
+                """.trimIndent()
             } else {
-                val scriptureContent = ScriptureContent(translation = translation, verses = collectedVerses)
+                """
+                Provide the scripture for $verseString from the $translation translation.
+                Respond in the following JSON format:
+                {
+                  "translation": "$translation",
+                  "verses": [
+                    {
+                      "verse_num": ${verseRef.startVerse},
+                      "verse_string": "The content of the start verse."
+                    },
+                    {
+                      "verse_num": ${verseRef.startVerse + 1},
+                      "verse_string": "The content of the next verse."
+                    }
+                  ]
+                }
+                """.trimIndent()
+            }
+
+
+            Log.d("GeminiAIService", "Sending prompt to Gemini for scripture range: \"$prompt\"")
+
+            val response = generativeModel!!.generateContent(prompt)
+            val responseText = response.text
+
+            Log.d("GeminiAIService", "Gemini Response: $responseText")
+
+            if (responseText != null) {
+                // The model might wrap the JSON in markdown backticks, so we clean it.
+                val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
+                val scriptureContent = jsonParser.decodeFromString<ScriptureContent>(cleanedJson)
                 AiServiceResult.Success(scriptureContent)
+            } else {
+                AiServiceResult.Error("Received empty response from AI for verse range.")
             }
         } catch (e: Exception) {
-            Log.e("GeminiAIService", "Error calling Gemini during verse loop: ${e.message}", e)
+            Log.e("GeminiAIService", "Error calling Gemini or parsing scripture response: ${e.message}", e)
             AiServiceResult.Error("Could not get scripture from AI (${e.javaClass.simpleName}).", e)
         }
     }
