@@ -3,7 +3,6 @@ package com.darblee.livingword.data.remote
 import android.util.Log
 import com.darblee.livingword.AISettings // Import AISettings
 import com.darblee.livingword.data.BibleVerseRef
-import com.darblee.livingword.data.ScriptureContent
 import com.darblee.livingword.data.Verse
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
@@ -97,9 +96,9 @@ object GeminiAIService {
      *
      * @param verseRef The Bible verse reference object.
      * @param translation The desired Bible translation.
-     * @return [AiServiceResult.Success] with [ScriptureContent], or [AiServiceResult.Error].
+     * @return [AiServiceResult.Success] with [List<Verse>], or [AiServiceResult.Error].
      */
-    suspend fun fetchScriptureJson(verseRef: BibleVerseRef, translation: String): AiServiceResult<ScriptureContent> {
+    suspend fun fetchScripture(verseRef: BibleVerseRef, translation: String): AiServiceResult<List<Verse>> {
         // Route to the dedicated ESV service if translation is ESV
         if (translation.equals("ESV", ignoreCase = true)) {
             Log.i("GeminiAIService", "ESV translation requested. Routing to ESVBibleLookupService.")
@@ -123,7 +122,7 @@ object GeminiAIService {
     /**
      * Private helper function to fetch scripture using the Gemini AI service.
      */
-    private suspend fun fetchScriptureWithGemini(verseRef: BibleVerseRef, translation: String): AiServiceResult<ScriptureContent> {
+    private suspend fun fetchScriptureWithGemini(verseRef: BibleVerseRef, translation: String): AiServiceResult<List<Verse>> {
         Log.i("GeminiAIService", "$translation translation requested. Using Gemini.")
         if (!isConfigured) {
             return AiServiceResult.Error("GeminiAIService has not been configured.")
@@ -140,36 +139,30 @@ object GeminiAIService {
             }
 
             val prompt = if (verseRef.startVerse == verseRef.endVerse) {
-                    """
+                """
                 Provide the scripture for $verseString from the $translation translation.
-                Respond in the following JSON format:
-                {
-                  "translation": "$translation",
-                  "verses": [
-                    {
-                      "verse_num": ${verseRef.startVerse},
-                      "verse_string": "The content of the start verse."
-                    },
-                  ]
-                }
+                Respond in the following JSON format, which is an array of verse objects:
+                [
+                  {
+                    "verse_num": ${verseRef.startVerse},
+                    "verse_string": "The content of the start verse."
+                  }
+                ]
                 """.trimIndent()
             } else {
                 """
                 Provide the scripture for $verseString from the $translation translation.
-                Respond in the following JSON format:
-                {
-                  "translation": "$translation",
-                  "verses": [
-                    {
-                      "verse_num": ${verseRef.startVerse},
-                      "verse_string": "The content of the start verse."
-                    },
-                    {
-                      "verse_num": ${verseRef.startVerse + 1},
-                      "verse_string": "The content of the next verse."
-                    }
-                  ]
-                }
+                Respond in the following JSON format, which is an array of verse objects:
+                [
+                  {
+                    "verse_num": ${verseRef.startVerse},
+                    "verse_string": "The content of the start verse."
+                  },
+                  {
+                    "verse_num": ${verseRef.startVerse + 1},
+                    "verse_string": "The content of the next verse."
+                  }
+                ]
                 """.trimIndent()
             }
 
@@ -184,8 +177,8 @@ object GeminiAIService {
             if (responseText != null) {
                 // The model might wrap the JSON in markdown backticks, so we clean it.
                 val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
-                val scriptureContent = jsonParser.decodeFromString<ScriptureContent>(cleanedJson)
-                AiServiceResult.Success(scriptureContent)
+                val verses = jsonParser.decodeFromString<List<Verse>>(cleanedJson)
+                AiServiceResult.Success(verses)
             } else {
                 AiServiceResult.Error("Received empty response from AI for verse range.")
             }

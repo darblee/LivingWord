@@ -68,10 +68,11 @@ interface BibleVerseDao {
         chapter: Int,
         startVerse: Int,
         endVerse: Int,
-        aiResponse: String,
+        aiTakeAwayResponse: String,
         topics: List<String>,
         favorite: Boolean = false,
-        scriptureContent: ScriptureContent
+        translation: String,
+        scriptureVerses: List<Verse>
     ): Long {
         val verseId = insertVerse(
             BibleVerse(
@@ -79,11 +80,11 @@ interface BibleVerseDao {
                 chapter = chapter,
                 startVerse = startVerse,
                 endVerse = endVerse,
-                aiResponse = aiResponse,
+                aiTakeAwayResponse = aiTakeAwayResponse,
                 topics = emptyList(), // Insert with empty topics initially, will be updated
-                translation = scriptureContent.translation,
+                translation = translation,
                 favorite = favorite,
-                scriptureJson = scriptureContent
+                scriptureVerses = scriptureVerses
             )
         )
 
@@ -253,11 +254,11 @@ interface BibleVerseDao {
     fun getFavoriteVersesByTranslation(translation: String): Flow<List<BibleVerse>>
 
     // Helper method to create ScriptureContent from existing data
-    @Query("SELECT * FROM BibleVerse_Items WHERE scriptureJson = '' OR scriptureJson IS NULL")
-    suspend fun getVersesWithEmptyScriptureJson(): List<BibleVerse>
+    @Query("SELECT * FROM BibleVerse_Items WHERE scriptureVerses = '' OR scriptureVerses IS NULL")
+    suspend fun getVersesWithEmptyScriptureVerses(): List<BibleVerse>
 
     // Method to update scriptureJson for a specific verse
-    @Query("UPDATE BibleVerse_Items SET scriptureJson = :scriptureJson WHERE id = :verseId")
-    suspend fun updateScriptureJson(verseId: Long, scriptureJson: String)
+    @Query("UPDATE BibleVerse_Items SET scriptureVerses = :scriptureVerses WHERE id = :verseId")
+    suspend fun updateScriptureVerses(verseId: Long, scriptureVerses: String)
 
 }

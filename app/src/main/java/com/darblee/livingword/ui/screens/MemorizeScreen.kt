@@ -1295,7 +1295,7 @@ fun MemorizeScreen(
 
                                 var scriptureAnnotatedText = verse?.let {
                                     buildAnnotatedStringForScripture(
-                                        scriptureContent = it.scriptureJson,
+                                        scriptureVerses = it.scriptureVerses,
                                         isTargeted = false,
                                         highlightSentenceIndex = -1,
                                         isSpeaking = false,

@@ -42,7 +42,7 @@ fun VerseCard(verseItem: BibleVerse, navController: NavController) {
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
             var fullText = ""
-            verseItem.scriptureJson.verses.forEach { verse ->
+            verseItem.scriptureVerses.forEach { verse ->
                 fullText = verse.verseString + " " + fullText
             }
 

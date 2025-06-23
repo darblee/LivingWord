@@ -407,7 +407,7 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
 
         // Populate sentences directly from scriptureJson
-        sequenceScriptureSentences = verseItem.scriptureJson.verses.map { it.verseString }
+        sequenceScriptureSentences = verseItem.scriptureVerses.map { it.verseString }
         sequenceAiResponseText = aiResponse // Store raw text
 
         // Split AI response sentences as before

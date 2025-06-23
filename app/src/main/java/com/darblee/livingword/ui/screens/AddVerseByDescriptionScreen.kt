@@ -43,7 +43,6 @@ import com.darblee.livingword.Global.VERSE_RESULT_KEY
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerseRef
-import com.darblee.livingword.data.ScriptureContent
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
@@ -57,6 +56,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class AddVerseByDescriptionViewModel (application: Application) : AndroidViewModel(application) {
+
+    private val geminiService = GeminiAIService // Singleton instance
 
     private val _uiState = MutableStateFlow(AddVerseByDescriptionUiState())
     val uiState: StateFlow<AddVerseByDescriptionUiState> = _uiState.asStateFlow()
@@ -80,7 +81,8 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
                 previewError = null,
                 translation = translation
             )
-            when (val result = GeminiAIService.fetchScriptureJson(verse, translation)) {
+            when (val result = geminiService.fetchScripture(verse, translation)) {
+
                 is AiServiceResult.Error -> {
                     _uiState.value = _uiState.value.copy(
                         isPreviewLoading = false,
@@ -88,9 +90,10 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
                     )
                 }
                 is AiServiceResult.Success<*> -> {
+                    val scriptureVerses = result.data as List<Verse>
                     _uiState.value = _uiState.value.copy(
                         isPreviewLoading = false,
-                        previewContentJson = result.data as ScriptureContent,
+                        previewScriptureVerses = scriptureVerses,
                         translation = translation
                     )
                 }
@@ -133,7 +136,7 @@ data class AddVerseByDescriptionUiState(
     val error: String? = null,
     val previewVerse: BibleVerseRef? = null,
     val previewContent: String? = null,
-    val previewContentJson: ScriptureContent = ScriptureContent(translation = "", verses = emptyList()),
+    val previewScriptureVerses: List<Verse> = emptyList(),
     val isPreviewLoading: Boolean = false,
     val previewError: String? = null,
     val translation: String = ""
@@ -151,7 +154,7 @@ fun AddVerseByDescriptionScreen(
     if (uiState.previewVerse != null) {
         ScripturePreviewDialogJson(
             verseRef = uiState.previewVerse!!,
-            contentJson = uiState.previewContentJson,
+            scriptureVerses = uiState.previewScriptureVerses,
             isLoading = uiState.isPreviewLoading,
             error = uiState.previewError,
             onDismiss = { viewModel.dismissPreview() },
@@ -258,7 +261,7 @@ fun AddVerseByDescriptionScreen(
 @Composable
 fun ScripturePreviewDialogJson(
     verseRef: BibleVerseRef,
-    contentJson: ScriptureContent,
+    scriptureVerses: List<Verse>,
     isLoading: Boolean,
     error: String?,
     onDismiss: () -> Unit,
@@ -283,9 +286,9 @@ fun ScripturePreviewDialogJson(
                 error != null -> {
                     Text(text = "Error: $error", color = MaterialTheme.colorScheme.error)
                 }
-                contentJson.verses.isNotEmpty() -> {
+                scriptureVerses.isNotEmpty() -> {
                     LabeledOutlinedBox(label = "Scripture") {
-                        val annotatedVerse = buildAnnotatedVerseString(contentJson.verses)
+                        val annotatedVerse = buildAnnotatedVerseString(scriptureVerses)
                         Text(
                             text = annotatedVerse,
                             style = MaterialTheme.typography.bodyLarge,

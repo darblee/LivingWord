@@ -68,7 +68,7 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
 
                         if (usageCount == 0) {
                             // 4. Safe to delete the topic
-                            Log.i("BibleVerseRepository", "Deleting topic: '$topicName' (ID: ${topicEntity.id})")
+                            Log.i("BibleVerseRepository", "Deleting topic: '${topicName}' (ID: ${topicEntity.id})")
                             bibleVerseDao.deleteTopicById(topicEntity.id)
                         } else {
                             Log.w("BibleVerseRepository", "Cannot delete topic '$topicName' - it has $usageCount associated verses")
@@ -225,13 +225,14 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         chapter: Int,
         startVerse: Int,
         endVerse: Int,
-        aiResponse: String,
+        aiTakeAwayResponse: String,
         topics: List<String>,
         favorite: Boolean = false,
-        scriptureContent: ScriptureContent
+        translation: String,
+        verses: List<Verse>
     ): Long {
         return bibleVerseDao.insertVerseWithTopics(
-            book, chapter, startVerse, endVerse, aiResponse, topics, favorite, scriptureContent)
+            book, chapter, startVerse, endVerse, aiTakeAwayResponse, topics, favorite, translation, verses)
     }
 
     /**

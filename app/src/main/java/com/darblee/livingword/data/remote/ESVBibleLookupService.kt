@@ -3,7 +3,6 @@ package com.darblee.livingword.data.remote
 import android.util.Log
 import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.data.BibleVerseRef
-import com.darblee.livingword.data.ScriptureContent
 import com.darblee.livingword.data.Verse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,9 +34,9 @@ class ESVBibleLookupService {
      * Fetches scripture text for a given Bible verse reference.
      *
      * @param verse The BibleVerseRef object containing book, chapter, and verse numbers.
-     * @return An AiServiceResult containing the ScriptureContent on success, or an Error on failure.
+     * @return An AiServiceResult containing the List<Verse> on success, or an Error on failure.
      */
-    suspend fun fetchScripture(verse: BibleVerseRef): AiServiceResult<ScriptureContent> {
+    suspend fun fetchScripture(verse: BibleVerseRef): AiServiceResult<List<Verse>> {
         if (esvApiKey.isBlank()) {
             Log.e("ESVBibleLookupService", "ESV API Key is missing.")
             return AiServiceResult.Error("Error: ESV API Key is missing.")
@@ -92,8 +91,7 @@ class ESVBibleLookupService {
                     collectedVerses.add(Verse(verse.startVerse, cleanedPassage))
                 }
 
-                val scriptureContent = ScriptureContent(translation = "ESV", verses = collectedVerses)
-                AiServiceResult.Success(scriptureContent)
+                AiServiceResult.Success(collectedVerses)
 
             } catch (e: IOException) {
                 Log.e("ESVBibleLookupService", "Network error fetching scripture: ${e.message}", e)

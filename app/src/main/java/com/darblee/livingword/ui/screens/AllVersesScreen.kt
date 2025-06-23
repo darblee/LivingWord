@@ -58,7 +58,6 @@ import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.NewVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -176,10 +175,11 @@ fun AllVersesScreen(
         if (readyToSave(newVerseState) && !newVerseState.isContentSaved) {
             bibleViewModel.saveNewVerse(
                 verse = (newVerseState.selectedVerse!!),
-                aiResponse = newVerseState.aiResponseText,
+                aiTakeAwayResponse = newVerseState.aiResponseText,
                 topics = newVerseState.selectedTopics,
                 newVerseViewModel = newVerseViewModel,
-                scriptureContent = newVerseState.scriptureJson,
+                translation = newVerseState.translation,
+                scriptureVerses = newVerseState.scriptureVerses,
             )
         }
     }

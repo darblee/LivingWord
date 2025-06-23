@@ -81,7 +81,7 @@ import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
 import com.darblee.livingword.Screen
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerse
-import com.darblee.livingword.data.ScriptureContent
+import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.verseReference
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.TTSViewModel
@@ -209,7 +209,7 @@ fun VerseDetailScreen(
     // LaunchedEffect to update editedAiResponse and editedTopics when verseItem is loaded
     LaunchedEffect(verseItem) {
         verseItem?.let {
-            editedAiResponse = it.aiResponse
+            editedAiResponse = it.aiTakeAwayResponse
 
             // Only reset topics if not returning from topic selection
             if (!processEditTopics) editedTopics = it.topics
@@ -333,7 +333,7 @@ fun VerseDetailScreen(
                     // Use the new composable for scriptureJson
                     val scriptureAnnotatedText = if (verseItem != null) {
                         buildAnnotatedStringForScripture(
-                            scriptureContent = verseItem.scriptureJson,
+                            scriptureVerses = verseItem.scriptureVerses,
                             isTargeted = isScriptureTargetedForTts,
                             highlightSentenceIndex = currentTtsSentenceIndex,
                             isSpeaking = isTtsSpeaking,
@@ -389,7 +389,7 @@ fun VerseDetailScreen(
                                         if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
                                             ttsViewModel.stopAllSpeaking()
                                         }
-                                        val fullScriptureTextForTTS = verseItem.scriptureJson.verses.joinToString(" ") { it.verseString }
+                                        val fullScriptureTextForTTS = verseItem.scriptureVerses.joinToString(" ") { it.verseString }
                                         ttsViewModel.restartSingleText(fullScriptureTextForTTS)
                                     }
                                 }
@@ -624,7 +624,7 @@ fun VerseDetailScreen(
                                             )
                                             bibleViewModel.updateVerse(
                                                 verseItem.copy(
-                                                    aiResponse = editedAiResponse,
+                                                    aiTakeAwayResponse = editedAiResponse,
                                                     topics = editedTopics  // Use the latest editedTopics
                                                 )
                                             )
@@ -718,7 +718,7 @@ fun VerseDetailScreen(
                                                     val textToToggle = if (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE) {
                                                         editedAiResponse
                                                     } else {
-                                                        verseItem.scriptureJson.verses.joinToString(" ") { it.verseString }
+                                                        verseItem.scriptureVerses.joinToString(" ") { it.verseString }
                                                     }
                                                     ttsViewModel.togglePlayPauseResumeSingleText(textToToggle)
                                                 }
@@ -731,7 +731,7 @@ fun VerseDetailScreen(
                                                 // Start the full verse detail sequence.
                                                 else {
                                                     val aiTakeaway = editedAiResponse
-                                                    if (verseItem.scriptureJson.verses.isNotEmpty()) { // Ensure there's scripture to read
+                                                    if (verseItem.scriptureVerses.isNotEmpty()) { // Ensure there's scripture to read
                                                         activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                                         ttsViewModel.startVerseDetailSequence(
                                                             aiResponse = aiTakeaway,
@@ -764,13 +764,13 @@ fun VerseDetailScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("All") }, // Clarified label
-                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureJson.verses.isNotEmpty(),
+                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureVerses.isNotEmpty(),
                                 onClick = {
                                     showButtonDropdownMenu = false
                                     if (isTtsInitialized && verseItem != null) {
                                         activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                         ttsViewModel.startVerseDetailSequence(
-                                            aiResponse = verseItem.aiResponse,
+                                            aiResponse = verseItem.aiTakeAwayResponse,
                                             verseItem = verseItem
                                         )
                                     }
@@ -778,7 +778,7 @@ fun VerseDetailScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text("Scripture (Only)") },
-                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureJson.verses.isNotEmpty(),
+                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureVerses.isNotEmpty(),
                                 onClick = {
                                     showButtonDropdownMenu = false
                                     activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
@@ -786,7 +786,7 @@ fun VerseDetailScreen(
                                     if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
                                         ttsViewModel.stopAllSpeaking()
                                     }
-                                    val fullScriptureTextForTTS = verseItem?.scriptureJson?.verses?.joinToString(" ") { it.verseString } ?: ""
+                                    val fullScriptureTextForTTS = verseItem?.scriptureVerses?.joinToString(" ") { it.verseString } ?: ""
                                     ttsViewModel.restartSingleText(fullScriptureTextForTTS) // Use restart to ensure clean start
                                 }
                             )
@@ -903,7 +903,7 @@ fun VerseDetailScreen(
                                 onClick = {
                                     // Restore original values
                                     verseItem?.let {
-                                        editedAiResponse = it.aiResponse
+                                        editedAiResponse = it.aiTakeAwayResponse
                                         editedTopics = it.topics
                                     }
                                     confirmExitWithoutSaving = false
@@ -930,7 +930,7 @@ fun VerseDetailScreen(
 
 @Composable
 fun buildAnnotatedStringForScripture(
-    scriptureContent: ScriptureContent,
+    scriptureVerses: List<Verse>,
     isTargeted: Boolean,
     highlightSentenceIndex: Int,
     isSpeaking: Boolean,
@@ -939,7 +939,7 @@ fun buildAnnotatedStringForScripture(
     highlightStyle: SpanStyle
 ): AnnotatedString {
     return buildAnnotatedString {
-        scriptureContent.verses.forEachIndexed { index, verse ->
+        scriptureVerses.forEachIndexed { index, verse ->
             // Determine if this verse should be highlighted
             val shouldHighlight = isTargeted &&
                     ((isSpeaking && !isPaused && index == highlightSentenceIndex) ||

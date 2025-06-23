@@ -18,7 +18,7 @@ data class BibleVerse(
     val chapter: Int,
     val startVerse: Int,
     val endVerse: Int,
-    val aiResponse: String,
+    val aiTakeAwayResponse: String,
     val topics: List<String>,
     val memorizedSuccessCount: Int = 0,
     val memorizedFailedCount: Int = 0,
@@ -28,7 +28,7 @@ data class BibleVerse(
     val userContextScore: Int = 0,
     val translation: String = "",
     val favorite: Boolean = false,
-    val scriptureJson: ScriptureContent = ScriptureContent(translation = "", verses = emptyList()),
+    val scriptureVerses: List<Verse> = emptyList(),
     val dateCreated: Long = System.currentTimeMillis(),
     val lastModified: Long = System.currentTimeMillis()
 )
@@ -39,12 +39,6 @@ data class Verse(
     val verseNum: Int,
     @SerialName("verse_string")
     val verseString: String
-)
-
-@Serializable
-data class ScriptureContent(
-    val translation: String,
-    val verses: List<Verse>
 )
 
 class Converters {
@@ -59,19 +53,19 @@ class Converters {
     }
 
     @TypeConverter
-    fun fromScriptureContent(value: ScriptureContent): String {
+    fun fromVerseList(value: List<Verse>): String {
         return Json.encodeToString(value)
     }
 
     @TypeConverter
-    fun toScriptureContent(value: String): ScriptureContent {
+    fun toVerseList(value: String): List<Verse> {
         return if (value.isEmpty()) {
-            ScriptureContent(translation = "", verses = emptyList())
+            emptyList()
         } else {
             try {
-                Json.decodeFromString<ScriptureContent>(value)
+                Json.decodeFromString<List<Verse>>(value)
             } catch (e: Exception) {
-                ScriptureContent(translation = "", verses = emptyList())
+                emptyList()
             }
         }
     }

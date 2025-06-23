@@ -49,44 +49,39 @@ object ScriptureUtils {
     }
 
     /**
-     * Converts scripture string and translation to ScriptureContent object
+     * Converts scripture string to a list of verse objects
      *
      * @param scripture The raw scripture string
-     * @param translation The translation version (e.g., "ESV", "NIV")
-     * @return ScriptureContent object
+     * @return List of Verse objects
      */
-    fun createScriptureContent(scripture: String, translation: String): ScriptureContent {
-        val verses = parseScriptureToVerses(scripture)
-        return ScriptureContent(
-            translation = translation,
-            verses = verses
-        )
+    fun createVerseList(scripture: String): List<Verse> {
+        return parseScriptureToVerses(scripture)
     }
 
     /**
-     * Converts ScriptureContent back to the original scripture string format
+     * Converts a list of verses back to the original scripture string format
      *
-     * @param scriptureContent The ScriptureContent object
+     * @param verses The list of Verse objects
      * @return Formatted scripture string
      */
-    fun scriptureContentToString(scriptureContent: ScriptureContent): String {
-        return scriptureContent.verses.joinToString(" ") { verse ->
+    fun verseListToString(verses: List<Verse>): String {
+        return verses.joinToString(" ") { verse ->
             "[${verse.verseNum}] ${verse.verseString}"
         }
     }
 
     /**
-     * Converts ScriptureContent to JSON string for database storage
+     * Converts a list of verses to JSON string for database storage
      *
-     * @param scriptureContent The ScriptureContent object
+     * @param verses The List of Verse objects
      * @return JSON string representation
      */
-    fun scriptureContentToJson(scriptureContent: ScriptureContent): String {
+    fun verseListToJson(verses: List<Verse>): String {
         return try {
-            Json.encodeToString(scriptureContent)
+            Json.encodeToString(verses)
         } catch (e: Exception) {
-            // Return empty ScriptureContent JSON if serialization fails
-            Json.encodeToString(ScriptureContent(translation = "", verses = emptyList()))
+            // Return empty JSON array if serialization fails
+            "[]"
         }
     }
 }
