@@ -1,6 +1,5 @@
 package com.darblee.livingword.ui.screens
 
-
 import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -17,9 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -27,13 +24,17 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -51,15 +52,9 @@ fun GetBookScreen(navController: NavHostController) {
     val oldTestamentBooks = remember { BibleData.getOldTestamentBooks() }
     val newTestamentBooks = remember { BibleData.getNewTestamentBooks() }
 
-    // Remember the scroll state for the main Column
-    val scrollState = rememberScrollState()
-
-    // Get current configuration to check orientation
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-    // Determine grid height based on orientation
-    val gridHeight = if (isLandscape) 150.dp else 300.dp
+    // State to keep track of the selected tab index
+    var tabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Old Testament", "New Testament")
 
     Scaffold { paddingValues ->
         // Main Column for the entire screen content
@@ -109,69 +104,79 @@ fun GetBookScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(16.dp)) // Space after divider
 
-            // Inner Column for the scrollable content (headers and grids)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth() // Take remaining width
-                    .weight(1f) // Take remaining height
-                    .verticalScroll(scrollState), // Make this part scrollable
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp) // Adjusted spacing
-            ) {
-                Text("Old Testament", style = MaterialTheme.typography.headlineMedium)
+            // TabRow for switching between Old and New Testaments
+            TabRow(selectedTabIndex = tabIndex) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = tabIndex == index,
+                        onClick = { tabIndex = index },
+                        text = { Text(title, style = MaterialTheme.typography.titleSmall) }
+                    )
+                }
+            }
 
-                val verticalSpacing = 15 // Use a fixed vertical spacing
+            //Spacer(modifier = Modifier.height(16.dp))
 
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(verticalSpacing.dp),
-                    modifier = Modifier.height(gridHeight+50.dp),
-                    content = {
-                        // Use itemsIndexed to get index for color logic
-                        itemsIndexed(oldTestamentBooks) { index, bookInfo ->
-                            // Color logic based on index within the OT list
-                            val buttonColor = when (index) {
-                                in 0..4 -> Color.Yellow // Pentateuch (adjust count if needed)
-                                in 5..16 -> Color.Green // History (adjust count if needed)
-                                in 17..21 -> Color(0xFF800080) // Wisdom/Poetry (adjust count if needed)
-                                in 22..26 -> Color.Red // Major Prophets (adjust count if needed)
-                                else -> Color.Blue // Minor Prophets
-                            }
-                            bookButton(navController, bookInfo, buttonColor)
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(4.dp)) // Add space between sections
-
-                Text("New Testament", style = MaterialTheme.typography.headlineMedium)
-
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(verticalSpacing.dp),
-                    modifier = Modifier.height(gridHeight-25.dp),
-                    content = {
-                        // Use itemsIndexed for the NT list as well
-                        itemsIndexed(newTestamentBooks) { index, bookInfo ->
-                            // Color logic based on index within the NT list
-                            val buttonColor = when (index) {
-                                in 0..3 -> Color.Yellow // Gospels
-                                4 -> Color.Green // Acts (History)
-                                in 5..13 -> Color(0xFF800080) // Pauline Epistles (General)
-                                in 14..17 -> Color(0xFFFFA500) // Pauline Epistles (Pastoral - Orange example)
-                                in 18..25 -> Color.Red // General Epistles
-                                else -> Color.Blue // Revelation (Apocalyptic)
-                            }
-                            bookButton(navController, bookInfo, buttonColor)
-                        }
-                    }
-                )
+            // Content of the selected tab
+            when (tabIndex) {
+                0 -> OldTestamentTab(navController, oldTestamentBooks)
+                1 -> NewTestamentTab(navController, newTestamentBooks)
             }
         }
     }
 }
+
+@Composable
+fun OldTestamentTab(navController: NavHostController, books: List<BookInfo>) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        contentPadding = PaddingValues(top = 16.dp),
+        modifier = Modifier.fillMaxSize(),
+        content = {
+            // Use itemsIndexed to get index for color logic
+            itemsIndexed(books) { index, bookInfo ->
+                // Color logic based on index within the OT list
+                val buttonColor = when (index) {
+                    in 0..4 -> Color.Yellow // Pentateuch
+                    in 5..16 -> Color.Green // History
+                    in 17..21 -> Color(0xFF800080) // Wisdom/Poetry
+                    in 22..26 -> Color.Red // Major Prophets
+                    else -> Color.Blue // Minor Prophets
+                }
+                bookButton(navController, bookInfo, buttonColor)
+            }
+        }
+    )
+}
+
+@Composable
+fun NewTestamentTab(navController: NavHostController, books: List<BookInfo>) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        contentPadding = PaddingValues(top = 16.dp),
+        modifier = Modifier.fillMaxSize(),
+        content = {
+            // Use itemsIndexed for the NT list as well
+            itemsIndexed(books) { index, bookInfo ->
+                // Color logic based on index within the NT list
+                val buttonColor = when (index) {
+                    in 0..3 -> Color.Yellow // Gospels
+                    4 -> Color.Green // Acts (History)
+                    in 5..13 -> Color(0xFF800080) // Pauline Epistles (General)
+                    in 14..17 -> Color(0xFFFFA500) // Pauline Epistles (Pastoral)
+                    in 18..25 -> Color.Red // General Epistles
+                    else -> Color.Blue // Revelation (Apocalyptic)
+                }
+                bookButton(navController, bookInfo, buttonColor)
+            }
+        }
+    )
+}
+
 
 // Reusable composable for book buttons
 @Composable
@@ -195,7 +200,7 @@ private fun bookButton(
     ) {
         ProvideTextStyle(value = MaterialTheme.typography.labelLarge.copy(color = buttonColor))
         {
-            Text(bookInfo.abbreviation)
+            Text(bookInfo.fullName)
         }
     }
 }

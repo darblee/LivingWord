@@ -1,6 +1,6 @@
 {
   "Genesis": {
-    "abbreviation": "Gen",
+    "abbreviation": "Genesis",
     "chapters": {
       1: 31, 2: 25, 3: 24, 4: 26, 5: 32, 6: 22, 7: 24, 8: 22, 9: 29, 10: 32,
       11: 32, 12: 20, 13: 18, 14: 24, 15: 21, 16: 16, 17: 27, 18: 33, 19: 38, 20: 18,
@@ -10,7 +10,7 @@
     }
   },
   "Exodus": {
-    "abbreviation": "Exod",
+    "abbreviation": "Exodus",
     "chapters": {
       1: 22, 2: 25, 3: 22, 4: 31, 5: 23, 6: 30, 7: 25, 8: 32, 9: 35, 10: 29,
       11: 10, 12: 51, 13: 22, 14: 31, 15: 27, 16: 36, 17: 16, 18: 27, 19: 25, 20: 26,
@@ -19,7 +19,7 @@
     }
   },
   "Leviticus": {
-    "abbreviation": "Lev",
+    "abbreviation": "Leviticus",
     "chapters": {
       1: 17, 2: 16, 3: 17, 4: 35, 5: 19, 6: 30, 7: 38, 8: 36, 9: 24, 10: 20,
       11: 47, 12: 8, 13: 59, 14: 57, 15: 33, 16: 34, 17: 16, 18: 30, 19: 37, 20: 27,
@@ -27,7 +27,7 @@
     }
   },
   "Numbers": {
-    "abbreviation": "Num",
+    "abbreviation": "Numbers",
     "chapters": {
       1: 54, 2: 34, 3: 51, 4: 49, 5: 31, 6: 27, 7: 89, 8: 26, 9: 23, 10: 36,
       11: 35, 12: 16, 13: 33, 14: 45, 15: 41, 16: 50, 17: 13, 18: 32, 19: 22, 20: 29,
@@ -45,7 +45,7 @@
     }
   },
   "Joshua": {
-    "abbreviation": "Josh",
+    "abbreviation": "Joshua",
     "chapters": {
       1: 18, 2: 24, 3: 17, 4: 24, 5: 15, 6: 27, 7: 26, 8: 35, 9: 27, 10: 43,
       11: 23, 12: 24, 13: 33, 14: 15, 15: 63, 16: 10, 17: 18, 18: 28, 19: 51, 20: 9,
@@ -53,7 +53,7 @@
     }
   },
   "Judges": {
-    "abbreviation": "Judg",
+    "abbreviation": "Judges",
     "chapters": {
       1: 36, 2: 23, 3: 31, 4: 24, 5: 31, 6: 40, 7: 25, 8: 35, 9: 57, 10: 18,
       11: 40, 12: 15, 13: 25, 14: 20, 15: 20, 16: 31, 17: 13, 18: 31, 19: 30, 20: 48,
@@ -82,7 +82,7 @@
     }
   },
   "1 Kings": {
-    "abbreviation": "1 Kgs",
+    "abbreviation": "1 Kings",
     "chapters": {
       1: 53, 2: 46, 3: 28, 4: 34, 5: 18, 6: 38, 7: 51, 8: 66, 9: 28, 10: 29,
       11: 43, 12: 33, 13: 34, 14: 31, 15: 34, 16: 34, 17: 24, 18: 46, 19: 21, 20: 43,
@@ -90,7 +90,7 @@
     }
   },
   "2 Kings": {
-    "abbreviation": "2 Kgs",
+    "abbreviation": "2 Kings",
     "chapters": {
       1: 18, 2: 25, 3: 27, 4: 44, 5: 27, 6: 33, 7: 20, 8: 29, 9: 37, 10: 36,
       11: 21, 12: 21, 13: 25, 14: 29, 15: 38, 16: 20, 17: 41, 18: 37, 19: 37, 20: 21,
@@ -98,7 +98,7 @@
     }
   },
   "1 Chronicles": {
-    "abbreviation": "1 Chr",
+    "abbreviation": "1 Chron",
     "chapters": {
       1: 54, 2: 55, 3: 24, 4: 43, 5: 26, 6: 81, 7: 40, 8: 40, 9: 44, 10: 14,
       11: 47, 12: 40, 13: 14, 14: 17, 15: 29, 16: 43, 17: 27, 18: 17, 19: 19, 20: 8,
@@ -106,7 +106,7 @@
     }
   },
   "2 Chronicles": {
-    "abbreviation": "2 Chr",
+    "abbreviation": "2 Chron",
     "chapters": {
       1: 17, 2: 18, 3: 17, 4: 22, 5: 14, 6: 42, 7: 22, 8: 18, 9: 31, 10: 19,
       11: 23, 12: 16, 13: 22, 14: 15, 15: 19, 16: 14, 17: 19, 18: 34, 19: 11, 20: 37,
@@ -119,14 +119,14 @@
     "chapters": { 1: 11, 2: 70, 3: 13, 4: 24, 5: 17, 6: 22, 7: 28, 8: 36, 9: 15, 10: 44 }
   },
   "Nehemiah": {
-    "abbreviation": "Neh",
+    "abbreviation": "Nehemiah",
     "chapters": {
       1: 11, 2: 20, 3: 32, 4: 23, 5: 19, 6: 19, 7: 73, 8: 18, 9: 38, 10: 39,
       11: 36, 12: 47, 13: 31
     }
   },
   "Esther": {
-    "abbreviation": "Esth",
+    "abbreviation": "Esther",
     "chapters": { 1: 22, 2: 23, 3: 15, 4: 17, 5: 14, 6: 14, 7: 10, 8: 17, 9: 32, 10: 3 }
   },
   "Job": {
@@ -140,7 +140,7 @@
     }
   },
   "Psalms": {
-    "abbreviation": "Ps",
+    "abbreviation": "Psalms",
     "chapters": {
       1: 6, 2: 12, 3: 8, 4: 8, 5: 12, 6: 10, 7: 17, 8: 9, 9: 20, 10: 18,
       11: 7, 12: 8, 13: 6, 14: 7, 15: 5, 16: 11, 17: 15, 18: 50, 19: 14, 20: 9,
@@ -160,7 +160,7 @@
     }
   },
   "Proverbs": {
-    "abbreviation": "Prov",
+    "abbreviation": "Proverbs",
     "chapters": {
       1: 33, 2: 22, 3: 35, 4: 27, 5: 23, 6: 35, 7: 27, 8: 36, 9: 18, 10: 32,
       11: 31, 12: 28, 13: 25, 14: 35, 15: 33, 16: 33, 17: 28, 18: 24, 19: 29, 20: 30,
@@ -180,7 +180,7 @@
     "chapters": { 1: 17, 2: 17, 3: 11, 4: 16, 5: 16, 6: 13, 7: 13, 8: 14 }
   },
   "Isaiah": {
-    "abbreviation": "Isa",
+    "abbreviation": "Isaiah",
     "chapters": {
       1: 31, 2: 22, 3: 26, 4: 6, 5: 30, 6: 13, 7: 25, 8: 22, 9: 21, 10: 34,
       11: 16, 12: 6, 13: 22, 14: 32, 15: 9, 16: 14, 17: 14, 18: 7, 19: 25, 20: 6,
@@ -192,7 +192,7 @@
     }
   },
   "Jeremiah": {
-    "abbreviation": "Jer",
+    "abbreviation": "Jeremiah",
     "chapters": {
       1: 19, 2: 37, 3: 25, 4: 31, 5: 31, 6: 30, 7: 34, 8: 22, 9: 26, 10: 25,
       11: 23, 12: 17, 13: 27, 14: 22, 15: 21, 16: 21, 17: 27, 18: 23, 19: 15, 20: 18,
@@ -207,7 +207,7 @@
     "chapters": { 1: 22, 2: 22, 3: 66, 4: 22, 5: 22 }
   },
   "Ezekiel": {
-    "abbreviation": "Ezek",
+    "abbreviation": "Ezekiel",
     "chapters": {
       1: 28, 2: 10, 3: 27, 4: 17, 5: 17, 6: 14, 7: 27, 8: 18, 9: 11, 10: 22,
       11: 25, 12: 28, 13: 23, 14: 23, 15: 8, 16: 63, 17: 24, 18: 32, 19: 14, 20: 49,
@@ -217,14 +217,14 @@
     }
   },
   "Daniel": {
-    "abbreviation": "Dan",
+    "abbreviation": "Daniel",
     "chapters": {
       1: 21, 2: 49, 3: 30, 4: 37, 5: 31, 6: 28, 7: 28, 8: 27, 9: 27, 10: 21,
       11: 45, 12: 13
     }
   },
   "Hosea": {
-    "abbreviation": "Hos",
+    "abbreviation": "Hosea",
     "chapters": {
       1: 11, 2: 23, 3: 5, 4: 19, 5: 15, 6: 11, 7: 16, 8: 14, 9: 17, 10: 15,
       11: 12, 12: 14, 13: 16, 14: 9
@@ -247,38 +247,38 @@
     "chapters": { 1: 17, 2: 10, 3: 10, 4: 11 }
   },
   "Micah": {
-    "abbreviation": "Mic",
+    "abbreviation": "Micah",
     "chapters": { 1: 16, 2: 13, 3: 12, 4: 13, 5: 15, 6: 16, 7: 20 }
   },
   "Nahum": {
-    "abbreviation": "Nah",
+    "abbreviation": "Nahum",
     "chapters": { 1: 15, 2: 13, 3: 19 }
   },
   "Habakkuk": {
-    "abbreviation": "Hab",
+    "abbreviation": "Habakkuk",
     "chapters": { 1: 17, 2: 20, 3: 19 }
   },
   "Zephaniah": {
-    "abbreviation": "Zeph",
+    "abbreviation": "Zephaniah",
     "chapters": { 1: 18, 2: 15, 3: 20 }
   },
   "Haggai": {
-    "abbreviation": "Hag",
+    "abbreviation": "Haggai",
     "chapters": { 1: 15, 2: 23 }
   },
   "Zechariah": {
-    "abbreviation": "Zech",
+    "abbreviation": "Zechariah",
     "chapters": {
       1: 21, 2: 13, 3: 10, 4: 14, 5: 11, 6: 15, 7: 14, 8: 23, 9: 17, 10: 12,
       11: 17, 12: 14, 13: 9, 14: 21
     }
   },
   "Malachi": {
-    "abbreviation": "Mal",
+    "abbreviation": "Malachi",
     "chapters": { 1: 14, 2: 17, 3: 18, 4: 6 }
   },
   "Matthew": {
-    "abbreviation": "Matt",
+    "abbreviation": "Matthew",
     "chapters": {
       1: 25, 2: 23, 3: 17, 4: 25, 5: 48, 6: 34, 7: 29, 8: 34, 9: 38, 10: 42,
       11: 30, 12: 50, 13: 58, 14: 36, 15: 39, 16: 28, 17: 27, 18: 35, 19: 30, 20: 34,
@@ -317,7 +317,7 @@
     }
   },
   "Romans": {
-    "abbreviation": "Rom",
+    "abbreviation": "Romans",
     "chapters": {
       1: 32, 2: 29, 3: 31, 4: 25, 5: 21, 6: 23, 7: 25, 8: 39, 9: 33, 10: 21,
       11: 36, 12: 21, 13: 14, 14: 23, 15: 33, 16: 27
@@ -338,19 +338,19 @@
     }
   },
   "Galatians": {
-    "abbreviation": "Gal",
+    "abbreviation": "Galatians",
     "chapters": { 1: 24, 2: 21, 3: 29, 4: 31, 5: 26, 6: 18 }
   },
   "Ephesians": {
-    "abbreviation": "Eph",
+    "abbreviation": "Ephesians",
     "chapters": { 1: 23, 2: 22, 3: 21, 4: 32, 5: 33, 6: 24 }
   },
   "Philippians": {
-    "abbreviation": "Phil",
+    "abbreviation": "Philippians",
     "chapters": { 1: 30, 2: 30, 3: 21, 4: 23 }
   },
   "Colossians": {
-    "abbreviation": "Col",
+    "abbreviation": "Colossians",
     "chapters": { 1: 29, 2: 23, 3: 25, 4: 18 }
   },
   "1 Thessalonians": {
@@ -374,26 +374,26 @@
     "chapters": { 1: 16, 2: 15, 3: 15 }
   },
   "Philemon": {
-    "abbreviation": "Philem",
+    "abbreviation": "Philemon",
     "chapters": { 1: 25 }
   },
   "Hebrews": {
-    "abbreviation": "Heb",
+    "abbreviation": "Hebrews",
     "chapters": {
       1: 14, 2: 18, 3: 19, 4: 16, 5: 14, 6: 20, 7: 28, 8: 13, 9: 28, 10: 39,
       11: 40, 12: 29, 13: 25
     }
   },
   "James": {
-    "abbreviation": "Jas",
+    "abbreviation": "James",
     "chapters": { 1: 27, 2: 26, 3: 18, 4: 17, 5: 20 }
   },
   "1 Peter": {
-    "abbreviation": "1 Pet",
+    "abbreviation": "1 Peter",
     "chapters": { 1: 25, 2: 25, 3: 22, 4: 19, 5: 14 }
   },
   "2 Peter": {
-    "abbreviation": "2 Pet",
+    "abbreviation": "2 Peter",
     "chapters": { 1: 21, 2: 22, 3: 18 }
   },
   "1 John": {
@@ -413,7 +413,7 @@
     "chapters": { 1: 25 }
   },
   "Revelation": {
-    "abbreviation": "Rev",
+    "abbreviation": "Revelation",
     "chapters": {
       1: 20, 2: 29, 3: 22, 4: 11, 5: 14, 6: 17, 7: 17, 8: 13, 9: 21, 10: 11,
       11: 19, 12: 17, 13: 18, 14: 20, 15: 8, 16: 21, 17: 18, 18: 24, 19: 21, 20: 15,

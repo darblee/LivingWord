@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
  */
 internal object Global {
     val DEFAULT_TOPICS = listOf("Faith", "Love")
-    const val BUTTON_WIDTH = 60
+    const val BUTTON_WIDTH = 100
     const val BUTTON_HEIGHT = 30
     val SMALL_ACTION_BUTTON_MODIFIER = Modifier.height(40.dp).width(80.dp)
     val SMALL_ACTION_BUTTON_PADDING = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
