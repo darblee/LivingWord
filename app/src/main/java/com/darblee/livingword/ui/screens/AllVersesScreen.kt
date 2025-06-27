@@ -198,10 +198,11 @@ fun AllVersesScreen(
     // Show the transient dialog
     if (showRetrievingDataDialog) {
         // Derive the message from the ViewModel's state
-        val loadingMessage = when {
-            newVerseState.isScriptureLoading -> "Fetching scripture..."
-            newVerseState.aiResponseLoading -> "Fetching insights from AI..."
-            else -> "Finalizing..." // Fallback message while waiting for save
+        val loadingMessage = when (newVerseState.loadingStage) {
+            NewVerseViewModel.LoadingStage.FETCHING_SCRIPTURE -> "Fetching scripture..."
+            NewVerseViewModel.LoadingStage.FETCHING_TAKEAWAY -> "Fetching insights from AI..."
+            NewVerseViewModel.LoadingStage.VALIDATING_TAKEAWAY -> "Validating insights..."
+            else -> "Finalizing..." // Fallback message
         }
         TransientRetrievingDataDialog(loadingMessage = loadingMessage)
     }
@@ -369,10 +370,12 @@ fun AllVersesScreen(
 
 
 // Helper function to determine if content is ready to be saved
-private fun readyToSave(state: NewVerseViewModel.NewVerseScreenState): Boolean{
-    return ((state.selectedVerse != null) &&
-            (!state.aiResponseLoading) &&
-            (!state.isScriptureLoading))
+private fun readyToSave(state: NewVerseViewModel.NewVerseScreenState): Boolean {
+    return (state.selectedVerse != null &&
+            state.loadingStage == NewVerseViewModel.LoadingStage.NONE &&
+            !state.isContentSaved &&
+            state.scriptureError == null &&
+            state.aiResponseError == null)
 }
 
 @Composable

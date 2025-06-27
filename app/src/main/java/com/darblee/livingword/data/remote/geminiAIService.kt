@@ -1,6 +1,7 @@
 package com.darblee.livingword.data.remote
 
 import android.util.Log
+import androidx.compose.material3.Text
 import com.darblee.livingword.AISettings // Import AISettings
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
@@ -28,6 +29,11 @@ data class KeyTakeawayResponse(
     val sources: List<String>
 )
 
+@Serializable
+data class EvaluationResponse(
+    val is_acceptable: Boolean,
+    val feedback: String
+)
 
 /**
  * Service object for interacting with the Gemini AI API.
@@ -303,6 +309,75 @@ object GeminiAIService {
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
             AiServiceResult.Error("Could not get AI score from AI (${e.javaClass.simpleName}).", e)
+        }
+    }
+
+    /**
+     * Evaluates a given take-away text for a specific verse to determine if it is acceptable.
+     * This function uses a separate Gemini model configured with an evaluator system prompt.
+     *
+     * @param verseRef The Bible verse reference (e.g., "John 3:16") that the takeaway is for.
+     * @param takeawayToEvaluate The string text of the take-away to be evaluated.
+     * @return [AiServiceResult.Success] with a Boolean indicating if the takeaway is acceptable,
+     * or [AiServiceResult.Error] if an issue occurs.
+     */
+    suspend fun validateKeyTakeawayResponse(verseRef: String, takeawayToEvaluate: String): AiServiceResult<Boolean> { // MODIFIED signature
+        if (!isConfigured || currentAISettings == null) {
+            return AiServiceResult.Error("GeminiAIService has not been configured.")
+        }
+        if (generativeModel == null) {
+            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
+        }
+
+        try {
+            // System prompt for the evaluator model
+            val evaluatorSystemPrompt = content(role = "system") {
+                text("You are an evaluator that decides whether a take-away answer is acceptable or not based on its alignment with core Judeo-Christian values and theological accuracy for the specific verse provided.")
+            }
+
+            // It's good practice to create a specific model for this specific task
+            // This ensures the system prompts do not conflict
+            val evaluatorModel = GenerativeModel(
+                modelName = currentAISettings!!.modelName,
+                apiKey = currentAISettings!!.apiKey,
+                generationConfig = generationConfig {
+                    temperature = 0.2f // Lower temperature for more deterministic evaluation
+                },
+                systemInstruction = evaluatorSystemPrompt
+            )
+
+            // MODIFIED prompt to include the verseRef for context
+            val prompt = """
+            Please evaluate the following take-away text for $verseRef.
+            Take-away: "$takeawayToEvaluate"
+
+            Respond in the following JSON format:
+            {
+              "is_acceptable": boolean,
+              "feedback": "Your brief feedback on the evaluation, considering the context of the verse."
+            }
+            """.trimIndent()
+
+            Log.d("GeminiAIService", "Sending evaluation prompt to Gemini: \"$prompt\"")
+
+            val response = evaluatorModel.generateContent(prompt)
+            val responseText = response.text
+
+            Log.d("GeminiAIService", "Gemini Evaluation Response: $responseText")
+
+            if (responseText != null) {
+                val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
+                val parsedResponse = jsonParser.decodeFromString<EvaluationResponse>(cleanedJson)
+
+                // Return just the boolean 'is_acceptable' value
+                return AiServiceResult.Success(parsedResponse.is_acceptable)
+            } else {
+                return AiServiceResult.Error("Received empty response from evaluator AI.")
+            }
+
+        } catch (e: Exception) {
+            Log.e("GeminiAIService", "Error during take-away validation: ${e.message}", e)
+            return AiServiceResult.Error("Could not validate take-away from AI (${e.javaClass.simpleName}).", e)
         }
     }
 

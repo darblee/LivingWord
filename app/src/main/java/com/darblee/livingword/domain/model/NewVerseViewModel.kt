@@ -18,33 +18,38 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+
 /**
  * ViewModel for the Learn Screen, responsible for managing state and fetching data for a
  * single verse display.
  */
 class NewVerseViewModel(application: Application) : AndroidViewModel(application) {
 
+    enum class LoadingStage {
+        NONE,
+        FETCHING_SCRIPTURE,
+        FETCHING_TAKEAWAY,
+        VALIDATING_TAKEAWAY
+    }
+
     /**
      * Represents the UI state for the LearnScreen.
      */
     data class NewVerseScreenState(
-        // State related to topic selection for the *current* item
         val selectedTopics: List<String> = emptyList(),
-        val isTopicContentLoading: Boolean = false, // Loading state for topic-based content
+        val isTopicContentLoading: Boolean = false,
 
-        // State for the currently displayed single verse
         val selectedVerse: BibleVerseRef? = null,
         val scriptureVerses: List<Verse> = emptyList(),
         val aiResponseText: String = "",
-        val isScriptureLoading: Boolean = false,
-        val aiResponseLoading: Boolean = false,
+        val loadingStage: LoadingStage = LoadingStage.NONE,
         val scriptureError: String? = null,
         val aiResponseError: String? = null,
-        val generalError: String? = null, // For other errors like Gemini init
-        val isContentSaved: Boolean = false, // Track if current content has been saved
+        val generalError: String? = null,
+        val isContentSaved: Boolean = false,
         val newlySavedVerseId: Long? = null,
         val isLoading: Boolean = false,
-        val isAiServiceReady: Boolean = false, // To track AI service status
+        val isAiServiceReady: Boolean = false,
         val translation: String = ""
     )
 
@@ -110,11 +115,10 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 selectedVerse = null,
                 aiResponseText = "",
                 selectedTopics = emptyList(),
-                isScriptureLoading = false,
-                aiResponseLoading = false,
+                loadingStage = LoadingStage.NONE,
                 scriptureVerses = emptyList(),
                 scriptureError = null,
-                aiResponseError = currentAiStatus.aiResponseError, // Use refreshed error status
+                aiResponseError = currentAiStatus.aiResponseError,
                 generalError = currentAiStatus.generalError,
                 isContentSaved = false,
                 newlySavedVerseId = null,
@@ -140,7 +144,9 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             (currentState.aiResponseText.isNotEmpty() || currentState.aiResponseError != null || !geminiReady)
         ) {
             Log.d("NewVerseViewModel", "Verse $verse already loaded. Skipping fetch.")
-            if (geminiReady && currentState.aiResponseText.isEmpty() && currentState.aiResponseError != null && !currentState.aiResponseLoading) {
+            if (geminiReady && currentState.aiResponseText.isEmpty() && currentState.aiResponseError != null &&
+                currentState.loadingStage != LoadingStage.FETCHING_TAKEAWAY && currentState.loadingStage != LoadingStage.VALIDATING_TAKEAWAY
+            ) {
                 Log.d("NewVerseViewModel", "Retrying AI response fetch for $verse.")
                 fetchKeyTakeAwayOnly(verse)
             }
@@ -152,9 +158,8 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         _state.update {
             it.copy(
                 selectedVerse = verse,
-                isScriptureLoading = true,
-                aiResponseLoading = geminiReady,
-                aiResponseText = if (geminiReady) "Fetching insights from AI..." else (geminiInitError ?: "AI Service not ready."),
+                loadingStage = if (geminiReady) LoadingStage.FETCHING_SCRIPTURE else LoadingStage.NONE,
+                aiResponseText = if (geminiReady) "Starting process..." else (geminiInitError ?: "AI Service not ready."),
                 scriptureError = null,
                 aiResponseError = if (geminiReady) null else geminiInitError,
                 generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || geminiInitError?.contains("API Key missing", ignoreCase = true) == true) geminiInitError else null,
@@ -162,61 +167,61 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             )
         }
 
+        if (!geminiReady) return
+
         fetchDataJob = viewModelScope.launch {
             val translation = preferenceStore.readTranslationFromSetting()
 
-            if (!geminiReady) {
-                _state.update {
-                    it.copy(
-                        aiResponseLoading = false,
-                        aiResponseError = it.aiResponseError ?: "Cannot fetch data as AI service is not ready."
-                    )
-                }
-                return@launch
-            }
-
+            // STAGE 1: Fetch Scripture
+            _state.update { it.copy(loadingStage = LoadingStage.FETCHING_SCRIPTURE) }
             when (val scriptureResult = geminiService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
-                    val scriptureVerses = scriptureResult.data
-                    _state.update {
-                        it.copy(
-                            isScriptureLoading = false,
-                            translation = translation,
-                            scriptureVerses = scriptureVerses
-                        )
-                    }
+                    _state.update { it.copy(scriptureVerses = scriptureResult.data) }
                 }
-
                 is AiServiceResult.Error -> {
-                    _state.update {
-                        it.copy(
-                            isScriptureLoading = false,
-                            scriptureVerses = emptyList(),
-                            scriptureError = scriptureResult.message
-                        )
-                    }
+                    _state.update { it.copy(loadingStage = LoadingStage.NONE, scriptureError = scriptureResult.message) }
+                    return@launch // Stop the process on error
                 }
             }
 
+            // STAGE 2: Get Key Takeaway
+            _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY) }
             val verseRef = verseReferenceBibleVerseRef(verse)
             when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
-                    _state.update {
-                        it.copy(
-                            aiResponseLoading = false,
-                            aiResponseText = takeAwayResult.data,
-                            aiResponseError = null
-                        )
+                    val takeawayResponseText = takeAwayResult.data
+
+                    // STAGE 3: Validate Takeaway
+                    _state.update { it.copy(loadingStage = LoadingStage.VALIDATING_TAKEAWAY) }
+                    when (val validationResult = GeminiAIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
+                        is AiServiceResult.Success -> {
+                            if (validationResult.data) {
+                                Log.i("NewVerse", "Takeaway for $verseRef is acceptable: $takeawayResponseText")
+                                _state.update {
+                                    it.copy(
+                                        loadingStage = LoadingStage.NONE,
+                                        aiResponseText = takeawayResponseText,
+                                        aiResponseError = null
+                                    )
+                                }
+                            } else {
+                                Log.w("NewVerse", "Takeaway for $verseRef was rejected.")
+                                _state.update {
+                                    it.copy(
+                                        loadingStage = LoadingStage.NONE,
+                                        aiResponseError = "The AI-generated insight was rejected by the validator. Please try again."
+                                    )
+                                }
+                            }
+                        }
+                        is AiServiceResult.Error -> {
+                            Log.e("MyApp", "Validation failed: ${validationResult.message}")
+                            _state.update { it.copy(loadingStage = LoadingStage.NONE, aiResponseError = "Validation failed: ${validationResult.message}") }
+                        }
                     }
                 }
                 is AiServiceResult.Error -> {
-                    _state.update {
-                        it.copy(
-                            aiResponseLoading = false,
-                            aiResponseText = "",
-                            aiResponseError = takeAwayResult.message
-                        )
-                    }
+                    _state.update { it.copy(loadingStage = LoadingStage.NONE, aiResponseError = takeAwayResult.message) }
                 }
             }
         }
@@ -228,14 +233,14 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             Log.w("NewVerseViewModel", "Skipping take-away retry as GeminiAIService is not initialized/configured.")
             _state.update {
                 it.copy(
-                    aiResponseLoading = false,
+                    loadingStage = LoadingStage.NONE,
                     aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() ?: "AI Service not ready."
                 )
             }
             return
         }
 
-        _state.update { it.copy(aiResponseLoading = true, aiResponseError = null, aiResponseText = "Getting key take-away...") }
+        _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY, aiResponseError = null, aiResponseText = "Getting key take-away...") }
 
         val verseRef = verseReferenceBibleVerseRef(verse)
 
@@ -244,7 +249,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 is AiServiceResult.Success -> {
                     _state.update {
                         it.copy(
-                            aiResponseLoading = false,
+                            loadingStage = LoadingStage.NONE,
                             aiResponseText = takeAwayResult.data,
                             aiResponseError = null
                         )
@@ -253,7 +258,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 is AiServiceResult.Error -> {
                     _state.update {
                         it.copy(
-                            aiResponseLoading = false,
+                            loadingStage = LoadingStage.NONE,
                             aiResponseText = "",
                             aiResponseError = takeAwayResult.message
                         )
