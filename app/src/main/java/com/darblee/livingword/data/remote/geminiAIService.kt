@@ -7,7 +7,10 @@ import com.darblee.livingword.data.Verse
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
 import com.google.ai.client.generativeai.type.generationConfig
+import com.google.ai.client.generativeai.type.content
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.Serializable // Add this import at the top of the file
+
 
 /**
  * Sealed class to represent the result of an AI service call,
@@ -17,6 +20,14 @@ sealed class AiServiceResult<out T> {
     data class Success<out T>(val data: T) : AiServiceResult<T>()
     data class Error(val message: String, val cause: Throwable? = null) : AiServiceResult<Nothing>()
 }
+
+// 1. Define a data class that matches the expected JSON structure.
+@Serializable
+data class KeyTakeawayResponse(
+    val key_takeaway_text: String,
+    val sources: List<String>
+)
+
 
 /**
  * Service object for interacting with the Gemini AI API.
@@ -32,7 +43,6 @@ object GeminiAIService {
 
     // JSON parser for handling responses from the Gemini API.
     private val jsonParser = Json { ignoreUnknownKeys = true }
-
 
     /**
      * Configures and initializes the Gemini GenerativeModel with the provided settings.
@@ -51,6 +61,11 @@ object GeminiAIService {
 
         try {
             if (settings.apiKey.isNotBlank()) {
+                // Define the system instruction
+                val instruction = content(role = "system") {
+                    text ("You are an expert in theology. Respond in English. Your answers must align closely with core Judeo-Christian values.".trimIndent())
+                }
+
                 generativeModel = GenerativeModel(
                     modelName = settings.modelName,
                     apiKey = settings.apiKey,
@@ -60,9 +75,10 @@ object GeminiAIService {
                         // topK = 1
                         // topP = 0.95f
                         // maxOutputTokens = 8192
-                    }
+                    },
+                    systemInstruction = instruction
                 )
-                Log.i("GeminiAIService", "GenerativeModel initialized successfully with new settings.")
+                Log.i("GeminiAIService", "GenerativeModel initialized successfully with new settings and system instruction.")
             } else {
                 val errorMsg = "Gemini API Key is missing. AI Service cannot be initialized."
                 Log.w("GeminiAIService", errorMsg)
@@ -204,7 +220,14 @@ object GeminiAIService {
         }
 
         return try {
-            val prompt = "Tell me the key take-away for $verseRef"
+            val prompt = """
+        Tell me the key take-away for $verseRef.
+        Respond in the following JSON format:
+        {
+          "key_takeaway_text": "The key takeaway."
+          "sources": [ "source1", "source2" ]
+        }
+        """.trimIndent()
             Log.d("GeminiAIService", "Sending prompt to Gemini: \"$prompt\"")
 
             val response: GenerateContentResponse = generativeModel!!.generateContent(prompt)
@@ -213,7 +236,11 @@ object GeminiAIService {
             Log.d("GeminiAIService", "Gemini Response: $responseText")
 
             if (responseText != null) {
-                AiServiceResult.Success(responseText)
+                val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
+                val parsedResponse = jsonParser.decodeFromString<KeyTakeawayResponse>(cleanedJson)
+
+                // 3. Return the human-readable string from the parsed object
+                AiServiceResult.Success(parsedResponse.key_takeaway_text)
             } else {
                 AiServiceResult.Error("Received empty response from AI.")
             }

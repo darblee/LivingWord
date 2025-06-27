@@ -520,7 +520,6 @@ private fun TranslationSetting(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor()
             )
             ExposedDropdownMenu(
                 expanded = expanded,
