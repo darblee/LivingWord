@@ -130,25 +130,18 @@ class MemorizeVerseViewModel() : ViewModel(){
                 )
             }
             // Call the GeminiAIService
-            when (val memorizedScoreResult = geminiService.getAIScore(verseRef, directQuoteToEvaluate, contextToEvaluate)) {
+            when (val scoreData = geminiService.getAIScore(verseRef, directQuoteToEvaluate, contextToEvaluate)) {
                 is AiServiceResult.Success -> {
 
-                    var responseJSONText = (memorizedScoreResult.data).removePrefix("```json").removeSuffix("```").trim()
-
-                    // Create a Json parser instance
-                    val json = Json { ignoreUnknownKeys = true } // ignoreUnknownKeys is good practice
-
                     try {
-                        // Deserialize the JSON string into an instance of ScoreData
-                        val scoreData = json.decodeFromString<ScoreData>(responseJSONText)
 
                         _state.update {
                             it.copy(
                                 aiResponseLoading = false,
-                                directQuoteScore = scoreData.DirectQuoteScore,
-                                contextScore = scoreData.ContextScore,
-                                aiDirectQuoteExplanationText = scoreData.DirectQuoteExplanation,
-                                aiContextExplanationText = scoreData.ContextExplanation,
+                                directQuoteScore = scoreData.data.DirectQuoteScore,
+                                contextScore = scoreData.data.ContextScore,
+                                aiDirectQuoteExplanationText = scoreData.data.DirectQuoteExplanation,
+                                aiContextExplanationText = scoreData.data.ContextExplanation,
                                 aiResponseError = null
                             )
                         }
@@ -177,7 +170,7 @@ class MemorizeVerseViewModel() : ViewModel(){
                             contextScore = -1,
                             aiDirectQuoteExplanationText = "", // Clear score on error
                             aiContextExplanationText = "",
-                            aiResponseError = memorizedScoreResult.message
+                            aiResponseError = scoreData.message
                         )
                     }
                 }

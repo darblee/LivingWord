@@ -147,4 +147,6 @@ dependencies {
     implementation(libs.google.api.client.android)
     implementation(libs.google.api.services.drive)
     implementation(libs.google.http.client.gson)
+
+    // implementation(libs.openai.client)
 }

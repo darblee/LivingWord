@@ -1,10 +1,10 @@
 package com.darblee.livingword.data.remote
 
 import android.util.Log
-import androidx.compose.material3.Text
 import com.darblee.livingword.AISettings // Import AISettings
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
+import com.darblee.livingword.domain.model.ScoreData
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
 import com.google.ai.client.generativeai.type.generationConfig
@@ -34,6 +34,7 @@ data class EvaluationResponse(
     val is_acceptable: Boolean,
     val feedback: String
 )
+
 
 /**
  * Service object for interacting with the Gemini AI API.
@@ -263,7 +264,7 @@ object GeminiAIService {
      * @param directQuoteToEvaluate for the Direct Quote text.
      * @return [AiServiceResult.Success] with the take-away text, or [AiServiceResult.Error] if an issue occurs.
      */
-    suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, contextToEvaluate: String): AiServiceResult<String> {
+    suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, contextToEvaluate: String): AiServiceResult<ScoreData> {
         if (!isConfigured) {
             return AiServiceResult.Error("GeminiAIService has not been configured.")
         }
@@ -272,21 +273,37 @@ object GeminiAIService {
         }
 
         return try {
+            // System prompt for the evaluator model
+            val scoreSystemPrompt = content(role = "system") {
+                text("You are an Bible scholar that need to do an assessment based on core Judeo-Christian values and theological accuracy for the specific verse provided.")
+            }
+
+            // It's good practice to create a specific model for this specific task
+            // This ensures the system prompts do not conflict
+            val scoreModel = GenerativeModel(
+                modelName = currentAISettings!!.modelName,
+                apiKey = currentAISettings!!.apiKey,
+                generationConfig = generationConfig {
+                    temperature = 0.2f // Lower temperature for more deterministic evaluation
+                },
+                systemInstruction = scoreSystemPrompt
+            )
+
             val prompt = """
-            Provide % scores of provided text for Bible verse $verseRef.
-            "Direct Quote Score" is based on direct quote accuracy on the following provided direct quote text:
+            Bible verse is $verseRef.
+            DirectQuoteScore - Calculate direct quote accuracy score from range of 0 to 100 on the following  text:
 
             $directQuoteToEvaluate
 
-            "Direct Quote Explanation" is explanation on Direct Quote Score.
+            DirectQuoteExplanation - This the explanation on how DirectQuoteScore was derived.
 
-            "Context Score" is based on contextual accuracy on the provided context text:
+            ContextScore - Calculate the contextual accuracy on the provided text:
 
             $contextToEvaluate
 
-            "Context Explanation" is the explanation on Context Score.
+            ContextExplanation - This the explanation on how ContextScore was derived.
 
-            Respond in the following JSON format:
+            Only respond in the following JSON format with no other text:
             {
              "DirectQuoteScore" : integer between 0 to 100,
              "ContextScore" : integer between 0 to 100,
@@ -296,13 +313,16 @@ object GeminiAIService {
             """
             Log.d("GeminiAIService", "Sending memorized score prompt to Gemini: \"$prompt\"")
 
-            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt)
+            val response: GenerateContentResponse = scoreModel.generateContent(prompt)
             val responseText = (response.text)?.trimIndent()
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
 
             if (responseText != null) {
-                AiServiceResult.Success(responseText)
+                val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
+                val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
+
+                AiServiceResult.Success(parseResponse)
             } else {
                 AiServiceResult.Error("Received empty response from AI.")
             }
@@ -346,7 +366,6 @@ object GeminiAIService {
                 systemInstruction = evaluatorSystemPrompt
             )
 
-            // MODIFIED prompt to include the verseRef for context
             val prompt = """
             Please evaluate the following take-away text for $verseRef.
             Take-away: "$takeawayToEvaluate"
