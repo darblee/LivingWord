@@ -28,9 +28,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.PlayCircleOutline
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -259,8 +259,7 @@ private fun DisplayPlayPauseIcon(
         imageVector = when {
             isSpeaking && !isPaused -> Icons.Default.PauseCircleOutline
             isPaused -> Icons.Default.PlayCircleOutline
-            else -> Icons.Filled.RecordVoiceOver
-        },
+            else -> Icons.Filled.Headset },
         contentDescription = when {
             isSpeaking && !isPaused -> "Pause Speech"
             isPaused -> "Resume Speech"

@@ -21,8 +21,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Home
@@ -200,7 +200,7 @@ fun AppScaffold(
                         }
                     },
                     label = { Text("Topics") },
-                    icon = { Icon(Icons.Filled.Church, contentDescription = "Topic") }
+                    icon = { Icon(Icons.Filled.Bookmarks, contentDescription = "Topic") }
                 )
             }
         }

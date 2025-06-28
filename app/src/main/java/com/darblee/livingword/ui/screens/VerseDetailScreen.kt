@@ -73,8 +73,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Headset
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.unit.sp
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
@@ -681,7 +681,7 @@ fun VerseDetailScreen(
                                 inEditMode -> Icons.Filled.Delete // Or your preferred delete icon
                                 isTtsSpeaking && !isTtsPaused -> Icons.Filled.Pause
                                 isTtsPaused -> Icons.Filled.PlayArrow
-                                else -> Icons.Filled.RecordVoiceOver // Default "Read Aloud" icon
+                                else -> Icons.Filled.Headset // Default "Read Aloud" icon
                             }
                             val contentDescription = when {
                                 inEditMode -> "Delete"
