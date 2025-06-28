@@ -176,7 +176,11 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             _state.update { it.copy(loadingStage = LoadingStage.FETCHING_SCRIPTURE) }
             when (val scriptureResult = geminiService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
-                    _state.update { it.copy(scriptureVerses = scriptureResult.data) }
+                    _state.update { it.copy(
+                        scriptureVerses = scriptureResult.data,
+                        translation = translation
+                        )
+                    }
                 }
                 is AiServiceResult.Error -> {
                     _state.update { it.copy(loadingStage = LoadingStage.NONE, scriptureError = scriptureResult.message) }
