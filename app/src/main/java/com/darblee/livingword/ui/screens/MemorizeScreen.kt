@@ -1272,7 +1272,7 @@ fun MemorizeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LabeledOutlinedBox(
-                    label = "Scripture",
+                    label =  if (verse != null) "Scripture (${verse?.translation})" else "",
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.3F)

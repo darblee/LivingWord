@@ -150,6 +150,8 @@ fun VerseDetailScreen(
 
     val verseItem = verseItemState.value
 
+    Log.i("VerseDetailScreen", "TRanslation = ${verseItem?.translation}")
+
     // State for controlling the edit mode
     var inEditMode by remember { mutableStateOf(editMode) }
 
@@ -223,7 +225,7 @@ fun VerseDetailScreen(
     val savedStateHandle = currentBackStackEntry?.savedStateHandle
 
     // Use LaunchedEffect tied to lifecycle to observe results from SavedStateHandle
-    LaunchedEffect(savedStateHandle, lifecycleOwner.lifecycle) {
+    LaunchedEffect(savedStateHandle, lifecycleOwner.lifecycle, verseItem) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
 
             // Observe Topic Result
@@ -289,7 +291,7 @@ fun VerseDetailScreen(
         title = {
             val titleString =
                 if (verseItem != null) {
-                    verseReference(verseItem) + " (" + verseItem.translation + ")"
+                    verseReference(verseItem)
                 } else {
                     "Loading..."
                 }
@@ -318,7 +320,9 @@ fun VerseDetailScreen(
             ) {
                 // --- Scripture Box ---
                 LabeledOutlinedBox(
-                    label = "Scripture",
+                    label =  if (verseItem != null) {
+                        Log.i("Recompose", "TRanslation value: ${verseItem.translation}")
+                        "Scripture (${verseItem.translation})" } else "",
                     modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
                 ) {
                     // Scripture Box
