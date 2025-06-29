@@ -4,6 +4,7 @@ import android.util.Log
 import com.darblee.livingword.Global
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map // Ensure this import is present
 import kotlinx.coroutines.withContext
 
@@ -53,13 +54,6 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         withContext(Dispatchers.IO) {
             for (topicName in topicNames) {
                 try {
-                    // 1. Check if it's a default topic; if so, skip deletion.
-                    if (Global.DEFAULT_TOPICS.any { it.equals(topicName, ignoreCase = true) }) {
-                        Log.d("BibleVerseRepository", "Topic '$topicName' is a default topic, not deleting.")
-                        continue
-                    }
-
-                    // 2. Get the Topic entity to find its ID.
                     val topicEntity = bibleVerseDao.getTopicByName(topicName)
                     if (topicEntity != null) {
                         // 3. Double-check if any verses are still associated with this topicId.
@@ -103,74 +97,46 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
     fun getAllTopicsWithCount(): Flow<List<TopicWithCount>> {
         return bibleVerseDao.getAllTopicsWithCount().map { dbTopicsWithCount ->
             val mutableTopics = dbTopicsWithCount.toMutableList()
-            val existingTopicNamesLowercase = mutableTopics.map { it.topic.lowercase() }.toMutableSet()
 
-            Global.DEFAULT_TOPICS.forEach { defaultTopicName ->
-                val defaultTopicLowercase = defaultTopicName.lowercase()
-                if (!existingTopicNamesLowercase.contains(defaultTopicLowercase)) {
-                    // Check if a case-variant of the default topic already exists from the DB.
-                    // This handles scenarios where DB might have "Prayer" and default is "prayer".
-                    // The .any check is more robust if existingTopicNamesLowercase isn't perfectly synced
-                    // or if casing in Global.DEFAULT_TOPICS isn't consistent.
-                    val alreadyExistsWithDifferentCase = mutableTopics.any {
-                        it.topic.equals(defaultTopicName, ignoreCase = true)
-                    }
-                    if (!alreadyExistsWithDifferentCase) {
-                        mutableTopics.add(TopicWithCount(topic = defaultTopicName, verseCount = 0))
-                        // Add to set as well to prevent re-adding if multiple default topic entries are just case variations of each other
-                        existingTopicNamesLowercase.add(defaultTopicLowercase)
-                    }
-                }
-            }
             // Sort the final list by topic name, case-insensitively, for consistent ordering.
             mutableTopics.sortBy { it.topic.lowercase() }
             mutableTopics.toList() // Return an immutable list
         }
     }
 
-
-    // --- Support for Rename Topic ---
     /**
-     * Renames a topic.
-     * @param oldTopicName The current name of the topic.
-     * @param newTopicName The new name for the topic.
-     * @throws IllegalArgumentException if the topic is a default topic, or if newTopicName already exists as a different topic.
-     * @throws NoSuchElementException if the oldTopicName is not found.
+     * Checks if the topics table is empty and, if so, populates it with default topics.
+     * This is a workaround to seed the database without a direct DAO insert for topics.
+     * It creates a temporary verse with the default topics and then deletes it, leaving the topics.
      */
-    suspend fun renameTopic(oldTopicName: String, newTopicName: String) {
-        if (Global.DEFAULT_TOPICS.any { it.equals(oldTopicName, ignoreCase = true) }) {
-            Log.w("BibleVerseRepository", "Attempt to rename default topic '$oldTopicName' was blocked.")
-            throw IllegalArgumentException("Default topics cannot be renamed.")
-        }
-
-        val oldTopicEntity = bibleVerseDao.getTopicByName(oldTopicName)
-            ?: throw NoSuchElementException("Topic '$oldTopicName' not found and cannot be renamed.")
-
-        // If new and old names are identical (case-sensitive), no action needed.
-        if (oldTopicName == newTopicName) {
-            Log.i("BibleVerseRepository", "Topic rename: old and new names are identical ('$oldTopicName'). No change.")
-            return
-        }
-
-        val newTopicCheck = bibleVerseDao.getTopicByName(newTopicName)
-        if (newTopicCheck != null && newTopicCheck.id != oldTopicEntity.id) {
-            // newTopicName exists and belongs to a *different* topic.
-            Log.w("BibleVerseRepository", "Attempt to rename topic '$oldTopicName' to '$newTopicName', but '$newTopicName' already exists as a different topic.")
-            throw IllegalArgumentException("Topic '$newTopicName' already exists.")
-        }
-
-        // If newTopicCheck is not null and newTopicCheck.id == oldTopicEntity.id,
-        // it means newTopicName is just a case variation of oldTopicName. This is permissible.
-
+    suspend fun addDefaultTopicsIfEmpty() {
         withContext(Dispatchers.IO) {
-            bibleVerseDao.renameTopicInDb(oldTopicName, newTopicName, oldTopicEntity.id)
+            // Use .first() to get the current list from the Flow once
+            if (bibleVerseDao.getAllTopicsWithCount().first().isEmpty()) {
+                Log.i("BibleVerseRepository", "No topics found, populating with default topics.")
+                try {
+                    val verseId = insertVerseWithTopics(
+                        book = "System",
+                        chapter = 0,
+                        startVerse = 0,
+                        endVerse = 0,
+                        aiTakeAwayResponse = "Initial topic setup",
+                        topics = Global.DEFAULT_TOPICS,
+                        favorite = false,
+                        translation = "Internal",
+                        verses = emptyList()
+                    )
+                    val tempVerse = getVerseById(verseId)
+                    deleteVerse(tempVerse)
+                    Log.i("BibleVerseRepository", "Default topics created successfully.")
+                } catch (e: Exception) {
+                    Log.e("BibleVerseRepository", "Error creating default topics", e)
+                }
+            }
         }
     }
 
     suspend fun renameOrMergeTopic(oldTopicName: String, newTopicName: String, isMergeIntent: Boolean) {
-        if (Global.DEFAULT_TOPICS.any { it.equals(oldTopicName, ignoreCase = true) }) {
-            throw IllegalArgumentException("Default topic '$oldTopicName' cannot be renamed or merged from.")
-        }
 
         val oldTopicEntity = bibleVerseDao.getTopicByName(oldTopicName)
             ?: throw NoSuchElementException("Topic '$oldTopicName' not found.")
@@ -190,10 +156,6 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         if (targetTopicEntity != null && targetTopicEntity.id != oldTopicEntity.id) {
             // New name matches a DIFFERENT existing topic.
             if (isMergeIntent) {
-                if (Global.DEFAULT_TOPICS.any { it.equals(targetTopicEntity.topic, ignoreCase = true) }) {
-                    throw IllegalArgumentException("Cannot merge into a default topic: '${targetTopicEntity.topic}'.")
-                }
-                // Proceed with merge
                 withContext(Dispatchers.IO) {
                     bibleVerseDao.mergeTopics(
                         oldTopicId = oldTopicEntity.id,
@@ -210,7 +172,7 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
             // Simple rename (new name doesn't exist or is a case change of the same topic)
             // targetTopicEntity will be null if newTopicName doesn't exist.
             // targetTopicEntity will be non-null but targetTopicEntity.id == oldTopicEntity.id if it's a case change.
-            if (targetTopicEntity != null && targetTopicEntity.id == oldTopicEntity.id && targetTopicEntity.topic == newTopicName) {
+            if (targetTopicEntity != null && targetTopicEntity.topic == newTopicName) {
                 Log.i("BibleVerseRepository", "Topic rename: target is same topic with identical name ('$newTopicName'). No DB change for topic name itself needed, but checking verses.")
                 // Still call renameTopicInDb as verse topic strings might need case update if oldTopicName was different case
             }

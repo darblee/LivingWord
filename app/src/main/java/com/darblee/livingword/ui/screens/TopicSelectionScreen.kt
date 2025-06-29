@@ -87,11 +87,11 @@ fun TopicSelectionScreen(
 
     LaunchedEffect(allTopics, preSelectedTopics) { // Use allTopics and preSelectedTopics as keys
         Log.i("TopicSelectionScreen", "Received the topics: $preSelectedTopics, count : ${preSelectedTopics.size}")
-        topicSelectionViewModel.initializeTopics(allTopics + Global.DEFAULT_TOPICS, preSelectedTopics) // Modify initializeTopics
+        topicSelectionViewModel.initializeTopics(allTopics, preSelectedTopics) // Modify initializeTopics
     }
 
     LaunchedEffect(Unit) {
-        topicSelectionViewModel.initializeTopics(allTopics + Global.DEFAULT_TOPICS, preSelectedTopics)
+        topicSelectionViewModel.initializeTopics(allTopics, preSelectedTopics)
     }
 
     TopicSelectionContent(

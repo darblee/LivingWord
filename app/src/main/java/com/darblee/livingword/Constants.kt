@@ -13,7 +13,8 @@ import androidx.compose.ui.unit.dp
  * Global variables used throughout the entire app
  */
 internal object Global {
-    val DEFAULT_TOPICS = listOf("Faith", "Love")
+    // Initial list of topics made available on new deploymemt of app. User can delete them (if desired)
+    val DEFAULT_TOPICS = listOf("Faith", "Love", "Forgiveness")
     const val BUTTON_WIDTH = 100
     const val BUTTON_HEIGHT = 30
     val SMALL_ACTION_BUTTON_MODIFIER = Modifier.height(40.dp).width(80.dp)

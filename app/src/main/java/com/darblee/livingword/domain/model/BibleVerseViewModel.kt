@@ -34,6 +34,9 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     val favoriteVerses: StateFlow<List<BibleVerse>> = _favoriteVerses
 
     init {
+        viewModelScope.launch {
+            repository.addDefaultTopicsIfEmpty()
+        }
         getAllVerses()
         getAllTopicsWithCount()
         getAllFavoriteVerses() // Add this line to your existing init block
@@ -233,7 +236,6 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         return repository.getVerseById(id)
     }
 
-    // --- Added for Rename Topic ---
     fun renameOrMergeTopic(oldTopicName: String, newTopicName: String, isMergeIntent: Boolean) {
         val trimmedNewName = newTopicName.trim()
         if (trimmedNewName.isBlank()) {

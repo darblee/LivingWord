@@ -101,13 +101,8 @@ fun RenameTopicDialog(
             }
 
             if (existingMatch != null) {
-                if (Global.DEFAULT_TOPICS.any { it.equals(existingMatch, ignoreCase = true) }) {
-                    uiErrorMessage = "Cannot merge into default topic: \"$existingMatch\"."
-                    showMergeWarning = false
-                } else {
-                    showMergeWarning = true
-                    potentialMergeTarget = existingMatch
-                }
+                showMergeWarning = true
+                potentialMergeTarget = existingMatch
             }
         }
     }
@@ -296,21 +291,15 @@ fun TopicScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Button(
                             onClick = {
                                 if (selectedTopics.count() == 1) {
-                                    val topicName = selectedTopics.first()
-                                    if (Global.DEFAULT_TOPICS.any { defaultTopic -> defaultTopic.equals(topicName, ignoreCase = true) }) {
-                                        bibleViewModel.postUserMessage("Default topic \"$topicName\" cannot be renamed.")
-                                        Log.i("ShowVerseBYTopic", "Default topic \"$topicName\" cannot be renamed." )
-                                        errMessage.value = "Default topic \"$topicName\" cannot be renamed."
-                                        showErrorDialog.value = true
-                                    } else {
-                                        showRenameDialog = true
-                                    }
+                                    showRenameDialog = true
                                 }
                             },
                             enabled = selectedTopics.count() == 1, //
@@ -325,40 +314,8 @@ fun TopicScreen(
 
                         Button(
                             onClick = { //
-                                // Use topicsForDisplay to check uiVerseCount for deletion eligibility
-                                val topicsPotentiallyDeletable = selectedTopics.filter { selectedTopicName ->
-                                    topicsForDisplay.find { it.name == selectedTopicName }?.uiVerseCount == 0
-                                }
-
-                                if (topicsPotentiallyDeletable.isNotEmpty()) {
-                                    val defaultTopicsAttempted = topicsPotentiallyDeletable.filter { topicName ->
-                                        Global.DEFAULT_TOPICS.any { defaultTopic -> defaultTopic.equals(topicName, ignoreCase = true) } //
-                                    }
-
-                                    var messageToUser = ""
-
-                                    if (defaultTopicsAttempted.isNotEmpty()) {
-                                        val names = defaultTopicsAttempted.joinToString(", ") { "\"$it\"" }
-                                        messageToUser = "Default topic(s) $names cannot be deleted. " //
-                                        Log.i("ShowVerseBYTopic", "Default topic $names cannot be deleted." )
-                                        errMessage.value = "Default topic $names cannot be deleted."
-                                        showErrorDialog.value = true
-                                    }
-
-                                    val actualTopicsToDelete = topicsPotentiallyDeletable.filterNot { topicName ->
-                                        defaultTopicsAttempted.contains(topicName)
-                                    }
-
-                                    if (actualTopicsToDelete.isNotEmpty()) {
-                                        bibleViewModel.deleteTopics(actualTopicsToDelete) //
-                                        selectedTopics = selectedTopics.filterNot { actualTopicsToDelete.contains(it) } //
-                                        messageToUser += if (defaultTopicsAttempted.isEmpty()) "Selected topic(s) with 0 verses submitted for deletion." else "Other selected topics with 0 verses submitted for deletion." //
-                                    }
-
-                                    if (messageToUser.isNotBlank()) {
-                                        bibleViewModel.postUserMessage(messageToUser.trim()) //
-                                    }
-                                }
+                                bibleViewModel.deleteTopics(selectedTopics)
+                                selectedTopics = emptyList() // Reset selection
                             },
                             // Update enabled logic to use topicsForDisplay and uiVerseCount
                             enabled = selectedTopics.isNotEmpty() && selectedTopics.all { selTopic ->
