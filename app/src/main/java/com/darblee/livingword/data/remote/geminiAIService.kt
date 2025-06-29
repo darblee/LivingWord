@@ -6,9 +6,15 @@ import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.domain.model.ScoreData
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.BlockThreshold
+import com.google.ai.client.generativeai.type.FunctionDeclaration
+import com.google.ai.client.generativeai.type.FunctionType
 import com.google.ai.client.generativeai.type.GenerateContentResponse
+import com.google.ai.client.generativeai.type.HarmCategory
+import com.google.ai.client.generativeai.type.SafetySetting
 import com.google.ai.client.generativeai.type.generationConfig
 import com.google.ai.client.generativeai.type.content
+import com.google.ai.client.generativeai.type.Tool
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.Serializable // Add this import at the top of the file
 
@@ -78,6 +84,7 @@ object GeminiAIService {
                     apiKey = settings.apiKey,
                     generationConfig = generationConfig {
                         temperature = settings.temperature
+                        responseMimeType = "application/json"
                         // You can add other generationConfig properties here if needed
                         // topK = 1
                         // topP = 0.95f
@@ -227,6 +234,30 @@ object GeminiAIService {
         }
 
         return try {
+            val takeAwaySystemPrompt = content (role = "system") {
+                text("You are highly respected minister and Bible Scholar, who loves Jesus deeply and desire to guide other to have deep relationship with God and Jesus. You desire to guide everyone to follow Jesus teaching.  You will align to core Judeo-Christian values")
+            }
+
+            val harassmentSafety = SafetySetting(HarmCategory.HARASSMENT, BlockThreshold.LOW_AND_ABOVE)
+            val hateSpeechSafety = SafetySetting(HarmCategory.HATE_SPEECH, BlockThreshold.LOW_AND_ABOVE)
+            val explicitSexSafety = SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.LOW_AND_ABOVE)
+            val dangerSafety = SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.LOW_AND_ABOVE)
+
+
+            val groundingTool = Tool(
+                functionDeclarations = listOf()
+            )
+
+            val takeAwayModel = GenerativeModel(
+                modelName = currentAISettings!!.modelName,
+                apiKey = currentAISettings!!.apiKey,
+                generationConfig = generationConfig {
+                    temperature = 0.2f // Lower temperature for more deterministic evaluation
+                },
+                safetySettings = listOf(harassmentSafety, hateSpeechSafety, explicitSexSafety, dangerSafety),
+                systemInstruction = takeAwaySystemPrompt
+            )
+
             val prompt = """
         Tell me the key take-away for $verseRef.
         Respond in the following JSON format:
@@ -237,7 +268,7 @@ object GeminiAIService {
         """.trimIndent()
             Log.d("GeminiAIService", "Sending prompt to Gemini: \"$prompt\"")
 
-            val response: GenerateContentResponse = generativeModel!!.generateContent(prompt)
+            val response: GenerateContentResponse = takeAwayModel.generateContent(prompt)
             val responseText = response.text
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
