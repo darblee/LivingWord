@@ -106,8 +106,10 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
 
     /**
      * Checks if the topics table is empty and, if so, populates it with default topics.
-     * This is a workaround to seed the database without a direct DAO insert for topics.
-     * It creates a temporary verse with the default topics and then deletes it, leaving the topics.
+     *
+     * Since there isn't a DAO method to add a list of topics all at once, this function accomplish this by
+     * creating and then deleting a temporary verse* It creates a temporary verse with the default topics
+     * and then deletes it, leaving the topics.
      */
     suspend fun addDefaultTopicsIfEmpty() {
         withContext(Dispatchers.IO) {

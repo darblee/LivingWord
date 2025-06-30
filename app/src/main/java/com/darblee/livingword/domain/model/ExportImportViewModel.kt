@@ -49,6 +49,9 @@ class ExportImportViewModel : ViewModel() {
         _exportState.value = OperationState.InProgress
         viewModelScope.launch {
             try {
+                // Close the database to ensure all recent changes are written to the main DB file.
+                AppDatabase.getDatabase(context).close()
+
                 // Generate a timestamped filename
                 val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
                 val exportFileName = "${Global.DATABASE_NAME}-$timestamp.db"
@@ -119,7 +122,6 @@ class ExportImportViewModel : ViewModel() {
         }
     }
 
-    // This new function restores the database file selected by the user
     fun importSelectedDatabase(context: Context, tokenCredential: GoogleIdTokenCredential, fileId: String) {
         _importState.value = OperationState.InProgress
         viewModelScope.launch {
@@ -133,7 +135,8 @@ class ExportImportViewModel : ViewModel() {
                     val outputStream = java.io.FileOutputStream(dbPath)
                     driveService.downloadFile(fileId, outputStream)
                 }
-                _importState.value = OperationState.Complete(true, "Import successful! Please restart the app.")
+                // Use a specific message to signal the UI to show the exit dialog
+                _importState.value = OperationState.Complete(true, "IMPORT_SUCCESS_RESTART_REQUIRED")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _importState.value = OperationState.RequiresPermissions(e.intent)

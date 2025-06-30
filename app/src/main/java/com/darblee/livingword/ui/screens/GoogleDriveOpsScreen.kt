@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +68,8 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
 
 private val ExportImportViewModel = ExportImportViewModel()
 
@@ -93,6 +96,9 @@ fun GoogleDriveOpsScreen(
     // State for managing the import dialog
     var showImportDialog by remember { mutableStateOf(false) }
     var availableImports by remember { mutableStateOf<List<DriveFile>>(emptyList()) }
+
+    // State for managing the exit dialog
+    var showExitDialog by remember { mutableStateOf(false) }
 
     /**
      * The following is used to start an activity (e.g. Google sign-in permission) and process the outcome when
@@ -150,6 +156,31 @@ fun GoogleDriveOpsScreen(
         }
     }
 
+
+    LaunchedEffect(importState) {
+        when (val state = importState) {
+            is OperationState.RequiresPermissions -> {
+                authorizationLauncher.launch(state.intent)
+            }
+            is OperationState.Complete -> {
+                showImportDialog = false // Hide import selection dialog on completion
+                if (state.message == "IMPORT_SUCCESS_RESTART_REQUIRED") {
+                    showExitDialog = true
+                } else {
+                    // Show a toast for any other completion messages (like errors)
+                    Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                }
+                ExportImportViewModel.resetImportState()
+            }
+            is OperationState.ImportFileSelection -> {
+                availableImports = state.files
+                showImportDialog = true
+                ExportImportViewModel.resetImportState() // Reset state so dialog doesn't reopen
+            }
+            else -> {} // Do nothing for NotStarted or InProgress
+        }
+    }
+
     // Show the dialog when `showImportDialog` is true
     if (showImportDialog) {
         ImportSelectionDialog(
@@ -162,6 +193,17 @@ fun GoogleDriveOpsScreen(
             },
             onDismissRequest = {
                 showImportDialog = false
+            }
+        )
+    }
+
+    // Show the exit dialog when `showExitDialog` is true
+    if (showExitDialog) {
+        ExitAppDialog(
+            onDismissRequest = {
+                showExitDialog = false
+                // फिनिश एक्टिविटी ऑन डिसमिस
+                (context as? Activity)?.finish()
             }
         )
     }
@@ -196,7 +238,7 @@ fun GoogleDriveOpsScreen(
                             }
                         },
                         shape = RoundedCornerShape(16.dp),
-                        ) {
+                    ) {
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = "Sign In"
@@ -256,54 +298,59 @@ fun GoogleDriveOpsScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Row to hold the large square buttons for Export and Import
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Export Button
-                    Button(
-                        onClick = {
-                            signedInCredential?.let { credential ->
-                                ExportImportViewModel.exportDatabase(context, credential)
-                            }
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.size(140.dp),
-                        enabled = ((exportState is OperationState.NotStarted) && (signedInCredential != null)),
+                // Show progress indicator if an operation is in progress, otherwise show buttons
+                if (exportState is OperationState.InProgress || importState is OperationState.InProgress) {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                } else {
+                    // Row to hold the large square buttons for Export and Import
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.CloudUpload,
-                                contentDescription = "EXPORT",
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("EXPORT")
-                        }
-                    }
-
-                    // Import Button
-                    Button(
-                        onClick = {
-                            signedInCredential?.let { credential ->
-                                ExportImportViewModel.listAvailableBackups(context, credential)
+                        // Export Button
+                        Button(
+                            onClick = {
+                                signedInCredential?.let { credential ->
+                                    ExportImportViewModel.exportDatabase(context, credential)
+                                }
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.size(140.dp),
+                            enabled = ((exportState is OperationState.NotStarted) && (signedInCredential != null)),
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudUpload,
+                                    contentDescription = "EXPORT",
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("EXPORT")
                             }
-                        },
-                        modifier = Modifier.size(140.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        enabled = ((importState is OperationState.NotStarted) && (signedInCredential != null)),
-                    )
-                    {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.CloudDownload,
-                                contentDescription = "IMPORT",
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("IMPORT")
+                        }
+
+                        // Import Button
+                        Button(
+                            onClick = {
+                                signedInCredential?.let { credential ->
+                                    ExportImportViewModel.listAvailableBackups(context, credential)
+                                }
+                            },
+                            modifier = Modifier.size(140.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            enabled = ((importState is OperationState.NotStarted) && (signedInCredential != null)),
+                        )
+                        {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDownload,
+                                    contentDescription = "IMPORT",
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("IMPORT")
+                            }
                         }
                     }
                 }
@@ -420,4 +467,43 @@ suspend fun signIn(context: Context, serverClientId: String): GoogleIdTokenCrede
 suspend fun signOut(context: Context) {
     val credentialManager = CredentialManager.create(context)
     credentialManager.clearCredentialState(ClearCredentialStateRequest())
+}
+
+/**
+ * A dialog to inform the user that the import was successful and the app needs to be restarted.
+ * Provides an "EXIT" button to close the application.
+ */
+@Composable
+fun ExitAppDialog(onDismissRequest: () -> Unit) {
+    val context = LocalContext.current
+    Dialog(onDismissRequest = onDismissRequest) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(all = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Import Successful",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "The app must now be restarted for the changes to take effect.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Button(
+                    onClick = {
+                        // Close the activity, which effectively exits the app
+                        (context as? Activity)?.finish()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Exit")
+                }
+            }
+        }
+    }
 }
