@@ -98,7 +98,12 @@ fun TopicSelectionScreen(
         navController = navController,
         topicSelections = state.topicSelections,
         onTopicToggled = topicSelectionViewModel::toggleTopic,
-        onAddNewTopic = topicSelectionViewModel::addNewTopic,
+        onAddNewTopic = { newTopicName ->
+            // UI update so user can see the selected topice
+            topicSelectionViewModel.addNewTopic(newTopicName)
+            // Persist the new topic to the database as requested
+            bibleViewModel.addTopic(newTopicName)
+        },
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         onConfirm = { selectedTopics ->
@@ -190,12 +195,12 @@ internal fun TopicSelectionContent(
                         /***
                          * "IME" stands for "Input Method Editor" - essentially the software keyboard
                          *
-                         *  When the user taps on our "Add New Topic" text field, they'll see a keyboard where the bottom-right key (usually Enter/Return)
-                         *  is replaced with a button labeled "Done". This visually indicates to the user that pressing this button will complete their
-                         *  current task of entering a new topic.
+                         * When the user taps on our "Add New Topic" text field, they'll see a keyboard where the bottom-right key (usually Enter/Return)
+                         * is replaced with a button labeled "Done". This visually indicates to the user that pressing this button will complete their
+                         * current task of entering a new topic.
                          *
-                         *  By itself, setting imeAction = ImeAction.Done only changes how the button looks - it doesn't define what happens when it's pressed.
-                         *  That's why in our code, we pair it with KeyboardActions:
+                         * By itself, setting imeAction = ImeAction.Done only changes how the button looks - it doesn't define what happens when it's pressed.
+                         * That's why in our code, we pair it with KeyboardActions:
                          */
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(
