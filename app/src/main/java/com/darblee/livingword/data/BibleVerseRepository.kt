@@ -182,6 +182,24 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         }
     }
 
+
+    /**
+     * Adds a new topic to the database if it doesn't already exist.
+     * @param topicName The name of the topic to add
+     * @return The ID of the topic (either newly created or existing)
+     */
+    suspend fun addTopic(topicName: String): Long {
+        return withContext(Dispatchers.IO) {
+            val trimmedName = topicName.trim()
+            if (trimmedName.isBlank()) {
+                throw IllegalArgumentException("Topic name cannot be blank")
+            }
+
+            val topic = Topic(topic = trimmedName)
+            bibleVerseDao.insertTopicIfNotExists(topic)
+        }
+    }
+
     suspend fun insertVerseWithTopics(
         book: String,
         chapter: Int,

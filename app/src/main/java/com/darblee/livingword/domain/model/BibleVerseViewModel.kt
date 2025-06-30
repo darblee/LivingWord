@@ -134,6 +134,26 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
     }
 
+
+    fun addTopic(topicName: String) {
+        viewModelScope.launch {
+            try {
+                val trimmedName = topicName.trim()
+                if (trimmedName.isBlank()) {
+                    _errorMessage.value = "Topic name cannot be blank"
+                    return@launch
+                }
+
+                repository.addTopic(trimmedName)
+                Log.i("BibleVerseViewModel", "Successfully added topic: '$trimmedName'")
+                _errorMessage.value = "Topic '$trimmedName' added successfully"
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error adding topic '$topicName': ${e.message}", e)
+                _errorMessage.value = "Error adding topic: ${e.localizedMessage}"
+            }
+        }
+    }
+
     private fun getAllVerses() {
         viewModelScope.launch {
             repository.getAllVerses().collectLatest { verses ->

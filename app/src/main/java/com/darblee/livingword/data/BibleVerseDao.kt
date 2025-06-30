@@ -17,6 +17,16 @@ interface BibleVerseDao {
     @Insert
     suspend fun insertTopic(topic: Topic): Long
 
+    @Insert
+    suspend fun insertTopicIfNotExists(topic: Topic): Long {
+        val existingTopic = getTopicByName(topic.topic)
+        return if (existingTopic != null) {
+            existingTopic.id
+        } else {
+            insertTopic(topic)
+        }
+    }
+
     /***
      * The insertCrossRef() function is a Room Data Access Object (DAO) function designed to insert
      * a record into the CrossRefBibleVerseTopics table. This table serves as a join table in a
