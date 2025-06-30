@@ -38,7 +38,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
             repository.addDefaultTopicsIfEmpty()
         }
         getAllVerses()
-        getAllTopicsWithCount()
+        getAllTopics()
         getAllFavoriteVerses() // Add this line to your existing init block
     }
 
@@ -163,9 +163,9 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     }
 
     // Replace the existing getAllTopics() method with this:
-    private fun getAllTopicsWithCount() {
+    private fun getAllTopics() {
         viewModelScope.launch {
-            repository.getAllTopicsWithCount().collectLatest { topicsWithCount ->
+            repository.getAllTopics().collectLatest { topicsWithCount ->
                 _allTopicsWithCount.value = topicsWithCount
             }
         }

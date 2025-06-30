@@ -94,7 +94,7 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
      *
      * Note: This assumes the existence of a data class `TopicWithCount(val topic: String, val verseCount: Int)`.
      */
-    fun getAllTopicsWithCount(): Flow<List<TopicWithCount>> {
+    fun getAllTopics(): Flow<List<TopicWithCount>> {
         return bibleVerseDao.getAllTopicsWithCount().map { dbTopicsWithCount ->
             val mutableTopics = dbTopicsWithCount.toMutableList()
 
