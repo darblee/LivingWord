@@ -123,6 +123,9 @@ interface BibleVerseDao {
     @Query("SELECT * FROM BibleVerse_Items WHERE id = :id")
     suspend fun getVerseById(id: Long): BibleVerse
 
+    @Query("SELECT * FROM BibleVerse_Items WHERE id = :id")
+    fun getVerseFlow(id: Long): Flow<BibleVerse>
+
     @Query("SELECT * FROM Topics WHERE topic = :topicName")
     suspend fun getTopicByName(topicName: String): Topic?
 

@@ -1,5 +1,8 @@
 package com.darblee.livingword.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
@@ -36,6 +40,7 @@ import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -50,6 +55,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.darblee.livingword.AISettings
 import com.darblee.livingword.BuildConfig
+import com.darblee.livingword.Global
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen // Your sealed class for routes
@@ -58,6 +64,8 @@ import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -495,7 +503,6 @@ private fun TranslationSetting(
     onTranslationChange: (String) -> Unit,
     preferenceStore: PreferenceStore
 ) {
-    val translations = listOf("ESV", "NIV", "AMP", "NKJV", "KJV")
     var expanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -515,7 +522,11 @@ private fun TranslationSetting(
                 readOnly = true,
                 label = { Text("Translation") },
                 trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    val rotation by animateFloatAsState(
+                        targetValue = if (expanded) 180f else 0f,
+                        animationSpec = tween(durationMillis = 500), label = ""
+                    )
+                    Icon(Icons.Filled.ArrowDropDown, "Dropdown Arrow", Modifier.rotate(rotation))
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -523,9 +534,10 @@ private fun TranslationSetting(
             )
             ExposedDropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.animateContentSize()
             ) {
-                translations.forEach { translation ->
+                Global.bibleTranslations.forEach { translation ->
                     DropdownMenuItem(
                         text = { Text(translation) },
                         onClick = {

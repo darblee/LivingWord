@@ -1,6 +1,8 @@
 package com.darblee.livingword.ui.screens
 
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +41,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -75,9 +76,13 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Headset
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.unit.sp
+import com.darblee.livingword.Global
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
+import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.Screen
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerse
@@ -143,12 +148,10 @@ fun VerseDetailScreen(
     // Remember scroll states for the text fields (UI concern)
     val aiResponseScrollState = rememberScrollState()
 
-    // Use produceState to asynchronously load the BibleVerse
-    val verseItemState = produceState<BibleVerse?>(initialValue = null, verseID) {
-        value = bibleViewModel.getVerseById(verseID)
-    }
+    // Observe the verse as a state from a Flow. This will automatically update
+    // when the data changes in the database.
+    val verseItem by bibleViewModel.getVerseFlow(verseID).collectAsStateWithLifecycle(initialValue = null)
 
-    val verseItem = verseItemState.value
 
     Log.i("VerseDetailScreen", "TRanslation = ${verseItem?.translation}")
 
@@ -190,8 +193,14 @@ fun VerseDetailScreen(
     var scriptureDropdownMenuOffset by remember { mutableStateOf(Offset.Zero) }
     var showAiResponseDropdownMenu by remember { mutableStateOf(false) }
     var aiResponseDropdownMenuOffset by remember { mutableStateOf(Offset.Zero) }
+    var expandedTranslation by remember { mutableStateOf(false) }
+
 
     val localDensity = LocalDensity.current
+
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val preferenceStore = remember { PreferenceStore(context) }
 
     fun enterEditMode() {
         ttsViewModel.stopAllSpeaking() // Stop any TTS when entering edit mode
@@ -287,11 +296,12 @@ fun VerseDetailScreen(
         }
     }
 
+
     AppScaffold(
         title = {
             val titleString =
                 if (verseItem != null) {
-                    verseReference(verseItem)
+                    verseReference(verseItem!!)
                 } else {
                     "Loading..."
                 }
@@ -319,85 +329,137 @@ fun VerseDetailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // --- Scripture Box ---
-                LabeledOutlinedBox(
-                    label =  if (verseItem != null) {
-                        Log.i("Recompose", "TRanslation value: ${verseItem.translation}")
-                        "Scripture (${verseItem.translation})" } else "",
-                    modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.4f)
+                        .heightIn(min = 50.dp)
                 ) {
-                    // Scripture Box
-                    val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
-
-                    // Determine if scripture should be highlighted (either single TTS or sequence TTS)
-                    val isScriptureTargetedForTts =
-                        (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
-                                (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.SCRIPTURE)
-
-
-                    // Use the new composable for scriptureJson
-                    val scriptureAnnotatedText = if (verseItem != null) {
-                        buildAnnotatedStringForScripture(
-                            scriptureVerses = verseItem.scriptureVerses,
-                            isTargeted = isScriptureTargetedForTts,
-                            highlightSentenceIndex = currentTtsSentenceIndex,
-                            isSpeaking = isTtsSpeaking,
-                            isPaused = isTtsPaused,
-                            baseStyle = SpanStyle(color = baseTextColor),
-                            highlightStyle = SpanStyle(
-                                background = MaterialTheme.colorScheme.primaryContainer,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Scripture",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 4.dp, end = 8.dp),
+                            fontSize = 15.sp
                         )
-                    } else {
-                        buildAnnotatedString { append("Loading scripture....") }
+
+                        // Dropdown for translation selection
+                        val selectedTranslation = verseItem?.translation ?: ""
+
+                        TextButton(onClick = { expandedTranslation = true }) {
+                            Text(text = "($selectedTranslation)")
+                        }
+                        DropdownMenu(
+                            expanded = expandedTranslation,
+                            onDismissRequest = { expandedTranslation = false }
+                        ) {
+                            Global.bibleTranslations.forEach { translation ->
+                                DropdownMenuItem(
+                                    text = { Text(translation) }, // Display the translation name
+                                    onClick = { // This lambda is executed when the item is clicked
+                                        expandedTranslation = false // Close the dropdown
+                                        if (verseItem != null && verseItem?.translation != translation) {
+                                            // Save the preference and reload the verse content
+                                            coroutineScope.launch {
+                                                preferenceStore.saveTranslationToSetting(translation)
+                                            }
+                                            bibleViewModel.reloadVerseWithNewTranslation(verseItem!!.id, translation)
+                                        }
+                                    })
+                            }
+                        }
                     }
 
-                    Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
-                        Text(
-                            text = scriptureAnnotatedText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
-                                            if (isTtsInitialized && verseItem != null) {
-                                                scriptureDropdownMenuOffset =
-                                                    touchOffset // Store the touch position
-                                                showScriptureDropdownMenu = true
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth() // Fill width within the Column
+                            .heightIn(min = 48.dp) // Ensure a minimum height, adjust as needed
+                            .border(
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                shape = RoundedCornerShape(8.dp) // Consistent corner rounding
+                            )
+                            .clip(RoundedCornerShape(8.dp)) // Clip content to rounded shape
+                            .padding(horizontal = 12.dp, vertical = 8.dp), // Padding inside the box
+                        contentAlignment = Alignment.TopStart // Align content (e.g., BasicTextField)
+                    ) {
+                        // Scripture Box
+                        val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
+
+                        // Determine if scripture should be highlighted (either single TTS or sequence TTS)
+                        val isScriptureTargetedForTts =
+                            (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.SCRIPTURE && currentTtsOperationMode == TTS_OperationMode.SINGLE_TEXT) ||
+                                    (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && currentTtsSequencePart == VerseDetailSequencePart.SCRIPTURE)
+
+
+                        // Use the new composable for scriptureJson
+                        val scriptureAnnotatedText = if (verseItem != null) {
+                            buildAnnotatedStringForScripture(
+                                scriptureVerses = verseItem!!.scriptureVerses,
+                                isTargeted = isScriptureTargetedForTts,
+                                highlightSentenceIndex = currentTtsSentenceIndex,
+                                isSpeaking = isTtsSpeaking,
+                                isPaused = isTtsPaused,
+                                baseStyle = SpanStyle(color = baseTextColor),
+                                highlightStyle = SpanStyle(
+                                    background = MaterialTheme.colorScheme.primaryContainer,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            )
+                        } else {
+                            buildAnnotatedString { append("Loading scripture....") }
+                        }
+
+                        Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
+                            Text(
+                                text = scriptureAnnotatedText,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
+                                                if (isTtsInitialized && verseItem != null) {
+                                                    scriptureDropdownMenuOffset =
+                                                        touchOffset // Store the touch position
+                                                    showScriptureDropdownMenu = true
+                                                }
                                             }
-                                        }
-                                    )
-                                }
-                        )
-
-                        // Approximate height of a single menu item plus some padding
-                        val menuItemVerticalShift = 300.dp
-
-                        DropdownMenu(
-                            expanded = showScriptureDropdownMenu,
-                            onDismissRequest = { showScriptureDropdownMenu = false },
-                            offset = DpOffset(
-                                x = with(localDensity) { scriptureDropdownMenuOffset.x.toDp() },
-                                y = with(localDensity) { scriptureDropdownMenuOffset.y.toDp() } - menuItemVerticalShift
-                            )
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Read from beginning") },
-                                onClick = {
-                                    showScriptureDropdownMenu = false
-                                    if (isTtsInitialized && verseItem != null) {
-                                        activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
-                                        // Stop any other TTS (like sequence) before starting this single text
-                                        if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
-                                            ttsViewModel.stopAllSpeaking()
-                                        }
-                                        val fullScriptureTextForTTS = verseItem.scriptureVerses.joinToString(" ") { it.verseString }
-                                        ttsViewModel.restartSingleText(fullScriptureTextForTTS)
+                                        )
                                     }
-                                }
                             )
+
+                            // Approximate height of a single menu item plus some padding
+                            val menuItemVerticalShift = 300.dp
+
+                            DropdownMenu(
+                                expanded = showScriptureDropdownMenu,
+                                onDismissRequest = { showScriptureDropdownMenu = false },
+                                offset = DpOffset(
+                                    x = with(localDensity) { scriptureDropdownMenuOffset.x.toDp() },
+                                    y = with(localDensity) { scriptureDropdownMenuOffset.y.toDp() } - menuItemVerticalShift
+                                )
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Read from beginning") },
+                                    onClick = {
+                                        showScriptureDropdownMenu = false
+                                        if (isTtsInitialized && verseItem != null) {
+                                            activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
+                                            // Stop any other TTS (like sequence) before starting this single text
+                                            if (currentTtsOperationMode == TTS_OperationMode.VERSE_DETAIL_SEQUENCE && (isTtsSpeaking || isTtsPaused)) {
+                                                ttsViewModel.stopAllSpeaking()
+                                            }
+                                            val fullScriptureTextForTTS = verseItem!!.scriptureVerses.joinToString(" ") { it.verseString }
+                                            ttsViewModel.restartSingleText(fullScriptureTextForTTS)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -610,15 +672,13 @@ fun VerseDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 )
                 {
-                    val snackBarScope = rememberCoroutineScope()
-
                     // Save Button
                     Button(
                         onClick = {
                             if (inEditMode) {
                                 if (newContentNeedToBeSaved) { // Check if there are actual changes to save
                                     verseItem?.let {
-                                        snackBarScope.launch {
+                                        coroutineScope.launch {
                                             // Perform save operation
                                             if (processEditTopics) editedTopics = selectedTopics
 
@@ -627,7 +687,7 @@ fun VerseDetailScreen(
                                                 "Passing in take away text to BibleVIewModel : $editedAiResponse"
                                             )
                                             bibleViewModel.updateVerse(
-                                                verseItem.copy(
+                                                it.copy(
                                                     aiTakeAwayResponse = editedAiResponse,
                                                     topics = editedTopics  // Use the latest editedTopics
                                                 )
@@ -722,7 +782,7 @@ fun VerseDetailScreen(
                                                     val textToToggle = if (activeSingleTtsTextBlock == VerseDetailSingleTtsTarget.AI_RESPONSE) {
                                                         editedAiResponse
                                                     } else {
-                                                        verseItem.scriptureVerses.joinToString(" ") { it.verseString }
+                                                        verseItem!!.scriptureVerses.joinToString(" ") { it.verseString }
                                                     }
                                                     ttsViewModel.togglePlayPauseResumeSingleText(textToToggle)
                                                 }
@@ -735,11 +795,11 @@ fun VerseDetailScreen(
                                                 // Start the full verse detail sequence.
                                                 else {
                                                     val aiTakeaway = editedAiResponse
-                                                    if (verseItem.scriptureVerses.isNotEmpty()) { // Ensure there's scripture to read
+                                                    if (verseItem!!.scriptureVerses.isNotEmpty()) { // Ensure there's scripture to read
                                                         activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                                         ttsViewModel.startVerseDetailSequence(
                                                             aiResponse = aiTakeaway,
-                                                            verseItem = verseItem
+                                                            verseItem = verseItem!!
                                                         )
                                                     } else {
                                                         Log.w(
@@ -753,7 +813,7 @@ fun VerseDetailScreen(
                                                     "VerseDetailScreen",
                                                     "TTS not initialized. Cannot perform TTS action."
                                                 )
-                                                snackBarScope.launch { SnackBarController.showMessage("TTS is not ready yet.") }
+                                                coroutineScope.launch { SnackBarController.showMessage("TTS is not ready yet.") }
                                             }
                                         }   // !inEditMode
                                     }  // OnTap
@@ -768,21 +828,21 @@ fun VerseDetailScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("All") }, // Clarified label
-                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureVerses.isNotEmpty(),
+                                enabled = isTtsInitialized && verseItem != null && verseItem!!.scriptureVerses.isNotEmpty(),
                                 onClick = {
                                     showButtonDropdownMenu = false
                                     if (isTtsInitialized && verseItem != null) {
                                         activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.NONE
                                         ttsViewModel.startVerseDetailSequence(
-                                            aiResponse = verseItem.aiTakeAwayResponse,
-                                            verseItem = verseItem
+                                            aiResponse = verseItem!!.aiTakeAwayResponse,
+                                            verseItem = verseItem!!
                                         )
                                     }
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Scripture (Only)") },
-                                enabled = isTtsInitialized && verseItem != null && verseItem.scriptureVerses.isNotEmpty(),
+                                enabled = isTtsInitialized && verseItem != null && verseItem!!.scriptureVerses.isNotEmpty(),
                                 onClick = {
                                     showButtonDropdownMenu = false
                                     activeSingleTtsTextBlock = VerseDetailSingleTtsTarget.SCRIPTURE
@@ -852,8 +912,6 @@ fun VerseDetailScreen(
 
                 // Confirmation Dialog to delete the verse
                 if (processDeletion && (verseItem != null)) {
-                    val snackBarScope = rememberCoroutineScope()
-
                     AlertDialog(
                         onDismissRequest = { processDeletion = false },
                         title = { Text("Confirm Delete") },
@@ -861,8 +919,8 @@ fun VerseDetailScreen(
                         confirmButton = {
                             TextButton(
                                 onClick = {
-                                    snackBarScope.launch {
-                                        bibleViewModel.deleteVerse(verseItem)
+                                    coroutineScope.launch {
+                                        bibleViewModel.deleteVerse(verseItem!!)
 
                                         // NOTE: deleteVerse() is a suspend call. Ii will wait
                                         // until delete operation is completed before reaching here.

@@ -13,6 +13,17 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
     fun getAllVerses(): Flow<List<BibleVerse>> = bibleVerseDao.getAllVerses()
 
     /**
+     * Retrieves a specific Bible verse as a Flow by its ID.
+     * This allows the UI to observe changes to the verse in real-time.
+     *
+     * @param id The unique ID of the Bible verse to retrieve.
+     * @return A Flow that emits the BibleVerse object whenever it's updated in the database.
+     */
+    fun getVerseFlow(id: Long): Flow<BibleVerse> {
+        return bibleVerseDao.getVerseFlow(id)
+    }
+
+    /**
      * Updates an existing Bible verse and its associated topics.
      * This function will:
      * 1. Atomically update the verse data, including its list of topics.

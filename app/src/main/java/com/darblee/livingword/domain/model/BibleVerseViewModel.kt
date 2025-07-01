@@ -13,6 +13,8 @@ import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.BibleVerseRepository
 import com.darblee.livingword.data.TopicWithCount
 import com.darblee.livingword.data.Verse
+import com.darblee.livingword.data.remote.AiServiceResult
+import com.darblee.livingword.data.remote.GeminiAIService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +43,69 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         getAllTopics()
         getAllFavoriteVerses() // Add this line to your existing init block
     }
+
+    /**
+     * Retrieves a specific Bible verse as a Flow by its ID.
+     * This allows the UI to observe changes to the verse in real-time.
+     * Note: This relies on a corresponding function being added to the BibleVerseRepository.
+     *
+     * @param id The unique ID of the Bible verse to retrieve.
+     * @return A Flow that emits the BibleVerse object whenever it's updated in the database.
+     */
+    fun getVerseFlow(id: Long): Flow<BibleVerse> {
+        return repository.getVerseFlow(id)
+    }
+
+
+    /**
+     * Reloads the scripture text for a given verse with a new translation.
+     * It fetches the new text from an external service and updates the local database.
+     *
+     * @param verseId The ID of the verse to update.
+     * @param newTranslation The new translation code (e.g., "NIV", "ESV").
+     */
+    fun reloadVerseWithNewTranslation(verseId: Long, newTranslation: String) {
+        viewModelScope.launch {
+            try {
+                // Step 1: Get the current verse object to create the reference.
+                val verseToUpdate = repository.getVerseById(verseId)
+                val verseRef = BibleVerseRef(
+                    book = verseToUpdate.book,
+                    chapter = verseToUpdate.chapter,
+                    startVerse = verseToUpdate.startVerse,
+                    endVerse = verseToUpdate.endVerse
+                )
+
+                // Step 2: Fetch the new scripture text from the service.
+                Log.i("BibleVerseViewModel", "Fetching new scripture for $verseRef in $newTranslation")
+                when (val result = GeminiAIService.fetchScripture(verseRef, newTranslation)) {
+                    is AiServiceResult.Success -> {
+                        // Step 3a: On success, create the updated verse and save it.
+                        val newScriptureVerses = result.data
+                        val updatedVerse = verseToUpdate.copy(
+                            translation = newTranslation,
+                            scriptureVerses = newScriptureVerses
+                        )
+                        repository.updateVerse(updatedVerse)
+                        SnackBarController.showMessage("Verse updated to $newTranslation")
+                        Log.i("BibleVerseViewModel", "Successfully updated verse $verseId to $newTranslation.")
+                    }
+                    is AiServiceResult.Error -> {
+                        // Step 3b: On error, log and display the message.
+                        val errorMessage = "Failed to update translation: ${result.message}"
+                        Log.e("BibleVerseViewModel", errorMessage, result.cause)
+                        _errorMessage.value = errorMessage
+                    }
+                }
+            } catch (e: Exception) {
+                // Catch errors from repository.getVerseById or repository.updateVerse
+                val errorMessage = "A database error occurred while updating translation."
+                Log.e("BibleVerseViewModel", "$errorMessage - VerseID: $verseId", e)
+                _errorMessage.value = "$errorMessage Please try again."
+            }
+        }
+    }
+
 
     /**
      * Updates the favorite status of a verse.
