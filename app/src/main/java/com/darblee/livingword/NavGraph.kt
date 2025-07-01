@@ -137,7 +137,8 @@ fun SetUpNavGraph(
         }
 
         composable<Screen.GetBookScreen> {
-            GetBookScreen(navController = navController)
+            GetBookScreen(navController = navController,
+                currentTheme = currentTheme,)
         }
 
         composable<Screen.AddVerseByDescriptionScreen> {

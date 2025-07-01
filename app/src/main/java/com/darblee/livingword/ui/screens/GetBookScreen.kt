@@ -42,9 +42,13 @@ import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.data.BookInfo
+import com.darblee.livingword.ui.theme.ColorThemeOption
 
 @Composable
-fun GetBookScreen(navController: NavHostController) {
+fun GetBookScreen(
+    navController: NavHostController,
+    currentTheme: ColorThemeOption
+) {
 
     // Fetch book lists from BibleData. Remember them to avoid fetching on every recomposition.
     // Note: This assumes BibleData.init() has been called earlier.
@@ -118,15 +122,19 @@ fun GetBookScreen(navController: NavHostController) {
 
             // Content of the selected tab
             when (tabIndex) {
-                0 -> OldTestamentTab(navController, oldTestamentBooks)
-                1 -> NewTestamentTab(navController, newTestamentBooks)
+                0 -> OldTestamentTab(navController, oldTestamentBooks, currentTheme)
+                1 -> NewTestamentTab(navController, newTestamentBooks, currentTheme)
             }
         }
     }
 }
 
 @Composable
-fun OldTestamentTab(navController: NavHostController, books: List<BookInfo>) {
+fun OldTestamentTab(
+    navController: NavHostController,
+    books: List<BookInfo>,
+    currentTheme: ColorThemeOption
+) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -136,13 +144,17 @@ fun OldTestamentTab(navController: NavHostController, books: List<BookInfo>) {
         content = {
             // Use itemsIndexed to get index for color logic
             itemsIndexed(books) { index, bookInfo ->
-                // Color logic based on index within the OT list
-                val buttonColor = when (index) {
-                    in 0..4 -> Color.Yellow // Pentateuch
-                    in 5..16 -> Color.Green // History
-                    in 17..21 -> Color(0xFF800080) // Wisdom/Poetry
-                    in 22..26 -> Color.Red // Major Prophets
-                    else -> Color.Blue // Minor Prophets
+                val buttonColor = if (currentTheme == ColorThemeOption.Light) {
+                    Color.Blue
+                } else {
+                    // Color logic based on index within the OT list
+                    when (index) {
+                        in 0..4 -> Color.Yellow // Pentateuch
+                        in 5..16 -> Color.Green // History
+                        in 17..21 -> Color(0xFF800080) // Wisdom/Poetry
+                        in 22..26 -> Color.Red // Major Prophets
+                        else -> Color.Blue // Minor Prophets
+                    }
                 }
                 bookButton(navController, bookInfo, buttonColor)
             }
@@ -151,7 +163,11 @@ fun OldTestamentTab(navController: NavHostController, books: List<BookInfo>) {
 }
 
 @Composable
-fun NewTestamentTab(navController: NavHostController, books: List<BookInfo>) {
+fun NewTestamentTab(
+    navController: NavHostController,
+    books: List<BookInfo>,
+    currentTheme: ColorThemeOption
+) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -161,14 +177,18 @@ fun NewTestamentTab(navController: NavHostController, books: List<BookInfo>) {
         content = {
             // Use itemsIndexed for the NT list as well
             itemsIndexed(books) { index, bookInfo ->
-                // Color logic based on index within the NT list
-                val buttonColor = when (index) {
-                    in 0..3 -> Color.Yellow // Gospels
-                    4 -> Color.Green // Acts (History)
-                    in 5..13 -> Color(0xFF800080) // Pauline Epistles (General)
-                    in 14..17 -> Color(0xFFFFA500) // Pauline Epistles (Pastoral)
-                    in 18..25 -> Color.Red // General Epistles
-                    else -> Color.Blue // Revelation (Apocalyptic)
+                val buttonColor = if (currentTheme == ColorThemeOption.Light) {
+                    Color.Blue
+                } else {
+                    // Color logic based on index within the NT list
+                    when (index) {
+                        in 0..3 -> Color.Yellow // Gospels
+                        4 -> Color.Green // Acts (History)
+                        in 5..13 -> Color(0xFF800080) // Pauline Epistles (General)
+                        in 14..17 -> Color(0xFFFFA500) // Pauline Epistles (Pastoral)
+                        in 18..25 -> Color.Red // General Epistles
+                        else -> Color.Blue // Revelation (Apocalyptic)
+                    }
                 }
                 bookButton(navController, bookInfo, buttonColor)
             }
