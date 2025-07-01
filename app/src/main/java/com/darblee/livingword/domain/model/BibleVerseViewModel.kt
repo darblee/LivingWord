@@ -201,7 +201,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
      * Updates a verse with the user's memorized direct quote, context, and the scores.
      * This function assumes the BibleVerse data class has fields for this data.
      */
-    fun updateUserMemorizationData(
+    fun updateUserData(
         verseId: Long,
         userDirectQuote: String,
         userDirectQuoteScore: Int,
@@ -240,7 +240,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
      * @param bibleVerse The BibleVerse object to check.
      * @return True if user-entered text exists in either the direct quote or context fields, false otherwise.
      */
-    fun hasUserMemorizationData(bibleVerse: BibleVerse): Boolean {
+    fun hasUserData(bibleVerse: BibleVerse): Boolean {
         // Data is considered "set" if either the direct quote or context text is not empty.
         return bibleVerse.userDirectQuote.isNotEmpty() || bibleVerse.userContext.isNotEmpty()
     }

@@ -56,43 +56,20 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.data.BibleVerseRef
-import com.darblee.livingword.domain.model.MemorizeVerseViewModel
+import com.darblee.livingword.domain.model.EngageVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 
 @Composable
-fun MemorizeScreen(
+fun EngageScreen(
     navController: NavController,
     bibleViewModel: BibleVerseViewModel,
     verseID: Long,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption
 ) {
-    val memorizedViewModel : MemorizeVerseViewModel = viewModel()
-    val state by memorizedViewModel.state.collectAsStateWithLifecycle()
-
-    /**
-     * We need to access topics (list of strings) that is fetched asynchronously
-     * UI reacts to changes in the fetch data (topics).
-     * Re-fetching data when verseID changes.
-     * This potentially allowing the topics to be modified independently elsewhere if needed.
-     *
-     * produceState: This is a Composable function designed to convert non-Compose state
-     * (often from asynchronous operations like network calls or database queries) into Compose
-     * State. It launches a coroutine when it enters the composition and can update its
-     * value over time.
-     *
-     * verseID: This is a key. If the value of verseID changes between recompositions, the
-     * produceState block will cancel its current coroutine (if any) and re-launch the producer
-     * lambda with the new verseID. This is crucial for re-fetching data when an identifier
-     * changes (e.g., user navigates to a different verse).
-     *
-     */
-    var topics: List<String>? by remember { mutableStateOf(emptyList<String>()) }
-    val verseItemState = produceState<BibleVerse?>(initialValue = null, verseID) {
-        value = bibleViewModel.getVerseById(verseID)
-    }
-    topics = verseItemState.value?.topics
+    val engageVerseViewModel : EngageVerseViewModel = viewModel()
+    val state by engageVerseViewModel.state.collectAsStateWithLifecycle()
 
     var verse by remember { mutableStateOf<BibleVerse?>(null) }
     var directQuoteTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
@@ -132,6 +109,9 @@ fun MemorizeScreen(
     // State to control scripture visibility
     var isScriptureVisible by remember { mutableStateOf(false) } // Added state
 
+    // State to track which content to show in the scripture box: "scripture" or "takeAway"
+    var scriptureBoxContentMode by remember { mutableStateOf("scripture") }
+
     // State to control the visibility of the score dialog
     var showScoreDialog by remember { mutableStateOf(false) }
 
@@ -151,7 +131,7 @@ fun MemorizeScreen(
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
         if (!isSpeechRecognitionAvailable) {
-            Log.e("MemorizeScreen", "Speech recognition is not available")
+            Log.e("EngageScreen", "Speech recognition is not available")
             return@LaunchedEffect
         }
 
@@ -285,7 +265,7 @@ fun MemorizeScreen(
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
         if (!isSpeechRecognitionAvailable) {
-            Log.e("MemorizeScreen", "Speech recognition is not available")
+            Log.e("EngageScreen", "Speech recognition is not available")
             return@LaunchedEffect
         }
 
@@ -532,13 +512,13 @@ fun MemorizeScreen(
     AppScaffold(
         title = {
             if (verse != null) {
-                Text("Memorize : ${verseReference(verse!!)}" )
+                Text("Engage : ${verseReference(verse!!)}" )
             } else {
-                Text("Memorize Verse")
+                Text("Engage Verse")
             }
         },
         navController = navController,
-        currentScreenInstance = Screen.MemorizeScreen(verseID = verseID), // Pass the actual Screen instance
+        currentScreenInstance = Screen.EngageScreen(verseID = verseID), // Pass the actual Screen instance
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = { paddingValues ->
@@ -550,7 +530,7 @@ fun MemorizeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 LabeledOutlinedBox(
-                    label = "Memorized context",
+                    label = "Personalized context",
                     modifier = Modifier
                         .fillMaxWidth()
                         .fillMaxHeight()
@@ -577,7 +557,7 @@ fun MemorizeScreen(
                                     value = directQuoteTextFieldValue,
                                     onValueChange = { newValue ->
                                         directQuoteTextFieldValue = newValue
-                                        memorizedViewModel.resetScore()
+                                        engageVerseViewModel.resetScore()
                                     },
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -659,7 +639,7 @@ fun MemorizeScreen(
                                 FloatingActionButton(
                                     onClick = {
                                         if (!hasPermission) {
-                                            Log.w("MemorizeScreen", "Record audio permission not granted.")
+                                            Log.w("EngageScreen", "Record audio permission not granted.")
                                             // TODO: Implement permission request flow if not already present elsewhere
                                             return@FloatingActionButton
                                         }
@@ -740,7 +720,7 @@ fun MemorizeScreen(
                                     value = contextTextFieldValue,
                                     onValueChange = { newValue ->
                                         contextTextFieldValue = newValue
-                                        memorizedViewModel.resetScore()
+                                        engageVerseViewModel.resetScore()
                                     },
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -823,7 +803,7 @@ fun MemorizeScreen(
                                 FloatingActionButton(
                                     onClick = {
                                         if (!hasPermission) {
-                                            Log.w("MemorizeScreen", "Record audio permission not granted.")
+                                            Log.w("EngageScreen", "Record audio permission not granted.")
                                             // TODO: Implement permission request flow if not already present elsewhere
                                             return@FloatingActionButton
                                         }
@@ -930,7 +910,7 @@ fun MemorizeScreen(
 
                         // Determine button states
                         val hasSavedData = remember(verse) {
-                            verse?.let { bibleViewModel.hasUserMemorizationData(it) } ?: false
+                            verse?.let { bibleViewModel.hasUserData(it) } ?: false
                         }
                         // "Show Saved" mode: if data exists, fields are blank, and data hasn't been loaded yet in this session.
                         val isShowDataMode = hasSavedData && directQuoteTextFieldValue.text.isBlank() && !isSavedDataLoaded
@@ -974,7 +954,7 @@ fun MemorizeScreen(
                                                 startVerse = verse!!.startVerse,
                                                 endVerse = verse!!.endVerse
                                             )
-                                            memorizedViewModel.fetchMemorizedScore(
+                                            engageVerseViewModel.fetchScore(
                                                 verseInfo,
                                                 directQuoteToEvaluate,
                                                 contextToEvaluate
@@ -1013,7 +993,7 @@ fun MemorizeScreen(
                                             val directQuoteScoreToSave = state.directQuoteScore.coerceAtLeast(0)
                                             val contextScoreToSave = state.contextScore.coerceAtLeast(0)
 
-                                            bibleViewModel.updateUserMemorizationData(
+                                            bibleViewModel.updateUserData(
                                                 verseId = currentVerse.id,
                                                 userDirectQuote = directQuoteToSave,
                                                 userDirectQuoteScore = directQuoteScoreToSave,
@@ -1088,7 +1068,7 @@ fun MemorizeScreen(
                                                     text = savedVerse.userContext,
                                                     selection = TextRange(savedVerse.userContext.length)
                                                 )
-                                                memorizedViewModel.loadScores(
+                                                engageVerseViewModel.loadScores(
                                                     directQuoteScore = savedVerse.userDirectQuoteScore,
                                                     contextScore = savedVerse.userContextScore
                                                 )
@@ -1292,20 +1272,24 @@ fun MemorizeScreen(
                         {
                             if (isScriptureVisible) {
                                 val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
-
-                                var scriptureAnnotatedText = verse?.let {
-                                    buildAnnotatedStringForScripture(
-                                        scriptureVerses = it.scriptureVerses,
-                                        isTargeted = false,
-                                        highlightSentenceIndex = -1,
-                                        isSpeaking = false,
-                                        isPaused = false,
-                                        baseStyle = SpanStyle(color = baseTextColor),
-                                        highlightStyle = SpanStyle(
-                                            background = MaterialTheme.colorScheme.primaryContainer,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                var scriptureAnnotatedText = when (scriptureBoxContentMode) {
+                                    "scripture" -> verse?.let {
+                                        buildAnnotatedStringForScripture(
+                                            scriptureVerses = it.scriptureVerses,
+                                            isTargeted = false,
+                                            highlightSentenceIndex = -1,
+                                            isSpeaking = false,
+                                            isPaused = false,
+                                            baseStyle = SpanStyle(color = baseTextColor),
+                                            highlightStyle = SpanStyle(
+                                                background = MaterialTheme.colorScheme.primaryContainer,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
                                         )
-                                    )
+                                    }
+                                    "takeAway" -> verse?.let {
+                                        buildAnnotatedString { append(it.aiTakeAwayResponse) }}
+                                    else -> buildAnnotatedString { append("Loading content....") }
                                 }
 
                                 if (scriptureAnnotatedText == null) {
@@ -1315,7 +1299,7 @@ fun MemorizeScreen(
                                 SelectionContainer {
                                     Text(
                                         text = scriptureAnnotatedText,
-                                        style = MaterialTheme.typography.bodyLarge,
+                                        style = MaterialTheme.typography.bodyMedium, // Adjusted for potentially longer text
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .verticalScroll(rememberScrollState())
@@ -1349,19 +1333,34 @@ fun MemorizeScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
-                                onClick = { isScriptureVisible = true },
-                                enabled = !isScriptureVisible,
+                                onClick = {
+                                    isScriptureVisible = true
+                                    scriptureBoxContentMode = "scripture"
+                                },
                                 shape = RoundedCornerShape(4.dp)
                             )
                             {
-                                Text(text = "Reveal")
+                                Text(text = "Scripture")
                             }
                             Button(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
+                                onClick = {
+                                    isScriptureVisible = true
+                                    scriptureBoxContentMode = "takeAway"
+                                },
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            {
+                                Text(text = "Take-Away")
+                            }
+                            Button(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth() // Ensure button text fits
+                                    .height(48.dp),
                                 onClick = { isScriptureVisible = false },
-                                enabled = isScriptureVisible,
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(text = "Hide")
@@ -1425,7 +1424,7 @@ fun MemorizeScreen(
                             if (state.aiResponseLoading) {
                                 TextButton(onClick = {
                                     // Handle cancel/dismiss during loading if necessary
-                                    // e.g., memorizedViewModel.cancelScoreCalculation()
+                                    // e.g., engageViewModel.cancelScoreCalculation()
                                     showScoreDialog = false // For now, just dismiss
                                 }) {
                                     Text("Cancel")

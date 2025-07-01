@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 @Serializable
 data class ScoreData(
@@ -23,7 +22,7 @@ data class ScoreData(
 )
 
 
-class MemorizeVerseViewModel() : ViewModel(){
+class EngageVerseViewModel() : ViewModel(){
 
     /**
      * Represents the UI state for the NewVerse screen.
@@ -98,7 +97,7 @@ class MemorizeVerseViewModel() : ViewModel(){
         }
     }
 
-    fun fetchMemorizedScore(verse: BibleVerseRef, directQuoteToEvaluate: String, contextToEvaluate: String) {
+    fun fetchScore(verse: BibleVerseRef, directQuoteToEvaluate: String, contextToEvaluate: String) {
         updateAiServiceStatus()
         val geminiReady = _state.value.isAiServiceReady
 

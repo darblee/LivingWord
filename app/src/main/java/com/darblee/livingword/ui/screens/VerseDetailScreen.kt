@@ -822,7 +822,7 @@ fun VerseDetailScreen(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Memorize/Cancel Button
+                    // Engage/Cancel Button
                     Button(
                         onClick = {
                             if (inEditMode) {
@@ -832,9 +832,9 @@ fun VerseDetailScreen(
                                     exitEditMode()
                                 }
                             } else {
-                                // If Memorize also uses TTS, you might want to stop current TTS
-                                ttsViewModel.stopAllSpeaking() // Stop any TTS before memorize
-                                navController.navigate(Screen.MemorizeScreen(verseID))
+                                // If Engage Screen also uses TTS, you might want to stop current TTS
+                                ttsViewModel.stopAllSpeaking() // Stop any TTS before Engage Screen
+                                navController.navigate(Screen.EngageScreen(verseID))
                             }
                         },
                         enabled = (!inEditMode) || (newContentNeedToBeSaved),
@@ -844,7 +844,7 @@ fun VerseDetailScreen(
                         val buttonString = if (inEditMode) {
                             "Cancel"
                         } else {
-                            "Memorize"
+                            "Engage"
                         }
                         Text(buttonString)
                     }
