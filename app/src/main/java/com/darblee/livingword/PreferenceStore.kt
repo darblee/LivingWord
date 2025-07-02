@@ -9,6 +9,10 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.darblee.livingword.PreferenceStore.Companion.VOTD_CACHED_TRANSLATION_KEY
+import com.darblee.livingword.PreferenceStore.Companion.VOTD_CONTENT_CACHE_KEY
+import com.darblee.livingword.PreferenceStore.Companion.VOTD_LAST_FETCH_DATE_KEY
+import com.darblee.livingword.PreferenceStore.Companion.VOTD_REFERENCE_CACHE_KEY
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -38,6 +42,12 @@ class PreferenceStore(private val context: Context) {
 
         // Key for AI Disclaimer Dialog
         val AI_DISCLAIMER_SHOWN_KEY = booleanPreferencesKey("ai_disclaimer_shown")
+
+        // Keys for VOTD Cache
+        val VOTD_REFERENCE_CACHE_KEY = stringPreferencesKey("votd_reference_cache")
+        val VOTD_CONTENT_CACHE_KEY = stringPreferencesKey("votd_content_cache")
+        val VOTD_CACHED_TRANSLATION_KEY = stringPreferencesKey("votd_cached_translation")
+        val VOTD_LAST_FETCH_DATE_KEY = stringPreferencesKey("votd_last_fetch_date")
 
         // Default AI Settings
         val DEFAULT_AI_MODEL_NAME = "gemini-2.0-flash"
@@ -120,4 +130,39 @@ class PreferenceStore(private val context: Context) {
     suspend fun readAISettings(): AISettings {
         return aiSettingsFlow.first()
     }
+
+    // Save VOTD Cache
+    suspend fun saveVotdCache(reference: String, content: String, translation: String, date: String) {
+        context.datastore.edit { preferences ->
+            preferences[VOTD_REFERENCE_CACHE_KEY] = reference
+            preferences[VOTD_CONTENT_CACHE_KEY] = content
+            preferences[VOTD_CACHED_TRANSLATION_KEY] = translation
+            preferences[VOTD_LAST_FETCH_DATE_KEY] = date
+        }
+    }
+
+    // Read VOTD Cache
+    suspend fun readVotdCache(): VotdCache? {
+        val preferences = context.datastore.data.first()
+        val reference = preferences[VOTD_REFERENCE_CACHE_KEY]
+        val content = preferences[VOTD_CONTENT_CACHE_KEY]
+        val translation = preferences[VOTD_CACHED_TRANSLATION_KEY]
+        val date = preferences[VOTD_LAST_FETCH_DATE_KEY]
+
+        return if (reference != null && content != null && translation != null && date != null) {
+            VotdCache(reference, content, translation, date)
+        } else {
+            null
+        }
+    }
 }
+
+// Data class to hold cached VOTD data
+data class VotdCache(
+    val reference: String,
+    val content: String,
+    val translation: String,
+    val date: String
+)
+
+

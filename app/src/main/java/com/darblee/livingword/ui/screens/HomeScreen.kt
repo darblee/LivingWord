@@ -1,12 +1,10 @@
 package com.darblee.livingword.ui.screens
 
 
-import android.app.Activity
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -31,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.PlayCircleOutline
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,7 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -67,12 +65,25 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
-import com.darblee.livingword.R
 import com.darblee.livingword.Screen
+import com.darblee.livingword.Global
+import com.darblee.livingword.data.VotdService
+import com.darblee.livingword.PreferenceStore
+import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.BibleVerseRef
+import com.darblee.livingword.data.remote.AiServiceResult
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.unit.Dp
+import com.darblee.livingword.data.Verse
 import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import kotlinx.serialization.json.Json
 import java.text.BreakIterator
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 private fun splitIntoSentences(text: String, locale: Locale): List<String> {
@@ -83,8 +94,8 @@ private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     var start = iterator.first()
     var end = iterator.next()
     while (end != BreakIterator.DONE) {
-        val sentence = text.substring(start, end).trim()
-        if (sentence.isNotEmpty()) {
+        val sentence = text.substring(start, end)
+        if (sentence.isNotBlank()) {
             sentenceList.add(sentence)
         }
         start = end
@@ -104,22 +115,39 @@ fun HomeScreen(
     val isTtsInitialized by TTSViewModel.isInitialized.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val textToSpeak = remember {
+    val preferenceStore = remember { PreferenceStore(context) }
+    var selectedTranslation by remember { mutableStateOf("KJV") }
+
+    LaunchedEffect(Unit) {
+        selectedTranslation = preferenceStore.readTranslationFromSetting()
+    }
+    val morningPrayerText = remember {
         """
             Thank you Lord for the privilege of another day.
+            
             Heavenly Father, I come to you with a heart full of gratitude this morning.
+            
             Thank you Lord for waking me up. For the breadth in my lungs, for the strength in my body, and the clarity in my mind.
             You did not have to do it, but you did. And I am humbled by your grace.
+            
             Father, I acknowledge this day as a gift and opportunity to walk in your purpose, to reflect your goodness, and be a light in this dark world.
+            
             I know the path may not be always easy, but I trust that You have already gone before me clearing the way.  
+            
             Help me to lean into your wisdom today, to walk with integrity, and carry myself with the humility of someone who knows where their blessings come from.
+            
             Lord guard my hearts, my thoughts, .... and my words.         
+            
             Let me speak light and bring peace wherever I go.           
+            
             Give me the courage to stand firm where challenges arise and the discernment to make choices that honor You.          
+            
             Thank you for the people that you have placed in my life those I meet today, and to those I will impact whether I know it or not.                      
-            I commit this day to You. May I bring you Glory. Amen.
+            
+            I commit this day to You. May I bring you Glory.
+            
+            Amen.
             """.trimIndent()
-            .replace(Regex("\\s+\\."), ".")
     }
 
     DisposableEffect(Unit) {
@@ -136,6 +164,72 @@ fun HomeScreen(
 
     var isSpeaking by remember { mutableStateOf(false) }
     var isPaused by remember { mutableStateOf(false) }
+    var currentTtsTextId by remember { mutableStateOf<String?>(null) }
+
+    var verseOfTheDayReference by remember { mutableStateOf("Loading...") }
+    var verseContent by remember { mutableStateOf<List<Verse>>(emptyList()) }
+
+    LaunchedEffect(selectedTranslation) {
+        val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val cachedVotd = preferenceStore.readVotdCache()
+
+        if (cachedVotd != null && cachedVotd.date == currentDate && cachedVotd.translation == selectedTranslation) {
+            verseOfTheDayReference = cachedVotd.reference
+            // Need to parse the cached content back into List<Verse>
+            val parsedVerses = try {
+                Json.decodeFromString<List<Verse>>(cachedVotd.content)
+            } catch (e: Exception) {
+                Log.e("HomeScreen", "Error parsing cached VOTD content: ${e.message}", e)
+                emptyList()
+            }
+            verseContent = parsedVerses
+        } else {
+            val reference = VotdService.fetchVerseOfTheDayReference()
+            verseOfTheDayReference = reference ?: "Error loading Verse of the Day"
+
+            if (verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day") {
+                val parts = verseOfTheDayReference.split(" ")
+                if (parts.size >= 2) {
+                    val book = parts[0]
+                    val chapterAndVerse = parts[1].split(":")
+                    if (chapterAndVerse.size == 2) {
+                        val chapter = chapterAndVerse[0].toIntOrNull()
+                        val verseRange = chapterAndVerse[1].split("-")
+                        val startVerse = verseRange[0].toIntOrNull()
+                        val endVerse = if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
+
+                        if (chapter != null && startVerse != null && endVerse != null) {
+                            val bibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
+                            val result = GeminiAIService.fetchScripture(bibleVerseRef, selectedTranslation)
+                            when (result) {
+                                is AiServiceResult.Success -> {
+                                    val fetchedVerses = result.data
+                                    verseContent = fetchedVerses
+                                    // Save the List<Verse> as a JSON string
+                                    val jsonContent = Json.encodeToString(fetchedVerses)
+                                    preferenceStore.saveVotdCache(verseOfTheDayReference, jsonContent, selectedTranslation, currentDate)
+                                }
+                                is AiServiceResult.Error -> {
+                                    // Handle error, maybe set verseContent to an error message
+                                    verseContent = emptyList() // Or a list with an error Verse
+                                    Log.e("HomeScreen", "Error fetching scripture: ${result.message}")
+                                }
+                            }
+                        } else {
+                            verseContent = emptyList() // Or a list with an error Verse
+                            Log.e("HomeScreen", "Error parsing verse reference.")
+                        }
+                    } else {
+                        verseContent = emptyList() // Or a list with an error Verse
+                        Log.e("HomeScreen", "Error parsing verse reference.")
+                    }
+                } else {
+                    verseContent = emptyList() // Or a list with an an error Verse
+                    Log.e("HomeScreen", "Error parsing verse reference.")
+                }
+            }
+        }
+    }
 
     // LaunchedEffect will run once and collect the flow from the ViewModel.
     // Every time the ViewModel's StateFlow emits a new value, this block will execute
@@ -168,14 +262,14 @@ fun HomeScreen(
     }
 
     val scrollState = rememberScrollState()
-    val displaySentences = remember(textToSpeak, Locale.getDefault()) {
-        splitIntoSentences(textToSpeak, Locale.getDefault())
+    val displaySentences = remember(morningPrayerText, Locale.getDefault()) {
+        splitIntoSentences(morningPrayerText, Locale.getDefault())
     }
 
     val annotatedText = buildAnnotatedString {
         displaySentences.forEachIndexed { index, sentence ->
-            val shouldHighlight = (isSpeaking && !isPaused && index == currentlySpeakingIndex) ||
-                    (isPaused && index == currentlySpeakingIndex)
+            val shouldHighlight = (isSpeaking && !isPaused && index == currentlySpeakingIndex && currentTtsTextId == "morningPrayer") ||
+                    (isPaused && index == currentlySpeakingIndex && currentTtsTextId == "morningPrayer")
 
             if (shouldHighlight) {
                 withStyle(style = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) {
@@ -183,9 +277,6 @@ fun HomeScreen(
                 }
             } else {
                 append(sentence)
-            }
-            if (index < displaySentences.size - 1) {
-                append("\n")
             }
         }
     }
@@ -211,22 +302,167 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)
                     ) {
-                        DisplayAppLogo()
-                        Spacer(Modifier.width(8.dp))
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            DisplayPlayPauseIcon(isSpeaking, isPaused, isTtsInitialized, context, TTSViewModel, textToSpeak)
-                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = "Verse of the Day: $verseOfTheDayReference",
+                                style = MaterialTheme.typography.headlineMedium, // Larger font
+                                fontWeight = FontWeight.ExtraBold, // Bold font
+                                modifier = Modifier.padding(bottom = 4.dp) // Reduced padding
+                            )
+                            Text(
+                                text = "Date: ${SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date())}",
+                                style = MaterialTheme.typography.bodySmall, // Smaller font
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            OutlinedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = buildAnnotatedStringForScripture(verseContent, currentlySpeakingIndex, isSpeaking, isPaused, currentTtsTextId,
+                                        highlightStyle = SpanStyle(
+                                        background = MaterialTheme.colorScheme.primaryContainer,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
                         }
                     }
 
                     Column(
                         modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 20.dp)
-                            .verticalScroll(scrollState),
+                            .weight(1f) // Occupy remaining space
+                            .padding(horizontal = 16.dp, vertical = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        SelectionContainer {
+                        Text(
+                            text = "Daily Prayer",
+                            style = MaterialTheme.typography.headlineMedium, // Larger font
+                            fontWeight = FontWeight.ExtraBold, // Bold font
+                            modifier = Modifier.padding(bottom = 16.dp) // Reduced padding
+                        )
+
+                        SelectionContainer(modifier = Modifier.verticalScroll(rememberScrollState())) {
                             Text(annotatedText, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // First Button (Play/Pause/Headset)
+                        Button(
+                            onClick = {
+                                if (!isTtsInitialized) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "TTS initializing...",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                } else {
+                                    TTSViewModel.togglePlayPauseResumeSingleText(morningPrayerText)
+                                    currentTtsTextId = "morningPrayer"
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Prayer")
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = when {
+                                    isSpeaking && !isPaused && currentTtsTextId == "morningPrayer" -> Icons.Default.PauseCircleOutline
+                                    isPaused && currentTtsTextId == "morningPrayer" -> Icons.Default.PlayCircleOutline
+                                    else -> Icons.Filled.Headset
+                                },
+                                contentDescription = when {
+                                    isSpeaking && !isPaused && currentTtsTextId == "morningPrayer" -> "Pause Speech"
+                                    isPaused && currentTtsTextId == "morningPrayer" -> "Resume Speech"
+                                    else -> "Play Speech"
+                                },
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Second Button (Read VOTD)
+                        Button(
+                            onClick = {
+                                if (!isTtsInitialized) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "TTS initializing...",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                } else {
+                                    // Convert List<Verse> to a single string for TTS
+                                    val votdText = verseContent.joinToString(" ") { it.verseString }
+                                    TTSViewModel.togglePlayPauseResumeSingleText(votdText)
+                                    currentTtsTextId = "votd"
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Verse")
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = when {
+                                    isSpeaking && !isPaused && currentTtsTextId == "votd" -> Icons.Default.PauseCircleOutline
+                                    isPaused && currentTtsTextId == "votd" -> Icons.Default.PlayCircleOutline
+                                    else -> Icons.Filled.Headset
+                                },
+                                contentDescription = when {
+                                    isSpeaking && !isPaused && currentTtsTextId == "votd" -> "Pause VOTD"
+                                    isPaused && currentTtsTextId == "votd" -> "Resume VOTD"
+                                    else -> "Read VOTD"
+                                },
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Third Button (Placeholder)
+                        Button(
+                            onClick = {
+                                // Parse verseOfTheDayReference into BibleVerseRef
+                                val parts = verseOfTheDayReference.split(" ")
+                                if (parts.size >= 2) {
+                                    val book = parts[0]
+                                    val chapterAndVerse = parts[1].split(":")
+                                    if (chapterAndVerse.size == 2) {
+                                        val chapter = chapterAndVerse[0].toIntOrNull()
+                                        val verseRange = chapterAndVerse[1].split("-")
+                                        val startVerse = verseRange[0].toIntOrNull()
+                                        val endVerse = if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
+
+                                        if (chapter != null && startVerse != null && endVerse != null) {
+                                            val votdBibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
+                                        } else {
+                                            Toast.makeText(context, "Error parsing VOTD reference for navigation.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Error parsing VOTD reference for navigation.", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Error parsing VOTD reference for navigation.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day"
+                        ) {
+                            Text("Add verse")
                         }
                     }
                 }
@@ -246,70 +482,37 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun DisplayPlayPauseIcon(
-    isSpeaking: Boolean,
-    isPaused: Boolean,
-    isTtsInitialized: Boolean,
-    context: Context,
-    viewModel: TTSViewModel,
-    textToSpeak: String
-) {
-    Icon(
-        imageVector = when {
-            isSpeaking && !isPaused -> Icons.Default.PauseCircleOutline
-            isPaused -> Icons.Default.PlayCircleOutline
-            else -> Icons.Filled.Headset },
-        contentDescription = when {
-            isSpeaking && !isPaused -> "Pause Speech"
-            isPaused -> "Resume Speech"
-            else -> "Play Speech"
-        },
-        modifier = Modifier
-            .size(48.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        Log.d("TTS_UI", "Icon single-tapped.")
-                        if (!isTtsInitialized) {
-                            Toast
-                                .makeText(
-                                    context,
-                                    "TTS initializing...",
-                                    Toast.LENGTH_SHORT
-                                )
-                                .show()
-                        } else {
-                            viewModel.togglePlayPauseResumeSingleText(textToSpeak)
-                        }
-                    },
-                    onDoubleTap = {
-                        Log.d("TTS_UI", "Icon double-tapped.")
-                        if (!isTtsInitialized) {
-                            Toast
-                                .makeText(
-                                    context,
-                                    "TTS initializing...",
-                                    Toast.LENGTH_SHORT
-                                )
-                                .show()
-                        } else {
-                            Log.d("TTS_UI", "Calling ViewModel to restart from icon double-tap...")
-                            viewModel.restartSingleText(textToSpeak)
-                        }
-                    }
-                )
-            }
-    )
-}
 
-@Composable
-private fun DisplayAppLogo() {
-    Image(
-        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
-        contentDescription = "App Logo",
-        modifier = Modifier.size(125.dp)
-    )
+fun buildAnnotatedStringForScripture(verses: List<Verse>, currentlySpeakingIndex: Int, isSpeaking: Boolean, isPaused: Boolean, currentTtsTextId: String?,
+                                     highlightStyle: SpanStyle): AnnotatedString {
+    return buildAnnotatedString {
+        verses.forEachIndexed { index, verse ->
+            val shouldHighlight = (isSpeaking && !isPaused && index == currentlySpeakingIndex && currentTtsTextId == "votd") ||
+                    (isPaused && index == currentlySpeakingIndex && currentTtsTextId == "votd")
+
+            withStyle(
+                style = SpanStyle(
+                    color = Color.Red,
+                    fontSize = 10.sp,
+                    baselineShift = BaselineShift.Superscript
+                )
+            ) {
+                append(verse.verseNum.toString())
+            }
+            append(" ")
+
+
+
+            if (shouldHighlight) {
+                withStyle(style = highlightStyle) {
+                    append(verse.verseString)
+                }
+            } else {
+                append(verse.verseString)
+            }
+            append(" ")
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

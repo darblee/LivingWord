@@ -155,7 +155,7 @@ fun VerseDetailScreen(
     val verseItem by bibleViewModel.getVerseFlow(verseID).collectAsStateWithLifecycle(initialValue = null)
 
 
-    Log.i("VerseDetailScreen", "TRanslation = ${verseItem?.translation}")
+    Log.i("VerseDetailScreen", "Translation = ${verseItem?.translation}")
 
     // State for controlling the edit mode
     var inEditMode by remember { mutableStateOf(editMode) }
@@ -196,7 +196,6 @@ fun VerseDetailScreen(
     var showAiResponseDropdownMenu by remember { mutableStateOf(false) }
     var aiResponseDropdownMenuOffset by remember { mutableStateOf(Offset.Zero) }
     var expandedTranslation by remember { mutableStateOf(false) }
-
 
     val localDensity = LocalDensity.current
 
@@ -296,7 +295,6 @@ fun VerseDetailScreen(
 
         }
     }
-
 
     AppScaffold(
         title = {
@@ -997,7 +995,6 @@ fun VerseDetailScreen(
         }
     )
 }
-
 
 @Composable
 fun buildAnnotatedStringForScripture(

@@ -106,8 +106,8 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
                         previewError = result.message
                     )
                 }
-                is AiServiceResult.Success<*> -> {
-                    val scriptureVerses = result.data as List<Verse>
+                is AiServiceResult.Success<List<Verse>> -> {
+                    val scriptureVerses = result.data
                     _uiState.value = _uiState.value.copy(
                         isPreviewLoading = false,
                         previewScriptureVerses = scriptureVerses,
@@ -130,8 +130,8 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
             )
 
             when (val result = geminiService.fetchScripture(currentVerseRef, newTranslation)) {
-                is AiServiceResult.Success<*> -> {
-                    val scriptureVerses = result.data as List<Verse>
+                is AiServiceResult.Success<List<Verse>> -> {
+                    val scriptureVerses = result.data
                     _uiState.value = _uiState.value.copy(
                         isPreviewLoading = false,
                         previewScriptureVerses = scriptureVerses
@@ -251,7 +251,7 @@ fun AddVerseByDescriptionScreen(
 
                 uiState.error?.let {
                     Text("Unable find verse", color = MaterialTheme.colorScheme.error)
-                    Log.i("AddVerseBYDescriptionScreen", "Could not get verse. Error message: $it")
+                    Log.i("AddVerseByDescriptionScreen", "Could not get verse. Error message: $it")
                 }
 
                 if (uiState.verses.isNotEmpty()) {
