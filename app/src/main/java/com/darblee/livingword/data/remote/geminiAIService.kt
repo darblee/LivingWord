@@ -159,6 +159,20 @@ object GeminiAIService {
             return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
         }
 
+        val systemPrompt = content(role = "system") {
+            text("You are an AI assistant that retrieves specific biblical scripture verse(s)")
+        }
+
+        val retrieveScriptureModel = GenerativeModel(
+            modelName = currentAISettings!!.modelName,
+            apiKey = currentAISettings!!.apiKey,
+            generationConfig = generationConfig {
+                temperature = 0.2f // Lower temperature for more deterministic evaluation
+                responseMimeType = "application/json"
+            },
+            systemInstruction = systemPrompt
+        )
+
         return try {
             val verseString = if (verseRef.startVerse == verseRef.endVerse) {
                 "${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}"
@@ -169,18 +183,18 @@ object GeminiAIService {
             val prompt = if (verseRef.startVerse == verseRef.endVerse) {
                 """
                 Provide the scripture for $verseString from the $translation translation.
-                Respond in the following JSON format, which is an array of verse objects:
+                Respond in the following JSON schema:
                 [
                   {
                     "verse_num": ${verseRef.startVerse},
-                    "verse_string": "The content of the start verse."
+                    "verse_string": "String content of the verse."
                   }
                 ]
                 """.trimIndent()
             } else {
                 """
-                Provide the scripture for $verseString from the $translation translation.
-                Respond in the following JSON format, which is an array of verse objects:
+                Retrieve the scripture for the range of verses $verseString from the $translation translation.
+                Your sole function is to return the content of those verses in the following JSON schema, which is an array of verse objects:
                 [
                   {
                     "verse_num": ${verseRef.startVerse},
@@ -194,10 +208,10 @@ object GeminiAIService {
                 """.trimIndent()
             }
 
-
             Log.d("GeminiAIService", "Sending prompt to Gemini for scripture range: \"$prompt\"")
 
-            val response = generativeModel!!.generateContent(prompt)
+            val response = retrieveScriptureModel!!.generateContent(prompt)
+
             val responseText = response.text
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
@@ -242,6 +256,7 @@ object GeminiAIService {
             val dangerSafety = SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.LOW_AND_ABOVE)
 
 
+            // TODO: In the future. we will add GoogleSearch tool support which will reduce AI hallucination
             val groundingTool = Tool(
                 functionDeclarations = listOf()
             )
