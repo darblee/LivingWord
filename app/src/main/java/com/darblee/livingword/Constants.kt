@@ -30,7 +30,7 @@ internal object Global {
     const val DATABASE_NAME = "bible_verse_database"
     const val BACKUP_FOLDER_PATH = "Android/LivingWord/Backup"
 
-    val bibleTranslations = listOf("ESV", "NIV", "AMP", "NKJV", "KJV")
+    val bibleTranslations = listOf("ESV", "NIV", "AMP", "NKJV", "KJV", "NLT", "NASB")
 }
 
 /**
