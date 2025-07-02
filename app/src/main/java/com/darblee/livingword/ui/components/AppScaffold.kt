@@ -508,7 +508,7 @@ private fun TranslationSetting(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Default Bible Translation",
+            text = "Current Translation",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp)
         )

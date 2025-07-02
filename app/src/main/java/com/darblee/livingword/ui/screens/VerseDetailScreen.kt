@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -227,7 +229,6 @@ fun VerseDetailScreen(
         }
     }
 
-
     // --- Handle Navigation Results ---
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val currentBackStackEntry = navController.currentBackStackEntry
@@ -341,17 +342,25 @@ fun VerseDetailScreen(
                     ) {
                         Text(
                             text = "Scripture",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 4.dp, end = 8.dp),
+                            modifier = Modifier.padding(bottom = 4.dp, end = 0.dp),
                             fontSize = 15.sp
                         )
 
                         // Dropdown for translation selection
                         val selectedTranslation = verseItem?.translation ?: ""
 
-                        TextButton(onClick = { expandedTranslation = true }) {
-                            Text(text = "($selectedTranslation)")
+                        TextButton(
+                            onClick = { expandedTranslation = true },
+                            shape = RoundedCornerShape(0.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.heightIn(max = 24.dp).widthIn(max = 40.dp)) // Adjust height as needed
+                        {
+                            Text(text = "($selectedTranslation)",
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Normal)
                         }
                         DropdownMenu(
                             expanded = expandedTranslation,

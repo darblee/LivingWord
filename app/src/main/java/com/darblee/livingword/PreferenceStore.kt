@@ -23,7 +23,7 @@ data class AISettings(
     val temperature: Float
 )
 
-internal class PreferenceStore(private val context: Context) {
+class PreferenceStore(private val context: Context) {
     companion object {
         private val Context.datastore: DataStore<Preferences> by preferencesDataStore(name = "APP_SETTING_KEY")
 
