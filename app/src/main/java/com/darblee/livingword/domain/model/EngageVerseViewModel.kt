@@ -19,6 +19,7 @@ data class ScoreData(
     val ContextScore: Int,
     val DirectQuoteExplanation: String,
     val ContextExplanation: String,
+    var ApplicationFeedback: String
 )
 
 
@@ -28,6 +29,7 @@ class EngageVerseViewModel() : ViewModel(){
      * Represents the UI state for the NewVerse screen.
      */
     data class MemorizedVerseScreenState(
+        val applicationFeedback: String? = null,
         // State related to topic selection for the *current* item
         val selectedTopics: List<String> = emptyList(),
         val isTopicContentLoading: Boolean = false, // Loading state for topic-based content
@@ -76,6 +78,7 @@ class EngageVerseViewModel() : ViewModel(){
                 // Reset explanations as they are tied to a specific evaluation
                 aiDirectQuoteExplanationText = null,
                 aiContextExplanationText = null,
+                applicationFeedback = null,
                 aiResponseError = null,
                 aiResponseLoading = false // ensure loading is off
             )
@@ -91,13 +94,14 @@ class EngageVerseViewModel() : ViewModel(){
                     contextScore = -1,
                     aiDirectQuoteExplanationText = null,
                     aiContextExplanationText = null,
+                    applicationFeedback = null,
                     aiResponseError = null
                 )
             }
         }
     }
 
-    fun fetchScore(verse: BibleVerseRef, directQuoteToEvaluate: String, contextToEvaluate: String) {
+    fun getAIFeedback(verse: BibleVerseRef, userMemorizedScripture: String, userApplicationContent: String) {
         updateAiServiceStatus()
         val geminiReady = _state.value.isAiServiceReady
 
@@ -125,11 +129,12 @@ class EngageVerseViewModel() : ViewModel(){
                     contextScore = -1,
                     aiDirectQuoteExplanationText = null,
                     aiContextExplanationText = null,
+                    applicationFeedback = null,
                     aiResponseError = null
                 )
             }
             // Call the GeminiAIService
-            when (val scoreData = geminiService.getAIScore(verseRef, directQuoteToEvaluate, contextToEvaluate)) {
+            when (val scoreData = geminiService.getAIScore(verseRef, userMemorizedScripture, userApplicationContent)) {
                 is AiServiceResult.Success -> {
 
                     try {
@@ -141,6 +146,7 @@ class EngageVerseViewModel() : ViewModel(){
                                 contextScore = scoreData.data.ContextScore,
                                 aiDirectQuoteExplanationText = scoreData.data.DirectQuoteExplanation,
                                 aiContextExplanationText = scoreData.data.ContextExplanation,
+                                applicationFeedback = scoreData.data.ApplicationFeedback,
                                 aiResponseError = null
                             )
                         }
@@ -156,6 +162,7 @@ class EngageVerseViewModel() : ViewModel(){
                                 contextScore = -1,
                                 aiDirectQuoteExplanationText = null,
                                 aiContextExplanationText = null,
+                                applicationFeedback = null,
                                 aiResponseError = "Unable to parse AI response"
                             )
                         }
@@ -169,6 +176,7 @@ class EngageVerseViewModel() : ViewModel(){
                             contextScore = -1,
                             aiDirectQuoteExplanationText = "", // Clear score on error
                             aiContextExplanationText = "",
+                            applicationFeedback = "",
                             aiResponseError = scoreData.message
                         )
                     }

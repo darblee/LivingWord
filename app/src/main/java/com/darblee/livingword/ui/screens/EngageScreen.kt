@@ -73,11 +73,11 @@ fun EngageScreen(
 
     var verse by remember { mutableStateOf<BibleVerse?>(null) }
     var directQuoteTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
-    var contextTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+    var userApplicationTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     val coroutineScope = rememberCoroutineScope()
 
     var directQuotePartialText by remember { mutableStateOf("") }
-    var contextPartialText by remember { mutableStateOf("") }
+    var userApplicationPartialText by remember { mutableStateOf("") }
 
     var isListening by remember { mutableStateOf(false) }
     var processDeletingDirectQuoteText by remember { mutableStateOf(false) }
@@ -120,10 +120,10 @@ fun EngageScreen(
     var hasContentChangedSinceLoad by remember { mutableStateOf(false) }
     var showCompareDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(directQuoteTextFieldValue, contextTextFieldValue, verse) {
+    LaunchedEffect(directQuoteTextFieldValue, userApplicationTextFieldValue, verse) {
         if (isSavedDataLoaded && verse != null) {
             val quoteChanged = directQuoteTextFieldValue.text != verse!!.userDirectQuote
-            val contextChanged = contextTextFieldValue.text != verse!!.userContext
+            val contextChanged = userApplicationTextFieldValue.text != verse!!.userContext
             hasContentChangedSinceLoad = quoteChanged || contextChanged
         }
     }
@@ -289,7 +289,7 @@ fun EngageScreen(
             override fun onError(error: Int) {
                 Log.e("Speech", "Error: $error")
                 isListening = false
-                contextPartialText = ""
+                userApplicationPartialText = ""
                 if (error != SpeechRecognizer.ERROR_NO_MATCH &&
                     error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT &&
                     error != SpeechRecognizer.ERROR_CLIENT && // Avoid loop on some persistent client errors
@@ -318,9 +318,9 @@ fun EngageScreen(
                 Log.d("Speech", "Results: $recognizedContextTextList")
                 if (!recognizedContextTextList.isNullOrEmpty()) {
                     val newRecognizedText = recognizedContextTextList[0]
-                    val currentTextInField = contextTextFieldValue.text
+                    val currentTextInField = userApplicationTextFieldValue.text
 
-                    val currentSelectionInField = contextTextFieldValue.selection
+                    val currentSelectionInField = userApplicationTextFieldValue.selection
 
                     val newFullText: String
                     val newCursorPosition: Int
@@ -356,17 +356,17 @@ fun EngageScreen(
                         newCursorPosition = newFullText.length // Cursor at the very end
                     }
 
-                    contextTextFieldValue = TextFieldValue(
+                    userApplicationTextFieldValue = TextFieldValue(
                         text = newFullText,
                         selection = TextRange(newCursorPosition)
                     )
-                    contextPartialText = "" // Clear partial text as we have final results
+                    userApplicationPartialText = "" // Clear partial text as we have final results
                 }
                 // Continue listening if still desired (isListening reflects the state before results)
                 if (isListening) {
                     startListening(context, contextSpeechRecognizer)
                 } else {
-                    contextPartialText = "" // Ensure partial text is cleared if listening stopped during results
+                    userApplicationPartialText = "" // Ensure partial text is cleared if listening stopped during results
                 }
             }
 
@@ -375,8 +375,8 @@ fun EngageScreen(
                     partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!recognizedContextTextList.isNullOrEmpty()) {
                     val newPartialRecognizedText = recognizedContextTextList[0]
-                    val currentCommittedContextText = contextTextFieldValue.text
-                    val currentContextSelection = contextTextFieldValue.selection
+                    val currentCommittedContextText = userApplicationTextFieldValue.text
+                    val currentContextSelection = userApplicationTextFieldValue.selection
 
                     // Determine context for processing partial text based on focus
                     val textForProcessing: String = if (isContextTextFieldFocused) {
@@ -386,7 +386,7 @@ fun EngageScreen(
                     }
 
                     val processedText = processNewText(newPartialRecognizedText, textForProcessing)
-                    contextPartialText = processPunctuation(processedText) // existingText in processPunctuation is unused
+                    userApplicationPartialText = processPunctuation(processedText) // existingText in processPunctuation is unused
                 }
             }
 
@@ -453,10 +453,10 @@ fun EngageScreen(
     }
 
     // Combine Context text and partial text for display or for enabling buttons
-    val combinedContextDisplayAnnotatedText = remember(contextTextFieldValue, contextPartialText, isContextTextFieldFocused) {
+    val combinedContextDisplayAnnotatedText = remember(userApplicationTextFieldValue, userApplicationPartialText, isContextTextFieldFocused) {
         buildAnnotatedString {
-            val currentText = contextTextFieldValue.text
-            val selection = contextTextFieldValue.selection
+            val currentText = userApplicationTextFieldValue.text
+            val selection = userApplicationTextFieldValue.selection
 
             if (isContextTextFieldFocused) {
                 // Focused: Show partial text at cursor
@@ -466,23 +466,23 @@ fun EngageScreen(
 
                 if (textBeforeCursor.isNotEmpty()) append(textBeforeCursor)
 
-                if (contextPartialText.isNotEmpty()) {
+                if (userApplicationPartialText.isNotEmpty()) {
                     val needsSpaceBefore = textBeforeCursor.isNotEmpty() &&
                             !textBeforeCursor.endsWith(" ") && !textBeforeCursor.endsWith("\n") &&
-                            !contextPartialText.startsWith(".") && !contextPartialText.startsWith("?") && !contextPartialText.startsWith("!")
+                            !userApplicationPartialText.startsWith(".") && !userApplicationPartialText.startsWith("?") && !userApplicationPartialText.startsWith("!")
                     if (needsSpaceBefore) append(" ")
-                    withStyle(style = SpanStyle(color = Color.Gray)) { append(contextPartialText) }
+                    withStyle(style = SpanStyle(color = Color.Gray)) { append(userApplicationPartialText) }
                 }
 
                 if (textAfterCursor.isNotEmpty()) {
                     // Check if partial text already ends with a character that implies a following space,
                     // or if textAfterCursor starts with a space.
-                    val partialEndsWithSpaceLike = contextPartialText.endsWith(" ") || contextPartialText.endsWith("\n")
+                    val partialEndsWithSpaceLike = userApplicationPartialText.endsWith(" ") || userApplicationPartialText.endsWith("\n")
                     val textAfterStartsWithSpaceLike = textAfterCursor.startsWith(" ") || textAfterCursor.startsWith("\n")
-                    val needsSpaceAfter = contextPartialText.isNotEmpty() && !partialEndsWithSpaceLike &&
+                    val needsSpaceAfter = userApplicationPartialText.isNotEmpty() && !partialEndsWithSpaceLike &&
                             !textAfterStartsWithSpaceLike &&
                             !textAfterCursor.startsWith(".") && !textAfterCursor.startsWith("?") && !textAfterCursor.startsWith("!") &&
-                            !contextPartialText.endsWith(".") && !contextPartialText.endsWith("?") && !contextPartialText.endsWith("!")
+                            !userApplicationPartialText.endsWith(".") && !userApplicationPartialText.endsWith("?") && !userApplicationPartialText.endsWith("!")
 
                     if (needsSpaceAfter) append(" ")
                     append(textAfterCursor)
@@ -490,12 +490,12 @@ fun EngageScreen(
             } else {
                 // Not focused: Show partial text appended at the end
                 append(currentText)
-                if (contextPartialText.isNotEmpty()) {
+                if (userApplicationPartialText.isNotEmpty()) {
                     val needsSpaceBefore = currentText.isNotEmpty() &&
                             !currentText.endsWith(" ") && !currentText.endsWith("\n") &&
-                            !contextPartialText.startsWith(".") && !contextPartialText.startsWith("?") && !contextPartialText.startsWith("!")
+                            !userApplicationPartialText.startsWith(".") && !userApplicationPartialText.startsWith("?") && !userApplicationPartialText.startsWith("!")
                     if (needsSpaceBefore) append(" ")
-                    withStyle(style = SpanStyle(color = Color.Gray)) { append(contextPartialText) }
+                    withStyle(style = SpanStyle(color = Color.Gray)) { append(userApplicationPartialText) }
                 }
             }
         }
@@ -719,9 +719,9 @@ fun EngageScreen(
                             ) {
                                 // Text field with border
                                 BasicTextField(
-                                    value = contextTextFieldValue,
+                                    value = userApplicationTextFieldValue,
                                     onValueChange = { newValue ->
-                                        contextTextFieldValue = newValue
+                                        userApplicationTextFieldValue = newValue
                                         engageVerseViewModel.resetScore()
                                     },
                                     modifier = Modifier
@@ -751,7 +751,7 @@ fun EngageScreen(
                                         Box(
                                             modifier = Modifier.fillMaxSize()
                                         ) {
-                                            if (contextTextFieldValue.text.isEmpty()) {
+                                            if (userApplicationTextFieldValue.text.isEmpty()) {
                                                 Text(
                                                     text = "Type or speak (🎤) ...\n\n" +
                                                             "How does this verse shape your life? Describe specific moments that show this verse is at work in you.",
@@ -762,7 +762,7 @@ fun EngageScreen(
                                                 )
                                             }
                                             Box(
-                                                modifier = Modifier.padding(top = if (contextTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
+                                                modifier = Modifier.padding(top = if (userApplicationTextFieldValue.text.isEmpty()) 20.dp else 0.dp)
                                             ) {
                                                 innerTextField()
                                             }
@@ -814,7 +814,7 @@ fun EngageScreen(
                                         if (isListening) {
                                             stopListening(contextSpeechRecognizer)
                                             isListening = false // Manually update state
-                                            contextPartialText = ""    // Clear partial text when explicitly stopping
+                                            userApplicationPartialText = ""    // Clear partial text when explicitly stopping
                                         } else {
                                             // Request focus to the text field when starting to listen? Optional.
                                             // focusRequester.requestFocus()
@@ -844,14 +844,14 @@ fun EngageScreen(
                                 FloatingActionButton(
                                     onClick = {
                                         if (directQuoteTextFieldValue.text.isNotEmpty()) {
-                                            if (contextTextFieldValue.text.isNotEmpty()) {
+                                            if (userApplicationTextFieldValue.text.isNotEmpty()) {
                                                 showCopyConfirmDialog = true // Show dialog if context is not empty
                                             } else {
                                                 // Context is empty, so copy directly
-                                                contextTextFieldValue = directQuoteTextFieldValue.copy(
+                                                userApplicationTextFieldValue = directQuoteTextFieldValue.copy(
                                                     selection = TextRange(directQuoteTextFieldValue.text.length)
                                                 )
-                                                contextPartialText = "" // Clear partial text in context field
+                                                userApplicationPartialText = "" // Clear partial text in context field
                                             }
                                         } else {
                                             Log.i("Click", "Direct quote is empty, nothing to copy")
@@ -880,18 +880,18 @@ fun EngageScreen(
                                 // Clear the box
                                 FloatingActionButton(
                                     onClick = {
-                                        val textToCheck = contextTextFieldValue.text + contextPartialText // Consider combined text
+                                        val textToCheck = userApplicationTextFieldValue.text + userApplicationPartialText // Consider combined text
                                         if (textToCheck.isNotEmpty()) {
                                             if (textToCheck.length < 10) {
-                                                contextTextFieldValue = TextFieldValue("")
-                                                contextPartialText = ""
+                                                userApplicationTextFieldValue = TextFieldValue("")
+                                                userApplicationPartialText = ""
                                             } else {
                                                 processDeletingContextText = true
                                             }
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth().height(30.dp),
-                                    containerColor = if ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) { // Use the combined text
+                                    containerColor = if ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) { // Use the combined text
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
@@ -899,7 +899,7 @@ fun EngageScreen(
                                 ) {
                                     Text(
                                         "Clear",
-                                        color = if (contextTextFieldValue.text.isNotEmpty()) {
+                                        color = if (userApplicationTextFieldValue.text.isNotEmpty()) {
                                             MaterialTheme.colorScheme.onPrimary
                                         } else {
                                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -920,20 +920,20 @@ fun EngageScreen(
 
                         // "Compare" mode: if saved data has been loaded and the user has since changed the text.
                         val isCompareMode = verse?.let { ((directQuoteTextFieldValue.text != verse!!.userDirectQuote) ||
-                                (contextTextFieldValue.text != verse!!.userContext)) } ?: false
+                                (userApplicationTextFieldValue.text != verse!!.userContext)) } ?: false
 
                         // "Evaluate" button enabled logic
                         val evaluateButtonEnabled =
                             verse?.let { ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
-                                    ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) &&
+                                    ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) &&
                                     ((state.directQuoteScore == -1) || (state.contextScore == -1))} ?: false
 
                         val saveButtonEnabled = verse?.let {
                             ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
-                                    ((contextTextFieldValue.text + contextPartialText).isNotEmpty()) &&
+                                    ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) &&
                                     ((state.directQuoteScore >= 0) || (state.contextScore >= 0)) &&
                                     ((directQuoteTextFieldValue.text != verse!!.userDirectQuote) ||
-                                    (contextTextFieldValue.text != verse!!.userContext)) } ?: false
+                                    (userApplicationTextFieldValue.text != verse!!.userContext)) } ?: false
 
                         // Second button ("Save"/"Show"/"Compare") text logic
                         val secondButtonText = if (isShowDataMode) "Show Saved" else "Compare with saved"
@@ -949,7 +949,7 @@ fun EngageScreen(
                                 onClick = {
                                     if (evaluateButtonEnabled) {
                                         val directQuoteToEvaluate = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
-                                        val contextToEvaluate = (contextTextFieldValue.text + contextPartialText).trim()
+                                        val userApplicationComment = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
                                         if (verse != null) {
                                             val verseInfo = BibleVerseRef(
                                                 book = verse!!.book,
@@ -957,13 +957,12 @@ fun EngageScreen(
                                                 startVerse = verse!!.startVerse,
                                                 endVerse = verse!!.endVerse
                                             )
-                                            engageVerseViewModel.fetchScore(
+                                            engageVerseViewModel.getAIFeedback(
                                                 verseInfo,
                                                 directQuoteToEvaluate,
-                                                contextToEvaluate
+                                                userApplicationComment
                                             )
                                             showScoreDialog = true
-                                            hasContentChangedSinceLoad = false
                                         }
                                     }
                                 },
@@ -992,7 +991,7 @@ fun EngageScreen(
                                     if (saveButtonEnabled) {
                                         verse?.let { currentVerse ->
                                             val directQuoteToSave = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
-                                            val contextToSave = (contextTextFieldValue.text + contextPartialText).trim()
+                                            val contextToSave = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
                                             val directQuoteScoreToSave = state.directQuoteScore.coerceAtLeast(0)
                                             val contextScoreToSave = state.contextScore.coerceAtLeast(0)
 
@@ -1010,12 +1009,12 @@ fun EngageScreen(
                                                 text = directQuoteToSave,
                                                 selection = TextRange(directQuoteToSave.length)
                                             )
-                                            contextTextFieldValue = TextFieldValue(
+                                            userApplicationTextFieldValue = TextFieldValue(
                                                 text = contextToSave,
                                                 selection = TextRange(contextToSave.length)
                                             )
                                             directQuotePartialText = ""
-                                            contextPartialText = ""
+                                            userApplicationPartialText = ""
 
                                             // Update the local verse object to match the saved data.
                                             verse = currentVerse.copy(
@@ -1067,7 +1066,7 @@ fun EngageScreen(
                                                     text = savedVerse.userDirectQuote,
                                                     selection = TextRange(savedVerse.userDirectQuote.length)
                                                 )
-                                                contextTextFieldValue = TextFieldValue(
+                                                userApplicationTextFieldValue = TextFieldValue(
                                                     text = savedVerse.userContext,
                                                     selection = TextRange(savedVerse.userContext.length)
                                                 )
@@ -1158,7 +1157,7 @@ fun EngageScreen(
 
                                             // Box for Current Context
                                             val currentContextLabel = "Context" + if (state.contextScore >= 0) " (${state.contextScore})" else ""
-                                            CompareContentBox(label = currentContextLabel, content = contextTextFieldValue.text)
+                                            CompareContentBox(label = currentContextLabel, content = userApplicationTextFieldValue.text)
                                         }
                                     }
                                 },
@@ -1204,8 +1203,8 @@ fun EngageScreen(
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            contextTextFieldValue = TextFieldValue("")
-                                            contextPartialText = ""
+                                            userApplicationTextFieldValue = TextFieldValue("")
+                                            userApplicationPartialText = ""
                                             processDeletingContextText = false
                                         }
                                     ) {
@@ -1230,10 +1229,10 @@ fun EngageScreen(
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            contextTextFieldValue = directQuoteTextFieldValue.copy(
+                                            userApplicationTextFieldValue = directQuoteTextFieldValue.copy(
                                                 selection = TextRange(directQuoteTextFieldValue.text.length)
                                             )
-                                            contextPartialText = "" // Clear any partial text in context field
+                                            userApplicationPartialText = "" // Clear any partial text in context field
                                             showCopyConfirmDialog = false
                                         }
                                     ) {
@@ -1375,7 +1374,7 @@ fun EngageScreen(
                 // Dialog to display score and AI explanation
                 if (showScoreDialog) {
                     AlertDialog(
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(4.dp),
                         onDismissRequest = {
                             // Only allow dismiss if not loading, or handle dismiss during loading appropriately
                             if (!state.aiResponseLoading) {
@@ -1384,7 +1383,7 @@ fun EngageScreen(
                         },
                         title = {
                             Text(
-                                text = if (state.aiResponseLoading) "Calculating Score..." else "Score Assessment",
+                                text = if (state.aiResponseLoading) "Getting feedback..." else "Score / Feedback",
                                 style = MaterialTheme.typography.titleLarge
                             )
                         },
@@ -1399,7 +1398,7 @@ fun EngageScreen(
                                     OutlinedTextField(
                                         label = {  Text("Direct Quote Score : ${state.directQuoteScore}") },
                                         value = state.aiDirectQuoteExplanationText.toString(),
-                                        minLines = 10,
+                                        minLines = 6,
                                         modifier = Modifier.verticalScroll(rememberScrollState()),
                                         onValueChange = { /* read-only */ }
                                     )
@@ -1409,6 +1408,16 @@ fun EngageScreen(
                                     OutlinedTextField(
                                         label = {  Text("Context  Score : ${state.contextScore}") },
                                         value = state.aiContextExplanationText.toString(),
+                                        minLines = 6,
+                                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                                        onValueChange = { /* read-only */ }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    OutlinedTextField(
+                                        label = {  Text("Feedback on application") },
+                                        value = state.applicationFeedback.toString(),
                                         minLines = 10,
                                         modifier = Modifier.verticalScroll(rememberScrollState()),
                                         onValueChange = { /* read-only */ }

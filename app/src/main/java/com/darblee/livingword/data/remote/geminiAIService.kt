@@ -308,7 +308,7 @@ object GeminiAIService {
      * @param directQuoteToEvaluate for the Direct Quote text.
      * @return [AiServiceResult.Success] with the take-away text, or [AiServiceResult.Error] if an issue occurs.
      */
-    suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, contextToEvaluate: String): AiServiceResult<ScoreData> {
+    suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, userApplicationComment: String): AiServiceResult<ScoreData> {
         if (!isConfigured) {
             return AiServiceResult.Error("GeminiAIService has not been configured.")
         }
@@ -335,17 +335,17 @@ object GeminiAIService {
 
             val prompt = """
             Bible verse is $verseRef.
-            DirectQuoteScore - Calculate direct quote accuracy score from range of 0 to 100 on the following  text:
+            DirectQuoteScore - Calculate direct quote accuracy score from range of 0 to 100 on the following text:
 
             $directQuoteToEvaluate
 
             DirectQuoteExplanation - This the explanation on how DirectQuoteScore was derived.
 
-            ContextScore - Calculate the contextual accuracy on the provided text:
-
-            $contextToEvaluate
+            ContextScore - Calculate the contextual accuracy on the same provided text.
 
             ContextExplanation - This the explanation on how ContextScore was derived.
+            
+            ApplicationFeedback - Just create this field with empty string. It is not used here.
 
             Only respond in the following JSON format with no other text:
             {
@@ -353,6 +353,7 @@ object GeminiAIService {
              "ContextScore" : integer between 0 to 100,
              "DirectQuoteExplanation": "This is sample text"
              "ContextExplanation": "This is sample text"
+             "ApplicationFeedback": "Place-holder. Not used here"
             }
             """
             Log.d("GeminiAIService", "Sending memorized score prompt to Gemini: \"$prompt\"")
@@ -362,9 +363,12 @@ object GeminiAIService {
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
 
+            val applicationFeedback = getApplicationFeedback(verseRef, userApplicationComment)
+
             if (responseText != null) {
                 val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
                 val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
+                parseResponse.ApplicationFeedback = applicationFeedback
 
                 AiServiceResult.Success(parseResponse)
             } else {
@@ -373,6 +377,60 @@ object GeminiAIService {
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
             AiServiceResult.Error("Could not get AI score from AI (${e.javaClass.simpleName}).", e)
+        }
+    }
+
+
+    suspend fun getApplicationFeedback(verseRef: String, userApplicationComment: String): String {
+        if (!isConfigured) {
+            return ""
+        }
+        if (generativeModel == null) {
+            return ""
+        }
+
+        return try {
+            // System prompt for the evaluator model
+            val scoreSystemPrompt = content(role = "system") {
+                text("You are an caring Pastor who wants to provide feedback on how the person trying to live out specific scripture verse. Give encouraging words if person is doing a good job applying the scripture as it was intended. " +
+                        "if person cited examples, comment on it. If person is not following verse in practice, provide constructive feedback to help person abide to the scripture verse.  All comments needs to be based on core Judeo-Christian values. Keep feedback less than 100 words.")
+            }
+
+            // It's good practice to create a specific model for this specific task
+            // This ensures the system prompts do not conflict
+            val scoreModel = GenerativeModel(
+                modelName = currentAISettings!!.modelName,
+                apiKey = currentAISettings!!.apiKey,
+                generationConfig = generationConfig {
+                    temperature = 0.2f // Lower temperature for more deterministic evaluation
+                },
+                systemInstruction = scoreSystemPrompt
+            )
+
+            val prompt = """
+            Bible verse is $verseRef.
+            
+            Here is the user's comment on how he/she is applying the scripture:
+
+            $userApplicationComment
+
+           Provide feedback.
+            """
+            Log.d("GeminiAIService", "Sending user application prompt to Gemini: \"$prompt\"")
+
+            val response: GenerateContentResponse = scoreModel.generateContent(prompt)
+            val applicationFeedback = (response.text)?.trimIndent()
+
+            Log.d("GeminiAIService", "Gemini Response: $applicationFeedback")
+
+            if (applicationFeedback != null) {
+                applicationFeedback
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
+            ""
         }
     }
 
