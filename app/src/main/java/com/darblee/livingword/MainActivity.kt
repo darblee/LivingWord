@@ -133,7 +133,7 @@ class MainActivity : ComponentActivity() {
 
         Scaffold(
             modifier = Modifier.fillMaxSize()
-        ) { _ -> // innerPadding is now handled by AppScaffold
+        ) { innerPadding -> // innerPadding is now handled by AppScaffold
 
             val bibleViewModel: BibleVerseViewModel =
                 viewModel(factory = BibleVerseViewModel.Factory(applicationContext))
@@ -143,7 +143,8 @@ class MainActivity : ComponentActivity() {
                 bibleViewModel = bibleViewModel,
                 navController = navController,
                 onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme
+                currentTheme = currentTheme,
+                paddingValues = innerPadding
             )
         }
     }

@@ -304,15 +304,15 @@ fun HomeScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "Verse of the Day: $verseOfTheDayReference",
-                                style = MaterialTheme.typography.headlineMedium, // Larger font
+                                text = "Verse of the Day (VOTD) : $verseOfTheDayReference",
+                                style = MaterialTheme.typography.headlineSmall, // Larger font
                                 fontWeight = FontWeight.ExtraBold, // Bold font
-                                modifier = Modifier.padding(bottom = 4.dp) // Reduced padding
+                                modifier = Modifier.padding(bottom = 2.dp) // Reduced padding
                             )
                             Text(
                                 text = "Date: ${SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date())}",
-                                style = MaterialTheme.typography.bodySmall, // Smaller font
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                style = MaterialTheme.typography.bodyLarge, // Smaller font
+                                modifier = Modifier.padding(bottom = 4.dp)
                             )
                             OutlinedCard(
                                 modifier = Modifier
@@ -414,7 +414,7 @@ fun HomeScreen(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Verse")
+                            Text("VOTD")
                             Spacer(Modifier.width(4.dp))
                             Icon(
                                 imageVector = when {
@@ -462,7 +462,7 @@ fun HomeScreen(
                             modifier = Modifier.weight(1f),
                             enabled = verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day"
                         ) {
-                            Text("Add verse")
+                            Text("Add VOTD")
                         }
                     }
                 }

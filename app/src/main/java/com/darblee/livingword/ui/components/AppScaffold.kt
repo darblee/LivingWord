@@ -87,7 +87,7 @@ fun AppScaffold(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = title,
+                title = { title() },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = colorScheme.primaryContainer
                 ),

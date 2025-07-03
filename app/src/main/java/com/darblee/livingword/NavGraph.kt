@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -109,6 +110,7 @@ fun SetUpNavGraph(
     navController: NavHostController,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
+    paddingValues: PaddingValues,
 ) {
     // NavHost defines the navigation graph
     NavHost(

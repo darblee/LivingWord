@@ -541,9 +541,9 @@ fun EngageScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Direct Quote: This Row arranges the TextField and the Button Column side-by-side
+                        // Memorized Content: This Row arranges the TextField and the Button Column side-by-side
                         Row(
-                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.4F),
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.5F),
                             verticalAlignment = Alignment.Top // Align items to the top of the Row
                         ) {
                             // OutlinedTextField takes 80% of the width
@@ -588,7 +588,9 @@ fun EngageScreen(
                                         ) {
                                             if (directQuoteTextFieldValue.text.isEmpty()) {
                                                 Text(
-                                                    text = "Type or speak (🎤) ...",
+                                                    text = "Type or speak (🎤) ... \n\n" +
+                                                            "Boost your memory of the scripture by writing it down..\n\n" +
+                                                            "Select \"Feedback\" to get your direct quote and contextual accuracy score (0-100)",
                                                     style = MaterialTheme.typography.bodyLarge.copy(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                                     ),
@@ -606,7 +608,7 @@ fun EngageScreen(
 
                                 // Overlapping label positioned at top-left corner on the border
                                 Text(
-                                    text = if (state.directQuoteScore >= 0) "Direct Quote Score: ${state.directQuoteScore}" else "Direct Quote",
+                                    text = if (state.directQuoteScore >= 0) "Memorization Score (Direct Quote:${state.directQuoteScore} Context:${state.contextScore})" else "Memorized Content",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = if (isDirectQuoteTextFieldFocused)
                                         MaterialTheme.colorScheme.primary
@@ -685,7 +687,7 @@ fun EngageScreen(
                                             }
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth().height(35.dp),
+                                    modifier = Modifier.fillMaxWidth().height(30.dp),
                                     containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) { // Use the combined text
                                         MaterialTheme.colorScheme.primary
                                     } else {
@@ -706,9 +708,9 @@ fun EngageScreen(
 
                         Spacer(modifier = Modifier.height(10.dp)) // Spacer after the Row
 
-                        // Context: This Row arranges the TextField and the Button Column side-by-side
+                        // Application Content: This Row arranges the TextField and the Button Column side-by-side
                         Row(
-                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.7F),
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8F),
                             verticalAlignment = Alignment.Top // Align items to the top of the Row
                         ) {
                             // OutlinedTextField takes 80% of the width
@@ -751,7 +753,8 @@ fun EngageScreen(
                                         ) {
                                             if (contextTextFieldValue.text.isEmpty()) {
                                                 Text(
-                                                    text = "Type or speak (🎤) ...",
+                                                    text = "Type or speak (🎤) ...\n\n" +
+                                                            "How does this verse shape your life? Describe specific moments that show this verse is at work in you.",
                                                     style = MaterialTheme.typography.bodyLarge.copy(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                                     ),
@@ -769,7 +772,7 @@ fun EngageScreen(
 
                                 // Overlapping label positioned at top-left corner on the border
                                 Text(
-                                    text = if (state.contextScore >= 0) "Context Score: ${state.contextScore}" else "Context",
+                                    text = "Personal Application",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = if (isContextTextFieldFocused)
                                         MaterialTheme.colorScheme.primary
@@ -906,7 +909,7 @@ fun EngageScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp)) // Spacer after the Row
+                        Spacer(modifier = Modifier.height(10.dp)) // Spacer after the Row
 
                         // Determine button states
                         val hasSavedData = remember(verse) {
@@ -966,7 +969,7 @@ fun EngageScreen(
                                 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(48.dp),
+                                    .height(30.dp),
                                 containerColor = if (evaluateButtonEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -974,7 +977,7 @@ fun EngageScreen(
                                 }
                             ) {
                                 Text(
-                                    text = "Evaluate",
+                                    text = "Feedback",
                                     color = if (evaluateButtonEnabled) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
@@ -1036,7 +1039,7 @@ fun EngageScreen(
                                 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(48.dp),
+                                    .height(30.dp),
                                 containerColor = if (saveButtonEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -1084,7 +1087,7 @@ fun EngageScreen(
                                 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(48.dp),
+                                    .height(30.dp),
                                 containerColor = if (secondButtonEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {

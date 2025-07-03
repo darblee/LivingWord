@@ -28,3 +28,8 @@ secrets.properties
 /app/.idea/misc.xml
 /app/.idea/runConfigurations.xml
 /app/.idea/vcs.xml
+/.idea/.name
+/.idea/appInsightsSettings.xml
+/.idea/compiler.xml
+/.idea/deviceManager.xml
+/.idea/studiobot.xml

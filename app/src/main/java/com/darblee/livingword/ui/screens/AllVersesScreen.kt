@@ -69,16 +69,44 @@ fun AllVersesScreen(
     bibleViewModel: BibleVerseViewModel,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
+    newVerseJson: String? = null
 ) {
     val context = LocalContext.current
 
     val allVerses by bibleViewModel.allVerses.collectAsState()
 
     var showRetrievingDataDialog by remember { mutableStateOf(false) }
+    val newVerseViewModel: NewVerseViewModel = viewModel()
+
+    LaunchedEffect(newVerseJson) {
+        newVerseJson?.let {
+            try {
+                val bibleVerseRef = Json.decodeFromString<BibleVerseRef>(it)
+                // Here, you would call the function to add the verse to your database
+                // For example, if bibleViewModel has an addVerse function:
+                // bibleViewModel.addVerse(bibleVerseRef)
+                // For now, let's just show a toast
+                Toast.makeText(context, "Attempting to add verse: ${bibleVerseRef.book} ${bibleVerseRef.chapter}:${bibleVerseRef.startVerse}", Toast.LENGTH_LONG).show()
+
+                // You'll need to decide how to handle the actual saving. If it's a simple add:
+                bibleViewModel.saveNewVerse(
+                    verse = bibleVerseRef,
+                    aiTakeAwayResponse = "", // You might need to fetch this or pass it
+                    topics = emptyList(), // You might need to fetch this or pass it
+                    newVerseViewModel = newVerseViewModel, // Pass the NewVerseViewModel instance
+                    translation = "KJV", // You might need to pass this
+                    scriptureVerses = emptyList() // You might need to fetch this or pass it
+                )
+
+            } catch (e: Exception) {
+                Log.e("AllVersesScreen", "Error parsing newVerseJson: ${e.message}", e)
+                Toast.makeText(context, "Error adding verse: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     // Use LaunchedEffect tied to lifecycle to observe results from SavedStateHandle
     // --- Handle Navigation Results ---
-    val newVerseViewModel: NewVerseViewModel = viewModel()
     val newVerseState by newVerseViewModel.state.collectAsStateWithLifecycle()
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -243,14 +271,14 @@ fun AllVersesScreen(
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
