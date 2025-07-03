@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="LivingWord.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-07-03T04:22:32.379136700Z">
+        <DropdownSelection timestamp="2025-07-03T06:21:50.157274500Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=b0d8da1c" />
