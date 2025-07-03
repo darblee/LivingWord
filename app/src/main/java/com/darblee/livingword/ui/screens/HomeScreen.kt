@@ -45,6 +45,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,7 +62,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.VotdService
 import com.darblee.livingword.PreferenceStore
@@ -71,10 +71,14 @@ import com.darblee.livingword.data.remote.AiServiceResult
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.BaselineShift
+import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.data.Verse
+import com.darblee.livingword.domain.model.BibleVerseViewModel
+import com.darblee.livingword.domain.model.HomeViewModel
 import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.text.BreakIterator
 import java.text.SimpleDateFormat
@@ -104,10 +108,13 @@ private fun splitIntoSentences(text: String, locale: Locale): List<String> {
 fun HomeScreen(
     navController: NavController,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
-    currentTheme: ColorThemeOption
+    currentTheme: ColorThemeOption,
+    bibleVerseViewModel: BibleVerseViewModel
 ) {
     val TTSViewModel: TTSViewModel = viewModel()
     val isTtsInitialized by TTSViewModel.isInitialized.collectAsStateWithLifecycle()
+
+    val homeViewModel: HomeViewModel = viewModel()
 
     val context = LocalContext.current
     val preferenceStore = remember { PreferenceStore(context) }
@@ -163,6 +170,9 @@ fun HomeScreen(
 
     var verseOfTheDayReference by remember { mutableStateOf("Loading...") }
     var verseContent by remember { mutableStateOf<List<Verse>>(emptyList()) }
+
+    var showRetrievingDataDialog by remember { mutableStateOf(false) }
+    var loadingMessage by remember { mutableStateOf("") }
 
     LaunchedEffect(selectedTranslation) {
         val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -270,6 +280,60 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        homeViewModel.state.collect { state ->
+            Log.i("HomeScreen", "HomeViewModel state collected. LoadingStage: ${state.loadingStage}, GeneralError: ${state.generalError}, AiResponseError: ${state.aiResponseError}")
+
+            showRetrievingDataDialog = when (state.loadingStage) {
+                HomeViewModel.LoadingStage.NONE -> false
+                else -> true
+            }
+
+            loadingMessage = when (state.loadingStage) {
+                HomeViewModel.LoadingStage.FETCHING_SCRIPTURE -> "Fetching scripture..."
+                HomeViewModel.LoadingStage.FETCHING_TAKEAWAY -> "Fetching insights from AI..."
+                HomeViewModel.LoadingStage.VALIDATING_TAKEAWAY -> "Validating insights..."
+                else -> "Processing..."
+            }
+
+            Log.i("HomeScreen", "Loading message: $loadingMessage, aiResponseText.isNotEmpty(): ${state.aiTakeAwayText.isNotEmpty()}, scriptureVerses.isNotEmpty(): ${state.scriptureVerses.isNotEmpty()} state.isContentSaved: ${state.isContentSaved}")
+
+            if (state.aiTakeAwayText.isNotEmpty() && state.scriptureVerses.isNotEmpty() && !state.isContentSaved && state.selectedVOTD != null && state.loadingStage == HomeViewModel.LoadingStage.NONE) {
+                Log.i("HomeScreen", "Adding new verse to database")
+                bibleVerseViewModel.saveNewVerseHome(
+                    verse = state.selectedVOTD,
+                    aiTakeAwayResponse = state.aiTakeAwayText,
+                    topics = emptyList(), // Assuming no topics for VOTD
+                    translation = state.translation,
+                    scriptureVerses = state.scriptureVerses,
+                    homeViewModel = homeViewModel // Pass the homeViewModel instance
+                )
+            }
+
+            if (state.newlySavedVerseId != null) {
+                showRetrievingDataDialog = false // Hide dialog before navigating
+                navController.navigate(Screen.VerseDetailScreen(verseID = state.newlySavedVerseId, editMode = true)) {
+                    popUpTo(Screen.Home)
+                }
+            }
+
+            if (state.generalError != null) {
+                Toast.makeText(context, state.generalError, Toast.LENGTH_LONG).show()
+                homeViewModel.clearVerseData() // Clear error after showing
+            } else if (state.aiResponseError != null) {
+                Toast.makeText(context, state.aiResponseError, Toast.LENGTH_LONG).show()
+                homeViewModel.clearVerseData() // Clear error after showing
+            } else if (state.isContentSaved) {
+                // Verse successfully saved, reset the flag
+                homeViewModel.resetNavigationState() // This will reset isVotdAddInitiated in HomeViewModel
+            }
+        }
+    }
+
+    if (showRetrievingDataDialog) {
+        TransientRetrievingDataDialog(loadingMessage = loadingMessage)
+    }
+
     val displaySentences = remember(morningPrayerText, Locale.getDefault()) {
         splitIntoSentences(morningPrayerText, Locale.getDefault())
     }
@@ -289,6 +353,7 @@ fun HomeScreen(
             }
         }
     }
+    val scope = rememberCoroutineScope()
 
     AppScaffold(
         title = { Text("Prepare your heart") },
@@ -345,8 +410,28 @@ fun HomeScreen(
                                         if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
 
                                     if (chapter != null && startVerse != null && endVerse != null) {
-                                        val votdBibleVerseRef =
-                                            BibleVerseRef(book, chapter, startVerse, endVerse)
+                                        scope.launch {
+                                            val existingVerse = bibleVerseViewModel.findExistingVerse(book, chapter, startVerse)
+                                            if (existingVerse != null) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Verse already exists in your list.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                if (!homeViewModel.state.value.isVotdAddInitiated) {
+                                                    val votdBibleVerseRef =
+                                                        BibleVerseRef(book, chapter, startVerse, endVerse)
+                                                    homeViewModel.setSelectedVerseAndFetchData(votdBibleVerseRef)
+                                                } else {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Verse addition already in progress.",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            }
+                                        }
                                     } else {
                                         Toast.makeText(
                                             context,

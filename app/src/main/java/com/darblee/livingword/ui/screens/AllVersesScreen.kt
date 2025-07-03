@@ -289,7 +289,7 @@ fun AllVersesScreen(
                             navController.navigate(Screen.GetBookScreen) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Add specific verse...")
+                        Text("Add new verse...")
                     }
                     Button(
                         onClick = { navController.navigate(Screen.AddVerseByDescriptionScreen) },

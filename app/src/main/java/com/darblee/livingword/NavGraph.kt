@@ -121,7 +121,8 @@ fun SetUpNavGraph(
         composable<Screen.Home> { // Use composable<Type> for type safety
             HomeScreen(navController = navController,
                 onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme)
+                currentTheme = currentTheme,
+                bibleVerseViewModel = bibleViewModel)
         }
         // Define the Topic Screen destination
         composable<Screen.AllVersesScreen> {

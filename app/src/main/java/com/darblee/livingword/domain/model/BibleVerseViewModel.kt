@@ -195,6 +195,38 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
+    fun saveNewVerseHome(
+        verse: BibleVerseRef,
+        aiTakeAwayResponse: String,
+        topics: List<String>,
+        translation: String,
+        favorite: Boolean = false,
+        homeViewModel: HomeViewModel? = null,
+        scriptureVerses: List<Verse>
+    ) {
+        Log.i("BibleVerseViewModel", "Home: Saving new verse")
+        viewModelScope.launch {
+            try {
+                val newVerseID = repository.insertVerseWithTopics(
+                    book = verse.book,
+                    chapter = verse.chapter,
+                    startVerse = verse.startVerse,
+                    endVerse = verse.endVerse,
+                    aiTakeAwayResponse = aiTakeAwayResponse,
+                    topics = topics,
+                    favorite = favorite,
+                    translation = translation,
+                    verses = scriptureVerses
+                )
+                homeViewModel?.contentSavedSuccessfully(newVerseID)
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error saving verse with topics: ${e.message}", e)
+                homeViewModel?.updateGeneralError("Failed to save content: ${e.localizedMessage}")
+            }
+        }
+    }
+
+
     private fun NewVerseViewModel?.updateGeneralError(string: String) {
 
     }
