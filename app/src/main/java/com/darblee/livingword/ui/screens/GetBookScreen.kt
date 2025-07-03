@@ -88,7 +88,7 @@ fun GetBookScreen(
                 Button(
                     onClick = {
                         navController.popBackStack(
-                            route = Screen.NewVerseScreen, // Destination to pop up to
+                            route = Screen.AllVersesScreen, // Destination to pop up to
                             inclusive = false
                         )
                     },
