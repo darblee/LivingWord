@@ -4,9 +4,12 @@ package com.darblee.livingword.ui.screens
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -69,9 +72,13 @@ import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.zIndex
 import com.darblee.livingword.BackPressHandler
+import com.darblee.livingword.R
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.HomeViewModel
@@ -367,70 +374,97 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Top
-                ) {
-                    VerseOfTheDaySection(
-                        verseOfTheDayReference = verseOfTheDayReference,
-                        verseContent = verseContent,
-                        currentlySpeakingIndex = currentlySpeakingIndex,
-                        isSpeaking = isSpeaking,
-                        isPaused = isPaused,
-                        currentTtsTextId = currentTtsTextId,
-                        translation = selectedTranslation,
-                        onPlayPauseClick = {
-                            if (!isTtsInitialized) {
-                                Toast
-                                    .makeText(
-                                        context,
-                                        "TTS initializing...",
-                                        Toast.LENGTH_SHORT
-                                    )
-                                    .show()
-                            } else {
-                                // Convert List<Verse> to a single string for TTS
-                                val votdText = verseContent.joinToString(" ") { it.verseString }
-                                TTSViewModel.togglePlayPauseResumeSingleText(votdText)
-                                currentTtsTextId = "votd"
-                            }
-                        },
-                        onAddClick = {
-                            // Parse verseOfTheDayReference into BibleVerseRef
-                            val parts = verseOfTheDayReference.split(" ")
-                            if (parts.size >= 2) {
-                                val book = parts[0]
-                                val chapterAndVerse = parts[1].split(":")
-                                if (chapterAndVerse.size == 2) {
-                                    val chapter = chapterAndVerse[0].toIntOrNull()
-                                    val verseRange = chapterAndVerse[1].split("-")
-                                    val startVerse = verseRange[0].toIntOrNull()
-                                    val endVerse =
-                                        if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
+                Box() {
+                    Image(
+                        painter = painterResource(id = R.drawable.votd_calendar),
+                        contentDescription = "Verse of the Day Background",
+                        modifier = Modifier.fillMaxSize().zIndex(0f),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.3f
+                    )
+                    Column(
+                        modifier = Modifier.fillMaxSize().zIndex(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Top
+                    ) {
+                        VerseOfTheDaySection(
+                            verseOfTheDayReference = verseOfTheDayReference,
+                            verseContent = verseContent,
+                            currentlySpeakingIndex = currentlySpeakingIndex,
+                            isSpeaking = isSpeaking,
+                            isPaused = isPaused,
+                            currentTtsTextId = currentTtsTextId,
+                            translation = selectedTranslation,
+                            onPlayPauseClick = {
+                                if (!isTtsInitialized) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "TTS initializing...",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                } else {
+                                    // Convert List<Verse> to a single string for TTS
+                                    val votdText = verseContent.joinToString(" ") { it.verseString }
+                                    TTSViewModel.togglePlayPauseResumeSingleText(votdText)
+                                    currentTtsTextId = "votd"
+                                }
+                            },
+                            onAddClick = {
+                                // Parse verseOfTheDayReference into BibleVerseRef
+                                val parts = verseOfTheDayReference.split(" ")
+                                if (parts.size >= 2) {
+                                    val book = parts[0]
+                                    val chapterAndVerse = parts[1].split(":")
+                                    if (chapterAndVerse.size == 2) {
+                                        val chapter = chapterAndVerse[0].toIntOrNull()
+                                        val verseRange = chapterAndVerse[1].split("-")
+                                        val startVerse = verseRange[0].toIntOrNull()
+                                        val endVerse =
+                                            if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
 
-                                    if (chapter != null && startVerse != null && endVerse != null) {
-                                        scope.launch {
-                                            val existingVerse = bibleVerseViewModel.findExistingVerse(book, chapter, startVerse)
-                                            if (existingVerse != null) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Verse already exists in your list.",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            } else {
-                                                if (!homeViewModel.state.value.isVotdAddInitiated) {
-                                                    val votdBibleVerseRef =
-                                                        BibleVerseRef(book, chapter, startVerse, endVerse)
-                                                    homeViewModel.setSelectedVerseAndFetchData(votdBibleVerseRef)
-                                                } else {
+                                        if (chapter != null && startVerse != null && endVerse != null) {
+                                            scope.launch {
+                                                val existingVerse =
+                                                    bibleVerseViewModel.findExistingVerse(
+                                                        book,
+                                                        chapter,
+                                                        startVerse
+                                                    )
+                                                if (existingVerse != null) {
                                                     Toast.makeText(
                                                         context,
-                                                        "Verse addition already in progress.",
+                                                        "Verse already exists in your list.",
                                                         Toast.LENGTH_SHORT
                                                     ).show()
+                                                } else {
+                                                    if (!homeViewModel.state.value.isVotdAddInitiated) {
+                                                        val votdBibleVerseRef =
+                                                            BibleVerseRef(
+                                                                book,
+                                                                chapter,
+                                                                startVerse,
+                                                                endVerse
+                                                            )
+                                                        homeViewModel.setSelectedVerseAndFetchData(
+                                                            votdBibleVerseRef
+                                                        )
+                                                    } else {
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Verse addition already in progress.",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
                                                 }
                                             }
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Error parsing VOTD reference for navigation.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     } else {
                                         Toast.makeText(
@@ -446,42 +480,34 @@ fun HomeScreen(
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Error parsing VOTD reference for navigation.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
                             }
-                        }
-                    )
+                        )
 
-                    DailyPrayerSection(
-                        annotatedText = annotatedText,
-                        isTtsInitialized = isTtsInitialized,
-                        isSpeaking = isSpeaking,
-                        isPaused = isPaused,
-                        currentTtsTextId = currentTtsTextId,
-                        onPlayPauseClick = {
-                            if (!isTtsInitialized) {
-                                Toast
-                                    .makeText(
-                                        context,
-                                        "TTS initializing...",
-                                        Toast.LENGTH_SHORT
-                                    )
-                                    .show()
-                            } else {
-                                TTSViewModel.togglePlayPauseResumeSingleText(morningPrayerText)
-                                currentTtsTextId = "morningPrayer"
+                        DailyPrayerSection(
+                            annotatedText = annotatedText,
+                            isSpeaking = isSpeaking,
+                            isPaused = isPaused,
+                            currentTtsTextId = currentTtsTextId,
+                            onPlayPauseClick = {
+                                if (!isTtsInitialized) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "TTS initializing...",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                } else {
+                                    TTSViewModel.togglePlayPauseResumeSingleText(morningPrayerText)
+                                    currentTtsTextId = "morningPrayer"
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
     )
-
 
     val activity = LocalActivity.current
     var backPressedTime by remember { mutableStateOf(0L) }
@@ -494,7 +520,6 @@ fun HomeScreen(
         }
     }
 }
-
 
 fun buildAnnotatedStringForScripture(verses: List<Verse>, currentlySpeakingIndex: Int, isSpeaking: Boolean, isPaused: Boolean, currentTtsTextId: String?,
                                      highlightStyle: SpanStyle): AnnotatedString {
@@ -543,8 +568,8 @@ fun VerseOfTheDaySection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -554,11 +579,19 @@ fun VerseOfTheDaySection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Verse of the Day",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = "Verse of the Day",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "(Powered by BibleGateway.com)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Row {
                     Button(onClick = onPlayPauseClick) {
                         Icon(
@@ -617,7 +650,6 @@ fun VerseOfTheDaySection(
 @Composable
 fun DailyPrayerSection(
     annotatedText: AnnotatedString,
-    isTtsInitialized: Boolean,
     isSpeaking: Boolean,
     isPaused: Boolean,
     currentTtsTextId: String?,
@@ -626,7 +658,9 @@ fun DailyPrayerSection(
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -638,8 +672,9 @@ fun DailyPrayerSection(
             ) {
                 Text(
                     text = "Daily Prayer",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Button(onClick = onPlayPauseClick) {
                     Icon(
