@@ -3,6 +3,8 @@ package com.darblee.livingword.ui.screens
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,11 +19,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,10 +45,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -51,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Global.VERSE_RESULT_KEY
+import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
@@ -271,115 +281,141 @@ fun AllVersesScreen(
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Image(
+                painter = painterResource(id = R.drawable.bible),
+                contentDescription = "Bible Background",
+                modifier = Modifier.fillMaxSize().zIndex(0f),
+                contentScale = ContentScale.Crop,
+                alpha = 0.2f
+            )
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                Column(
+                    modifier = Modifier.fillMaxSize().zIndex(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Top
                 ) {
-                    Button(
-                        onClick = {
-                            newVerseViewModel.resetNavigationState()
-                            navController.navigate(Screen.GetBookScreen) },
-                        modifier = Modifier.weight(1f)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
                     ) {
-                        Text("Add new verse...")
-                    }
-                    Button(
-                        onClick = { navController.navigate(Screen.AddVerseByDescriptionScreen) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Add verse by description ...", textAlign = TextAlign.Center)
-                    }
-                    Button(
-                        onClick = { /* No action yet */ },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Filter listing")
-                    }
-                }
-
-                if (allVerses.isEmpty()) {
-                    Text("No verses added yet.", style = MaterialTheme.typography.bodyMedium)
-                } else {
-                    Box(modifier = Modifier.weight(1f)) {
-                        val listState = rememberLazyListState()
-                        val scope = rememberCoroutineScope()
-                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                            items(allVerses) { verseItem ->
-                                VerseCard(verseItem, navController)
-                                Spacer(modifier = Modifier.height(2.dp))
-                            }
-                        }
-
-                        val showScrollDownIndicator by remember {
-                            derivedStateOf {
-                                listState.canScrollForward
-                            }
-                        }
-                        val showScrollUpIndicator by remember {
-                            derivedStateOf {
-                                listState.firstVisibleItemIndex > 0
-                            }
-                        }
-
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = showScrollUpIndicator,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 8.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
-                                shadowElevation = 4.dp,
-                                modifier = Modifier.clickable {
-                                    scope.launch {
-                                        listState.animateScrollToItem(0)
-                                    }
-                                }
+                            Button(
+                                onClick = {
+                                    newVerseViewModel.resetNavigationState()
+                                    navController.navigate(Screen.GetBookScreen)
+                                },
+                                shape =  RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowUp,
-                                    contentDescription = "Scroll Up",
-                                    tint = MaterialTheme.colorScheme.onSecondary,
-                                    modifier = Modifier.padding(8.dp)
-                                )
+                                Text("Add new verse ..,")
                             }
-                        }
-
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = showScrollDownIndicator,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
-                                shadowElevation = 4.dp,
-                                modifier = Modifier.clickable {
-                                    scope.launch {
-                                        listState.animateScrollToItem(allVerses.size - 1)
-                                    }
-                                }
+                            Button(
+                                onClick = { navController.navigate(Screen.AddVerseByDescriptionScreen) },
+                                shape =  RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Scroll Down",
-                                    tint = MaterialTheme.colorScheme.onSecondary,
-                                    modifier = Modifier.padding(8.dp)
-                                )
+                                Text("Add verse by description..", textAlign = TextAlign.Center)
+                            }
+                            Button(
+                                onClick = { /* No action yet */ },
+                                shape =  RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Filter listing")
                             }
                         }
                     }
-                }
+
+                    if (allVerses.isEmpty()) {
+                        Text("No verses added yet.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        Box(modifier = Modifier.weight(1f)) {
+                            val listState = rememberLazyListState()
+                            val scope = rememberCoroutineScope()
+                            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                                items(allVerses) { verseItem ->
+                                    VerseCard(verseItem, navController)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                }
+                            }
+
+                            val showScrollDownIndicator by remember {
+                                derivedStateOf {
+                                    listState.canScrollForward
+                                }
+                            }
+                            val showScrollUpIndicator by remember {
+                                derivedStateOf {
+                                    listState.firstVisibleItemIndex > 0
+                                }
+                            }
+
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = showScrollUpIndicator,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 8.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
+                                    shadowElevation = 4.dp,
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            listState.animateScrollToItem(0)
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowUp,
+                                        contentDescription = "Scroll Up",
+                                        tint = MaterialTheme.colorScheme.onSecondary,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                            }
+
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = showScrollDownIndicator,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 16.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
+                                    shadowElevation = 4.dp,
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            listState.animateScrollToItem(allVerses.size - 1)
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = "Scroll Down",
+                                        tint = MaterialTheme.colorScheme.onSecondary,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    }
             }
         }
     )

@@ -3,6 +3,7 @@ package com.darblee.livingword.ui.screens
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,10 +56,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Global
+import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.domain.model.BibleVerseViewModel
@@ -209,14 +214,22 @@ fun TopicScreen(
         onColorThemeUpdated = onColorThemeUpdated,
         currentTheme = currentTheme,
         content = { paddingValues ->
+            Image(
+                painter = painterResource(id = R.drawable.study_bible),
+                contentDescription = "Study Bible Background",
+                modifier = Modifier.fillMaxSize().zIndex(0f),
+                contentScale = ContentScale.Crop,
+                alpha = 0.2f
+            )
             Column(
                 modifier = Modifier
-                    .padding(paddingValues) //
-                    .fillMaxSize() //
-                    .padding(16.dp),
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .zIndex(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box { //
+                Box() {
                     Text(
                         text = "Select one or more topics to perform task.", //
                         style = MaterialTheme.typography.bodyLarge, //
@@ -224,11 +237,13 @@ fun TopicScreen(
                     )
 
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(2), //
+                        columns = GridCells.Fixed(2),
                         modifier = Modifier
-                            .heightIn(max = (4 * 48).dp) //
-                            .border(width = 1.dp, color = Color.Gray) //
-                            .padding(top = 35.dp) //
+                            .heightIn(max = (4 * 48).dp)
+                            .border(width = 1.dp, color = Color.Gray)
+                            .padding(top = 35.dp)
+
+
                     ) {
                         items(topicsForDisplay.size) { index -> // Use topicsForDisplay
                             val topicToDisplay = topicsForDisplay[index]
@@ -302,18 +317,18 @@ fun TopicScreen(
                                     showRenameDialog = true
                                 }
                             },
-                            enabled = selectedTopics.count() == 1, //
+                            enabled = selectedTopics.count() == 1,
                             modifier = Modifier
-                                .weight(1f) //
-                                .padding(start = 8.dp) //
+                                .weight(1f)
+                                .padding(start = 8.dp)
                         ) {
-                            Text("Rename topic") //
+                            Text("Rename topic")
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp)) //
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         Button(
-                            onClick = { //
+                            onClick = {
                                 bibleViewModel.deleteTopics(selectedTopics)
                                 selectedTopics = emptyList() // Reset selection
                             },
@@ -322,10 +337,10 @@ fun TopicScreen(
                                 topicsForDisplay.find { it.name == selTopic }?.uiVerseCount == 0
                             },
                             modifier = Modifier
-                                .weight(1f) //
-                                .padding(end = 8.dp) //
+                                .weight(1f)
+                                .padding(end = 8.dp)
                         ) {
-                            Text("Delete Topic(s)") //
+                            Text("Delete Topic(s)")
                         }
                     }
                 }
