@@ -56,6 +56,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
@@ -85,18 +88,30 @@ fun GoogleDriveOpsScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    DisposableEffect(Unit) {
-        Log.i("GoogleDriveOps", "Dispose triggered")
-        onDispose {
-            if (signedInCredential != null) {
-                scope.launch {
-                    signOut(context)
-                    Toast.makeText(context, "user has signed out", Toast.LENGTH_SHORT).show()
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                if (signedInCredential != null) {
+                    scope.launch {
+                        signOut(context)
+                        Toast.makeText(context, "Signing out Google Account", Toast.LENGTH_SHORT)
+                            .show()
+                        signedInCredential = null
+                        userName = null
+                        googleAccountID = null
+                    }
                 }
             }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
+
 
     // Observe the states from the ExportImportViewModel
     val exportState by ExportImportViewModel.exportState.collectAsState()
