@@ -590,7 +590,7 @@ fun EngageScreen(
                                                 Text(
                                                     text = "Type or speak (🎤) ... \n\n" +
                                                             "Boost your memory of the scripture by writing it down..\n\n" +
-                                                            "Select \"Feedback\" to get your direct quote and contextual accuracy score (0-100)",
+                                                            "Select \"Feedback\" to get score assessment",
                                                     style = MaterialTheme.typography.bodyLarge.copy(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                                     ),
@@ -754,7 +754,7 @@ fun EngageScreen(
                                             if (userApplicationTextFieldValue.text.isEmpty()) {
                                                 Text(
                                                     text = "Type or speak (🎤) ...\n\n" +
-                                                            "How does this verse shape your life? Describe specific moments that show this verse is at work in you.",
+                                                            "Describe specific moments that show this verse is at work in you.",
                                                     style = MaterialTheme.typography.bodyLarge.copy(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                                     ),
@@ -836,43 +836,6 @@ fun EngageScreen(
                                     } else {
                                         Text(text = "🎤", fontSize = 20.sp)
                                     }
-                                }
-
-                                Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row
-
-                                // Copy from direct quote
-                                FloatingActionButton(
-                                    onClick = {
-                                        if (directQuoteTextFieldValue.text.isNotEmpty()) {
-                                            if (userApplicationTextFieldValue.text.isNotEmpty()) {
-                                                showCopyConfirmDialog = true // Show dialog if context is not empty
-                                            } else {
-                                                // Context is empty, so copy directly
-                                                userApplicationTextFieldValue = directQuoteTextFieldValue.copy(
-                                                    selection = TextRange(directQuoteTextFieldValue.text.length)
-                                                )
-                                                userApplicationPartialText = "" // Clear partial text in context field
-                                            }
-                                        } else {
-                                            Log.i("Click", "Direct quote is empty, nothing to copy")
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth().height(30.dp),
-                                    containerColor = if (directQuoteTextFieldValue.text.isNotEmpty()) { // Use the combined text
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                    }
-
-                                ) {
-                                    Text(
-                                        "Copy",
-                                        color = if (directQuoteTextFieldValue.text.isNotEmpty()) {
-                                            MaterialTheme.colorScheme.onPrimary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                        }
-                                    )
                                 }
 
                                 Spacer(modifier = Modifier.height(1.dp)) // Spacer after the Row

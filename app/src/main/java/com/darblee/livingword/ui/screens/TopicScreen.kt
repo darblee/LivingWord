@@ -203,12 +203,11 @@ fun TopicScreen(
         }
     }
 
-
     val showErrorDialog = remember { mutableStateOf(false) }
     val errMessage = remember { mutableStateOf("Something went wrong!") }
 
     AppScaffold(
-        title = { Text("Meditate God's Word by Topic(s)") },
+        title = { Text("Manage Topic(s)") },
         navController = navController,
         currentScreenInstance = Screen.TopicScreen,
         onColorThemeUpdated = onColorThemeUpdated,

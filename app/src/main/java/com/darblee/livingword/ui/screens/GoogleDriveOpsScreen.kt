@@ -3,6 +3,7 @@ package com.darblee.livingword.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,9 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -36,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,7 +46,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -68,8 +67,6 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.window.Dialog
 
 private val ExportImportViewModel = ExportImportViewModel()
 
@@ -88,6 +85,18 @@ fun GoogleDriveOpsScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    DisposableEffect(Unit) {
+        Log.i("GoogleDriveOps", "Dispose triggered")
+        onDispose {
+            if (signedInCredential != null) {
+                scope.launch {
+                    signOut(context)
+                    Toast.makeText(context, "user has signed out", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     // Observe the states from the ExportImportViewModel
     val exportState by ExportImportViewModel.exportState.collectAsState()
