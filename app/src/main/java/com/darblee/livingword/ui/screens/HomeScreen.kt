@@ -401,9 +401,9 @@ fun HomeScreen(
                                 )
                                 .show()
                         } else {
-                            // Convert List<Verse> to a single string for TTS
-                            val votdText = verseContent.joinToString(" ") { it.verseString }
-                            TTSViewModel.togglePlayPauseResumeSingleText(votdText)
+                            // Speak the reference first, then the content
+                            val fullVotdText = "$verseOfTheDayReference. " + verseContent.joinToString(" ") { it.verseString }
+                            TTSViewModel.togglePlayPauseResumeSingleText(fullVotdText)
                             currentTtsTextId = "votd"
                         }
                     },
@@ -515,12 +515,15 @@ fun HomeScreen(
     }
 }
 
-fun buildAnnotatedStringForScripture(verses: List<Verse>, currentlySpeakingIndex: Int, isSpeaking: Boolean, isPaused: Boolean, currentTtsTextId: String?,
+fun buildAnnotatedStringForScripture(verseOfTheDayReference: String, verses: List<Verse>, currentlySpeakingIndex: Int, isSpeaking: Boolean, isPaused: Boolean, currentTtsTextId: String?,
                                      highlightStyle: SpanStyle): AnnotatedString {
+    val referenceSentences = splitIntoSentences(verseOfTheDayReference, Locale.getDefault())
+    val adjustedSpeakingIndex = currentlySpeakingIndex - referenceSentences.size
     return buildAnnotatedString {
+
         verses.forEachIndexed { index, verse ->
-            val shouldHighlight = (isSpeaking && !isPaused && index == currentlySpeakingIndex && currentTtsTextId == "votd") ||
-                    (isPaused && index == currentlySpeakingIndex && currentTtsTextId == "votd")
+            val shouldHighlight = (isSpeaking && !isPaused && index == adjustedSpeakingIndex && currentTtsTextId == "votd") ||
+                    (isPaused && index == adjustedSpeakingIndex && currentTtsTextId == "votd")
 
             withStyle(
                 style = SpanStyle(
@@ -613,7 +616,20 @@ fun VerseOfTheDaySection(
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             Text(
-                text = "$verseOfTheDayReference ($translation)",
+                text = buildAnnotatedString {
+                    val referenceText = "$verseOfTheDayReference ($translation)"
+                    val referenceSentences = splitIntoSentences(referenceText, Locale.getDefault())
+                    val shouldHighlightReference = isSpeaking && !isPaused && currentTtsTextId == "votd" &&
+                            currentlySpeakingIndex >= 0 && currentlySpeakingIndex < referenceSentences.size
+
+                    if (shouldHighlightReference) {
+                        withStyle(style = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) {
+                            append(referenceText)
+                        }
+                    } else {
+                        append(referenceText)
+                    }
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -624,19 +640,20 @@ fun VerseOfTheDaySection(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
-                text = buildAnnotatedStringForScripture(
-                    verseContent,
-                    currentlySpeakingIndex,
-                    isSpeaking,
-                    isPaused,
-                    currentTtsTextId,
-                    highlightStyle = SpanStyle(
-                        background = MaterialTheme.colorScheme.primaryContainer,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                ),
-                style = MaterialTheme.typography.bodyLarge
-            )
+                    text = buildAnnotatedStringForScripture(
+                        verseOfTheDayReference,
+                        verseContent,
+                        currentlySpeakingIndex,
+                        isSpeaking,
+                        isPaused,
+                        currentTtsTextId,
+                        highlightStyle = SpanStyle(
+                            background = MaterialTheme.colorScheme.primaryContainer,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ),
+                    style = MaterialTheme.typography.bodyLarge
+                )
         }
     }
 }

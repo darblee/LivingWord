@@ -506,7 +506,6 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
     private fun queueSequenceScripture(startIndex: Int = 0) {
         _sequenceCurrentPart.value = VerseDetailSequencePart.SCRIPTURE
-        // sequenceScriptureSentences should already be populated by startVerseDetailSequence
 
         if (sequenceScriptureSentences.isEmpty()) {
             Log.w("TtsViewModel", "Scripture part is empty for sequence. Proceeding to pause.")
