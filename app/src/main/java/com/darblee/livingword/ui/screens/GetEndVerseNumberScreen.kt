@@ -196,34 +196,34 @@ fun GetEndVerseNumberScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
+                        val onVerseSelected: (Int) -> Unit = { selectedVerse ->
+                            // --- Pass Result Back ---
+                            // 1. Create the result data object
+                            val result = BibleVerseRef(
+                                book = book,
+                                chapter = chapter,
+                                startVerse = startVerse,
+                                endVerse = selectedVerse
+                            )
+
+                            val resultJson =
+                                Json.encodeToString(BibleVerseRef.serializer(), result)
+
+                            val newVerseScreenBackStackEntry =
+                                navController.getBackStackEntry(Screen.AllVersesScreen)
+                            val newVerseScreenSavedStateHandle =
+                                newVerseScreenBackStackEntry.savedStateHandle
+
+                            // VERSE_RESULT_KEY needs to be accessible here or defined globally
+                            newVerseScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson
+
+                            navController.popBackStack(
+                                route = Screen.AllVersesScreen,
+                                inclusive = false
+                            )
+                        }
                         items(verses) { verse ->
-                            VerseButton(verse = verse) { selectedVerse ->
-
-                                // --- Pass Result Back ---
-                                // 1. Create the result data object
-                                val result = BibleVerseRef(
-                                    book = book,
-                                    chapter = chapter,
-                                    startVerse = startVerse,
-                                    endVerse = selectedVerse
-                                )
-
-                                val resultJson =
-                                    Json.encodeToString(BibleVerseRef.serializer(), result)
-
-                                val newVerseScreenBackStackEntry =
-                                    navController.getBackStackEntry(Screen.AllVersesScreen)
-                                val newVerseScreenSavedStateHandle =
-                                    newVerseScreenBackStackEntry.savedStateHandle
-
-                                // VERSE_RESULT_KEY needs to be accessible here or defined globally
-                                newVerseScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson
-
-                                navController.popBackStack(
-                                    route = Screen.AllVersesScreen,
-                                    inclusive = false
-                                )
-                            }
+                            VerseButton(verse = verse, onClick = onVerseSelected, onDoubleClick = onVerseSelected)
                         }
                     }
                 } else {

@@ -295,7 +295,6 @@ fun AllVersesScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-
                 Column(
                     modifier = Modifier.fillMaxSize().zIndex(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -321,7 +320,7 @@ fun AllVersesScreen(
                                 shape =  RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Add new verse ..,")
+                                Text("Add new verse ...")
                             }
                             Button(
                                 onClick = { navController.navigate(Screen.AddVerseByDescriptionScreen) },

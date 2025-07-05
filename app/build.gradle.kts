@@ -112,6 +112,8 @@ dependencies {
     implementation(libs.lifecycle.viewmodelCompose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.compose.material.iconsExtended)
+    implementation(libs.androidx.foundation)  // Need to handle combinedClickable. See https://composables.com/foundation/combinedclickable
+
 
     // Serialization. This is needed for navigation-compose as well.
     implementation(libs.kotlinx.serialization.json)

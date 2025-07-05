@@ -4,6 +4,7 @@ package com.darblee.livingword.ui.screens
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -47,8 +48,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.darblee.livingword.Global
+import com.darblee.livingword.Global.VERSE_RESULT_KEY
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleData
+import com.darblee.livingword.data.BibleVerseRef
+import kotlinx.serialization.json.Json
 
 @Composable
 fun GetStartVerseNumberScreen(
@@ -82,7 +86,6 @@ fun GetStartVerseNumberScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         )
-                    // .padding(horizontal = 4.dp) // Deliberately no padding here
                 ) {
                     val annotatedString = buildAnnotatedString {
                         withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
@@ -163,6 +166,12 @@ fun GetStartVerseNumberScreen(
 
                 Text("Select Starting Verse", style = MaterialTheme.typography.headlineMedium)
 
+                Text(
+                    text = "(Double-click to select one verse, Single-click to select range)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 Spacer(modifier = Modifier.height(8.dp)) // Add space between sections
 
                 // Grid for displaying verse buttons
@@ -178,7 +187,34 @@ fun GetStartVerseNumberScreen(
                         contentPadding = PaddingValues(bottom = 8.dp) // Add padding at the bottom of the grid
                     ) {
                         items(verses) { verse ->
-                            VerseButton(verse = verse) { selectedVerse ->
+                            val onDoubleClickAction: (Int) -> Unit = { selectedVerse ->
+                                // --- Pass Result Back ---
+                                // 1. Create the result data object
+                                val result = BibleVerseRef(
+                                    book = book,
+                                    chapter = chapter,
+                                    startVerse = verse,
+                                    endVerse = verse
+                                )
+
+                                val resultJson =
+                                    Json.encodeToString(BibleVerseRef.serializer(), result)
+
+                                val newVerseScreenBackStackEntry =
+                                    navController.getBackStackEntry(Screen.AllVersesScreen)
+                                val newVerseScreenSavedStateHandle =
+                                    newVerseScreenBackStackEntry.savedStateHandle
+
+                                // VERSE_RESULT_KEY needs to be accessible here or defined globally
+                                newVerseScreenSavedStateHandle[VERSE_RESULT_KEY] = resultJson
+
+                                navController.popBackStack(
+                                    route = Screen.AllVersesScreen,
+                                    inclusive = false
+                                )
+                            }
+
+                            VerseButton(verse = verse, onClick = { selectedVerse ->
                                 navController.navigate(
                                     Screen.GetEndVerseNumberScreen(
                                         book = book,
@@ -186,7 +222,7 @@ fun GetStartVerseNumberScreen(
                                         startVerse = verse
                                     )
                                 )
-                            }
+                            }, onDoubleClick = onDoubleClickAction)
                         }
                     }
                 } else {
@@ -246,22 +282,31 @@ fun GetStartVerseNumberScreen(
     }
 }
 
-// Reusable composable for verse buttons. Used in both start verse screen and end verse screen
 @Composable
-fun VerseButton(verse: Int, onClick: (Int) -> Unit) {
+fun VerseButton(verse: Int, onClick: (Int) -> Unit, onDoubleClick: (Int) -> Unit) {
     Button(
-        onClick = { onClick(verse) },
+        onClick = { /* Handled by combinedClickable on inner Box */ },
         modifier = Modifier
             .width(Global.BUTTON_WIDTH.dp)
             .height(Global.BUTTON_HEIGHT.dp),
         contentPadding = PaddingValues(4.dp),
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), // Make button transparent// Adjust padding
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), // Make button transparent
     ) {
-        ProvideTextStyle(value = MaterialTheme.typography.labelLarge)
-        {
-            Text(text = verse.toString(), color = MaterialTheme.colorScheme.primary)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .combinedClickable(
+                    onClick = { onClick(verse) },
+                    onDoubleClick = { onDoubleClick(verse) }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            ProvideTextStyle(value = MaterialTheme.typography.labelLarge)
+            {
+                Text(text = verse.toString(), color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
