@@ -3,6 +3,7 @@ package com.darblee.livingword.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,7 +83,6 @@ fun GoogleDriveOpsScreen(
     var signedInCredential by remember { mutableStateOf<GoogleIdTokenCredential?>(null) }
     val SERVER_CLIENT_ID = "71543984425-75k2ckdalftk0scd58j3r8nit863kjc3.apps.googleusercontent.com"
 
-
     var userName by rememberSaveable { mutableStateOf<String?>(null) }
     var googleAccountID by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -111,7 +111,6 @@ fun GoogleDriveOpsScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
 
     // Observe the states from the ExportImportViewModel
     val exportState by ExportImportViewModel.exportState.collectAsState()
@@ -305,17 +304,20 @@ fun GoogleDriveOpsScreen(
                 Text(
                     style = MaterialTheme.typography.bodySmall,
                     text = buildAnnotatedString {
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append("EXPORT")
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.bodyLarge.fontSize)) {
+                            append("EXPORT / IMPORT to your personal Google Drive.\n\nThis is useful for sharing your content and/or creating a backup.\n\n")
                         }
-                        append(": A new file \"${Global.DATABASE_NAME}-<time-stamp>\" will be created in your Google Drive located at \"${Global.BACKUP_FOLDER_PATH}\" directory.\n\n")
 
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append("IMPORT")
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.bodyLarge.fontSize)) {
+                            append("\u2022 Location: ")
                         }
-                        append(": You can import any compatible database files from same Google Drive folder location.\n\n")
+                        append("${Global.BACKUP_FOLDER_PATH}\n\n")
 
-                        append("This is useful for sharing your content or creating a backup.")
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.bodyLarge.fontSize)) {
+                            append("\u2022 File Name: ")
+                        }
+                        append("${Global.DATABASE_NAME}-<time-stamp >\n")
+
                     },
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )

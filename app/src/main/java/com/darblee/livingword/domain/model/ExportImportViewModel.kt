@@ -69,7 +69,7 @@ class ExportImportViewModel : ViewModel() {
                     // Use the new dynamic filename for the upload
                     driveService.uploadFile(exportFileName, dbPath, folderId)
                 }
-                _exportState.value = OperationState.Complete(true, "Export Successful!")
+                _exportState.value = OperationState.Complete(true, "Export Successful.\nCreated file: $exportFileName")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _exportState.value = OperationState.RequiresPermissions(e.intent)
