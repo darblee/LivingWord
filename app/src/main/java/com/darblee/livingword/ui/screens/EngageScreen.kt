@@ -888,8 +888,8 @@ fun EngageScreen(
                         // "Evaluate" button enabled logic
                         val evaluateButtonEnabled =
                             verse?.let { ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
-                                    ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) &&
-                                    ((state.directQuoteScore == -1) || (state.contextScore == -1))} ?: false
+                                    ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty())
+                                     } ?: false
 
                         val saveButtonEnabled = verse?.let {
                             ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
