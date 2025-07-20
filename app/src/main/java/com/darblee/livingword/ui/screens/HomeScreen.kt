@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -77,6 +78,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.zIndex
 import com.darblee.livingword.BackPressHandler
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.Box
+import com.darblee.livingword.Global
 import com.darblee.livingword.R
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.domain.model.BibleVerseViewModel
@@ -126,6 +131,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val preferenceStore = remember { PreferenceStore(context) }
     var selectedTranslation by remember { mutableStateOf("KJV") }
+    var expandedTranslation by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         selectedTranslation = preferenceStore.readTranslationFromSetting()
@@ -399,6 +405,16 @@ fun HomeScreen(
                     isPaused = isPaused,
                     currentTtsTextId = currentTtsTextId,
                     translation = selectedTranslation,
+                    expanded = expandedTranslation,
+                    onExpandedChange = { expandedTranslation = it },
+                    onTranslationSelected = { newTranslation ->
+                        if (selectedTranslation != newTranslation) {
+                            selectedTranslation = newTranslation
+                            scope.launch {
+                                preferenceStore.saveTranslationToSetting(newTranslation)
+                            }
+                        }
+                    },
                     onPlayPauseClick = {
                         if (!isTtsInitialized) {
                             Toast
@@ -567,7 +583,10 @@ fun VerseOfTheDaySection(
     currentTtsTextId: String?,
     onPlayPauseClick: () -> Unit,
     onAddClick: () -> Unit,
-    translation: String
+    translation: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onTranslationSelected: (String) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -623,25 +642,42 @@ fun VerseOfTheDaySection(
                 }
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(
-                text = buildAnnotatedString {
-                    val referenceText = "$verseOfTheDayReference ($translation)"
-                    val referenceSentences = splitIntoSentences(referenceText, Locale.getDefault())
-                    val shouldHighlightReference = isSpeaking && !isPaused && currentTtsTextId == "votd" &&
-                            currentlySpeakingIndex >= 0 && currentlySpeakingIndex < referenceSentences.size
-
-                    if (shouldHighlightReference) {
-                        withStyle(style = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) {
-                            append(referenceText)
-                        }
-                    } else {
-                        append(referenceText)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+                Text(
+                    text = verseOfTheDayReference,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Box {
+                    TextButton(
+                        onClick = { onExpandedChange(true) },
+                        modifier = Modifier.heightIn(max = 24.dp),
+                        contentPadding = PaddingValues(start = 4.dp, end = 4.dp)
+                    ) {
+                        Text(
+                            text = "($translation)",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                     }
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { onExpandedChange(false) }
+                    ) {
+                        Global.bibleTranslations.forEach { translationItem ->
+                            DropdownMenuItem(
+                                text = { Text(translationItem) },
+                                onClick = {
+                                    onTranslationSelected(translationItem)
+                                    onExpandedChange(false)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
             Text(
                 text = "Date: ${SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date())}",
                 style = MaterialTheme.typography.bodyMedium,
