@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -65,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.Screen
+import com.darblee.livingword.data.VotdService
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.data.BibleVerseRef
@@ -78,58 +80,17 @@ import androidx.compose.ui.zIndex
 import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.R
 import com.darblee.livingword.data.Verse
-import com.darblee.livingword.data.VotdService
 import com.darblee.livingword.domain.model.BibleVerseViewModel
 import com.darblee.livingword.domain.model.HomeViewModel
 import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.text.BreakIterator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-
-private suspend fun fetchVotdWithRetries(retries: Int = 2, delayMillis: Long = 1000): String? {
-    repeat(retries + 1) {
-        try {
-            val result = VotdService.fetchVerseOfTheDayReference()
-            if (result != null) return result
-        } catch (e: Exception) {
-            Log.e("HomeScreen", "Attempt to fetch VOTD failed: ${e.message}", e)
-            delay(delayMillis)
-        }
-    }
-    return null
-}
-
-private suspend fun fetchScriptureWithRetries(
-    bibleVerseRef: BibleVerseRef,
-    translation: String,
-    retries: Int = 2,
-    delayMillis: Long = 1000
-): AiServiceResult<List<Verse>> {
-    var lastResult: AiServiceResult<List<Verse>>? = null
-    repeat(retries + 1) { attempt ->
-        try {
-            val result = GeminiAIService.fetchScripture(bibleVerseRef, translation)
-            if (result is AiServiceResult.Success) {
-                return result // Success, return immediately
-            }
-            lastResult = result
-            Log.w("HomeScreen", "Attempt ${attempt + 1} to fetch scripture failed. Retrying...")
-            delay(delayMillis)
-        } catch (e: Exception) {
-            lastResult = AiServiceResult.Error("Exception on attempt ${attempt + 1}: ${e.message}")
-            Log.e("HomeScreen", "Attempt ${attempt + 1} to fetch scripture threw an exception", e)
-            delay(delayMillis)
-        }
-    }
-    return lastResult ?: AiServiceResult.Error("Failed to fetch scripture after multiple attempts.")
-}
 
 private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     if (text.isBlank()) return emptyList()
@@ -215,7 +176,6 @@ fun HomeScreen(
     var currentTtsTextId by remember { mutableStateOf<String?>(null) }
 
     var verseOfTheDayReference by remember { mutableStateOf("Loading...") }
-    var votdError by remember { mutableStateOf(false) }
     var verseContent by remember { mutableStateOf<List<Verse>>(emptyList()) }
 
     var showRetrievingDataDialog by remember { mutableStateOf(false) }
@@ -236,14 +196,10 @@ fun HomeScreen(
             }
             verseContent = parsedVerses
         } else {
-            val reference = fetchVotdWithRetries()
+            val reference = VotdService.fetchVerseOfTheDayReference()
+            verseOfTheDayReference = reference ?: "Error loading Verse of the Day"
 
-            if (reference == null) {
-                votdError = true
-            }
-            verseOfTheDayReference = reference ?: "Error loading Verse of the Day. Could be network issue."
-
-            if (verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day. Could be network issue.") {
+            if (verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day") {
                 val parts = verseOfTheDayReference.split(" ")
                 if (parts.size >= 2) {
                     val book = parts[0]
@@ -257,7 +213,8 @@ fun HomeScreen(
 
                         if (chapter != null && startVerse != null && endVerse != null) {
                             val bibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
-                            val result = fetchScriptureWithRetries(bibleVerseRef, selectedTranslation)
+                            val result =
+                                GeminiAIService.fetchScripture(bibleVerseRef, selectedTranslation)
                             when (result) {
                                 is AiServiceResult.Success -> {
                                     val fetchedVerses = result.data
@@ -519,8 +476,7 @@ fun HomeScreen(
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
-                    },
-                    votdError = votdError
+                    }
                 )
 
                 DailyPrayerSection(
@@ -603,8 +559,7 @@ fun VerseOfTheDaySection(
     currentTtsTextId: String?,
     onPlayPauseClick: () -> Unit,
     onAddClick: () -> Unit,
-    translation: String,
-    votdError: Boolean
+    translation: String
 ) {
     Card(
         modifier = Modifier
@@ -662,7 +617,7 @@ fun VerseOfTheDaySection(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             Text(
                 text = buildAnnotatedString {
-                    val referenceText = if (votdError) "Unable to load Verse of the Day. Could be network issue." else " $verseOfTheDayReference($translation)"
+                    val referenceText = "$verseOfTheDayReference ($translation)"
                     val referenceSentences = splitIntoSentences(referenceText, Locale.getDefault())
                     val shouldHighlightReference = isSpeaking && !isPaused && currentTtsTextId == "votd" &&
                             currentlySpeakingIndex >= 0 && currentlySpeakingIndex < referenceSentences.size
