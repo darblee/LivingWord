@@ -1337,9 +1337,7 @@ fun EngageScreen(
                 // Dialog to display score and AI explanation
                 if (showScoreDialog) {
                     AlertDialog(
-                        modifier = Modifier
-                            .fillMaxHeight(0.8f)
-                            .padding(4.dp),
+                        modifier = Modifier.padding(4.dp),
                         onDismissRequest = {
                             // Only allow dismiss if not loading, or handle dismiss during loading appropriately
                             if (!state.aiResponseLoading) {
@@ -1354,63 +1352,39 @@ fun EngageScreen(
                         },
                         text = {
                             Column(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally // Center progress indicator
                             ) {
                                 if (state.aiResponseLoading) {
                                     CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
                                 } else {
-                                    Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                        Text("Direct Quote Score : ${state.directQuoteScore}", style = MaterialTheme.typography.labelMedium)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
-                                                .padding(8.dp)
-                                        ) {
-                                            Text(
-                                                text = state.aiDirectQuoteExplanationText.toString(),
-                                                modifier = Modifier.verticalScroll(rememberScrollState())
-                                            )
-                                        }
-                                    }
+                                    OutlinedTextField(
+                                        label = {  Text("Direct Quote Score : ${state.directQuoteScore}") },
+                                        value = state.aiDirectQuoteExplanationText.toString(),
+                                        minLines = 6,
+                                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                                        onValueChange = { /* read-only */ }
+                                    )
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                        Text("Context  Score : ${state.contextScore}", style = MaterialTheme.typography.labelMedium)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
-                                                .padding(8.dp)
-                                        ) {
-                                            Text(
-                                                text = state.aiContextExplanationText.toString(),
-                                                modifier = Modifier.verticalScroll(rememberScrollState())
-                                            )
-                                        }
-                                    }
+                                    OutlinedTextField(
+                                        label = {  Text("Context  Score : ${state.contextScore}") },
+                                        value = state.aiContextExplanationText.toString(),
+                                        minLines = 6,
+                                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                                        onValueChange = { /* read-only */ }
+                                    )
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                        Text("Feedback on application", style = MaterialTheme.typography.labelMedium)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
-                                                .padding(8.dp)
-                                        ) {
-                                            Text(
-                                                text = state.applicationFeedback.toString(),
-                                                modifier = Modifier.verticalScroll(rememberScrollState())
-                                            )
-                                        }
-                                    }
+                                    OutlinedTextField(
+                                        label = {  Text("Feedback on application") },
+                                        value = state.applicationFeedback.toString(),
+                                        minLines = 10,
+                                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                                        onValueChange = { /* read-only */ }
+                                    )
                                 }
                             }
                         },
