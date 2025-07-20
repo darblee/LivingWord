@@ -209,6 +209,37 @@ fun AllVersesScreen(
     }
     // --- End Handle Navigation Results ---
 
+    var showNetworkErrorDialog by remember { mutableStateOf(false) }
+    var networkErrorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(newVerseState.scriptureError, newVerseState.aiResponseError) {
+        val error = newVerseState.scriptureError ?: newVerseState.aiResponseError
+        if (error != null) {
+            networkErrorMessage = error
+            showNetworkErrorDialog = true
+            showRetrievingDataDialog = false
+        }
+    }
+
+    if (showNetworkErrorDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showNetworkErrorDialog = false
+                newVerseViewModel.clearVerseData()
+            },
+            title = { Text("Network Error") },
+            text = { Text(networkErrorMessage ?: "An unknown error occurred.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNetworkErrorDialog = false
+                    newVerseViewModel.clearVerseData()
+                }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
     LaunchedEffect(newVerseState) {
         if (readyToSave(newVerseState) && !newVerseState.isContentSaved) {
             bibleViewModel.saveNewVerse(

@@ -85,6 +85,7 @@ import com.darblee.livingword.domain.model.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import java.text.BreakIterator
 import java.text.SimpleDateFormat
@@ -198,7 +199,7 @@ fun HomeScreen(
             val reference = VotdService.fetchVerseOfTheDayReference()
             verseOfTheDayReference = reference ?: "Error loading Verse of the Day"
 
-            if (verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day") {
+            if (verseOfTheDayReference != "Loading..." && (reference != null)) {
                 val parts = verseOfTheDayReference.split(":")
                 if (parts.size != 2) {
                     verseContent = emptyList()
@@ -222,29 +223,35 @@ fun HomeScreen(
 
                 if (chapter != null && startVerse != null && endVerse != null) {
                     val bibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
-                    val result =
+                    val result = withTimeoutOrNull(10000) {
                         GeminiAIService.fetchScripture(bibleVerseRef, selectedTranslation)
-                    when (result) {
-                        is AiServiceResult.Success -> {
-                            val fetchedVerses = result.data
-                            verseContent = fetchedVerses
-                            // Save the List<Verse> as a JSON string
-                            val jsonContent = Json.encodeToString(fetchedVerses)
-                            preferenceStore.saveVotdCache(
-                                verseOfTheDayReference,
-                                jsonContent,
-                                selectedTranslation,
-                                currentDate
-                            )
-                        }
+                    }
+                    if (result == null) {
+                        verseContent = emptyList()
+                        Log.e("HomeScreen", "Error fetching scripture: Timeout")
+                    } else {
+                        when (result) {
+                            is AiServiceResult.Success -> {
+                                val fetchedVerses = result.data
+                                verseContent = fetchedVerses
+                                // Save the List<Verse> as a JSON string
+                                val jsonContent = Json.encodeToString(fetchedVerses)
+                                preferenceStore.saveVotdCache(
+                                    verseOfTheDayReference,
+                                    jsonContent,
+                                    selectedTranslation,
+                                    currentDate
+                                )
+                            }
 
-                        is AiServiceResult.Error -> {
-                            // Handle error, maybe set verseContent to an error message
-                            verseContent = emptyList() // Or a list with an error Verse
-                            Log.e(
-                                "HomeScreen",
-                                "Error fetching scripture: ${result.message}"
-                            )
+                            is AiServiceResult.Error -> {
+                                // Handle error, maybe set verseContent to an error message
+                                verseContent = emptyList() // Or a list with an error Verse
+                                Log.e(
+                                    "HomeScreen",
+                                    "Error fetching scripture: ${result.message}"
+                                )
+                            }
                         }
                     }
                 } else {
