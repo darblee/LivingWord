@@ -9,7 +9,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -200,54 +199,56 @@ fun HomeScreen(
             verseOfTheDayReference = reference ?: "Error loading Verse of the Day"
 
             if (verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day") {
-                val parts = verseOfTheDayReference.split(" ")
-                if (parts.size >= 2) {
-                    val book = parts[0]
-                    val chapterAndVerse = parts[1].split(":")
-                    if (chapterAndVerse.size == 2) {
-                        val chapter = chapterAndVerse[0].toIntOrNull()
-                        val verseRange = chapterAndVerse[1].split("-")
-                        val startVerse = verseRange[0].toIntOrNull()
-                        val endVerse =
-                            if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
+                val parts = verseOfTheDayReference.split(":")
+                if (parts.size != 2) {
+                    verseContent = emptyList()
+                    return@LaunchedEffect
+                }
+                val bookAndChapterPartRaw = parts[0].trim()
+                val versePartRaw = parts[1].trim()
 
-                        if (chapter != null && startVerse != null && endVerse != null) {
-                            val bibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
-                            val result =
-                                GeminiAIService.fetchScripture(bibleVerseRef, selectedTranslation)
-                            when (result) {
-                                is AiServiceResult.Success -> {
-                                    val fetchedVerses = result.data
-                                    verseContent = fetchedVerses
-                                    // Save the List<Verse> as a JSON string
-                                    val jsonContent = Json.encodeToString(fetchedVerses)
-                                    preferenceStore.saveVotdCache(
-                                        verseOfTheDayReference,
-                                        jsonContent,
-                                        selectedTranslation,
-                                        currentDate
-                                    )
-                                }
+                val lastSpaceIndex = bookAndChapterPartRaw.lastIndexOf(' ')
+                if (lastSpaceIndex == 0) {
+                    verseContent = emptyList()
+                    return@LaunchedEffect
+                }
+                val book = bookAndChapterPartRaw.substring(0, lastSpaceIndex)
+                val chapterString = bookAndChapterPartRaw.substring(lastSpaceIndex + 1)
+                val chapter = chapterString.toIntOrNull()
 
-                                is AiServiceResult.Error -> {
-                                    // Handle error, maybe set verseContent to an error message
-                                    verseContent = emptyList() // Or a list with an error Verse
-                                    Log.e(
-                                        "HomeScreen",
-                                        "Error fetching scripture: ${result.message}"
-                                    )
-                                }
-                            }
-                        } else {
-                            verseContent = emptyList() // Or a list with an error Verse
-                            Log.e("HomeScreen", "Error parsing verse reference.")
+                val verseRange = versePartRaw.split("-")
+                val startVerse = verseRange[0].toIntOrNull()
+                val endVerse = if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
+
+                if (chapter != null && startVerse != null && endVerse != null) {
+                    val bibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
+                    val result =
+                        GeminiAIService.fetchScripture(bibleVerseRef, selectedTranslation)
+                    when (result) {
+                        is AiServiceResult.Success -> {
+                            val fetchedVerses = result.data
+                            verseContent = fetchedVerses
+                            // Save the List<Verse> as a JSON string
+                            val jsonContent = Json.encodeToString(fetchedVerses)
+                            preferenceStore.saveVotdCache(
+                                verseOfTheDayReference,
+                                jsonContent,
+                                selectedTranslation,
+                                currentDate
+                            )
                         }
-                    } else {
-                        verseContent = emptyList() // Or a list with an error Verse
-                        Log.e("HomeScreen", "Error parsing verse reference.")
+
+                        is AiServiceResult.Error -> {
+                            // Handle error, maybe set verseContent to an error message
+                            verseContent = emptyList() // Or a list with an error Verse
+                            Log.e(
+                                "HomeScreen",
+                                "Error fetching scripture: ${result.message}"
+                            )
+                        }
                     }
                 } else {
-                    verseContent = emptyList() // Or a list with an an error Verse
+                    verseContent = emptyList() // Or a list with an error Verse
                     Log.e("HomeScreen", "Error parsing verse reference.")
                 }
             }
