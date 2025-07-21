@@ -140,10 +140,18 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
+    fun getVersesByTopic(topic: String) {
+        viewModelScope.launch {
+            repository.getVersesByTopic(topic).collectLatest { verses ->
+                _allVerses.value = verses
+            }
+        }
+    }
+
     /**
      * Gets all favorite verses.
      */
-    private fun getAllFavoriteVerses() {
+    fun getAllFavoriteVerses() {
         viewModelScope.launch {
             repository.getAllFavoriteVerses().collectLatest { favorites ->
                 _favoriteVerses.value = favorites
@@ -251,7 +259,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
-    private fun getAllVerses() {
+    fun getAllVerses() {
         viewModelScope.launch {
             repository.getAllVerses().collectLatest { verses ->
                 _allVerses.value = verses

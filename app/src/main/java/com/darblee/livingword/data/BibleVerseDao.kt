@@ -266,6 +266,15 @@ interface BibleVerseDao {
     @Query("SELECT * FROM BibleVerse_Items WHERE favorite = 1 AND translation = :translation ORDER BY lastModified DESC")
     fun getFavoriteVersesByTranslation(translation: String): Flow<List<BibleVerse>>
 
+    @Query("""
+        SELECT bv.* FROM BibleVerse_Items bv
+        INNER JOIN CrossRefBibleVerseTopics cr ON bv.id = cr.bibleVerseId
+        INNER JOIN Topics t ON cr.topicId = t.id
+        WHERE t.topic = :topic
+        ORDER BY bv.lastModified DESC
+    """)
+    fun getVersesByTopic(topic: String): Flow<List<BibleVerse>>
+
     // Helper method to create ScriptureContent from existing data
     @Query("SELECT * FROM BibleVerse_Items WHERE scriptureVerses = '' OR scriptureVerses IS NULL")
     suspend fun getVersesWithEmptyScriptureVerses(): List<BibleVerse>

@@ -262,4 +262,7 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
      */
     fun getFavoriteVersesByTranslation(translation: String): Flow<List<BibleVerse>> =
         bibleVerseDao.getFavoriteVersesByTranslation(translation)
+
+    fun getVersesByTopic(topic: String): Flow<List<BibleVerse>> =
+        bibleVerseDao.getVersesByTopic(topic)
 }

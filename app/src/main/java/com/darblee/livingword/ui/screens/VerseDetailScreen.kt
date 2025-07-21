@@ -76,6 +76,9 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.ui.draw.clip
@@ -298,22 +301,36 @@ fun VerseDetailScreen(
 
     AppScaffold(
         title = {
-            val titleString =
-                if (verseItem != null) {
-                    verseReference(verseItem!!)
-                } else {
-                    "Loading..."
-                }
-            Text(
-                buildAnnotatedString {
-                    append(titleString)
-                    if (inEditMode) {
-                        withStyle(style = SpanStyle(color = editModeColor)) { // Add this style for red color
-                            append(" [Edit Mode]")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val titleString =
+                    if (verseItem != null) {
+                        verseReference(verseItem!!)
+                    } else {
+                        "Loading..."
+                    }
+                Text(
+                    buildAnnotatedString {
+                        append(titleString)
+                        if (inEditMode) {
+                            withStyle(style = SpanStyle(color = editModeColor)) { // Add this style for red color
+                                append(" [Edit Mode]")
+                            }
                         }
                     }
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                if (verseItem != null) {
+                    IconButton(onClick = {
+                        bibleViewModel.updateFavoriteStatus(verseItem!!.id, !verseItem!!.favorite)
+                    }) {
+                        Icon(
+                            imageVector = if (verseItem!!.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (verseItem!!.favorite) Color.Red else LocalContentColor.current
+                        )
+                    }
                 }
-            )
+            }
         },
         navController = navController,
         currentScreenInstance = Screen.VerseDetailScreen(verseID, inEditMode),

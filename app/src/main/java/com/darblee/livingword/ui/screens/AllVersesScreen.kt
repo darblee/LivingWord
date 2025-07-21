@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
@@ -28,9 +31,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,6 +78,12 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
+enum class FilterOption {
+    ALL,
+    FAVORITES,
+    TOPIC
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllVersesScreen(
@@ -84,9 +96,43 @@ fun AllVersesScreen(
     val context = LocalContext.current
 
     val allVerses by bibleViewModel.allVerses.collectAsState()
+    val allTopics by bibleViewModel.allTopicsWithCount.collectAsState()
+    val favoriteVerses by bibleViewModel.favoriteVerses.collectAsState()
+    var versesToDisplay by remember { mutableStateOf<List<BibleVerse>>(emptyList()) }
+
+    LaunchedEffect(allVerses, favoriteVerses) {
+        versesToDisplay = allVerses
+    }
 
     var showRetrievingDataDialog by remember { mutableStateOf(false) }
     val newVerseViewModel: NewVerseViewModel = viewModel()
+
+    var showFilterDialog by remember { mutableStateOf(false) }
+
+    if (showFilterDialog) {
+        FilterDialog(
+            topics = allTopics.map { it.topic },
+            onDismiss = { showFilterDialog = false },
+            onApplyFilter = { filterOption, selectedTopic ->
+                when (filterOption) {
+                    FilterOption.ALL -> {
+                        bibleViewModel.getAllVerses()
+                        versesToDisplay = allVerses
+                    }
+                    FilterOption.FAVORITES -> {
+                        bibleViewModel.getAllFavoriteVerses()
+                        versesToDisplay = favoriteVerses
+                    }
+                    FilterOption.TOPIC -> {
+                        if (selectedTopic != null) {
+                            bibleViewModel.getVersesByTopic(selectedTopic)
+                        }
+                    }
+                }
+                showFilterDialog = false
+            }
+        )
+    }
 
     LaunchedEffect(newVerseJson) {
         newVerseJson?.let {
@@ -361,23 +407,23 @@ fun AllVersesScreen(
                                 Text("Add verse by description..", textAlign = TextAlign.Center)
                             }
                             Button(
-                                onClick = { /* No action yet */ },
+                                onClick = { showFilterDialog = true },
                                 shape =  RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Filter listing")
+                                Text("Custom listing")
                             }
                         }
                     }
 
-                    if (allVerses.isEmpty()) {
+                    if (versesToDisplay.isEmpty()) {
                         Text("No verses added yet.", style = MaterialTheme.typography.bodyMedium)
                     } else {
                         Box(modifier = Modifier.weight(1f)) {
                             val listState = rememberLazyListState()
                             val scope = rememberCoroutineScope()
                             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                                items(allVerses) { verseItem ->
+                                items(versesToDisplay) { verseItem ->
                                     VerseCard(verseItem, navController)
                                     Spacer(modifier = Modifier.height(2.dp))
                                 }
@@ -460,6 +506,123 @@ fun AllVersesScreen(
             Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show()
         }
     }
+}
+
+@Composable
+fun FilterDialog(
+    topics: List<String>,
+    onDismiss: () -> Unit,
+    onApplyFilter: (FilterOption, String?) -> Unit
+) {
+    var selectedOption by remember { mutableStateOf(FilterOption.ALL) }
+    var expanded by remember { mutableStateOf(false) }
+    var selectedTopic by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Filter Verses") },
+        text = {
+            Column {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = (selectedOption == FilterOption.ALL),
+                            onClick = { selectedOption = FilterOption.ALL }
+                        )
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedOption == FilterOption.ALL),
+                        onClick = { selectedOption = FilterOption.ALL }
+                    )
+                    Text(
+                        text = "All Verses",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = (selectedOption == FilterOption.FAVORITES),
+                            onClick = { selectedOption = FilterOption.FAVORITES }
+                        )
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedOption == FilterOption.FAVORITES),
+                        onClick = { selectedOption = FilterOption.FAVORITES }
+                    )
+                    Text(
+                        text = "Favorites",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = (selectedOption == FilterOption.TOPIC),
+                            onClick = { selectedOption = FilterOption.TOPIC }
+                        )
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedOption == FilterOption.TOPIC),
+                        onClick = { selectedOption = FilterOption.TOPIC }
+                    )
+                    Text(
+                        text = "By Topic:",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box {
+                        TextButton(onClick = { expanded = true }) {
+                            Text(selectedTopic ?: "Select Topic")
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Dropdown"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            topics.forEach { topic ->
+                                DropdownMenuItem(
+                                    text = { Text(topic) },
+                                    onClick = {
+                                        selectedTopic = topic
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onApplyFilter(selectedOption, selectedTopic) },
+                enabled = selectedOption != FilterOption.TOPIC || selectedTopic != null
+            ) {
+                Text("Apply")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 
