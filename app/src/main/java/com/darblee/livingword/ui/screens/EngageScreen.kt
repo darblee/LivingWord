@@ -1376,32 +1376,26 @@ fun EngageScreen(
                                 if (state.aiResponseLoading) {
                                     CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
                                 } else {
-                                    OutlinedTextField(
-                                        label = {  Text("Direct Quote Score : ${state.directQuoteScore}") },
-                                        value = state.aiDirectQuoteExplanationText.toString(),
-                                        minLines = 6,
-                                        modifier = Modifier.verticalScroll(rememberScrollState()),
-                                        onValueChange = { /* read-only */ }
+                                    ScrollableTitledOutlinedBox(
+                                        label = "Direct Quote Score : ${state.directQuoteScore}",
+                                        content = state.aiDirectQuoteExplanationText.toString(),
+                                        modifier = Modifier.weight(1f)
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    OutlinedTextField(
-                                        label = {  Text("Context  Score : ${state.contextScore}") },
-                                        value = state.aiContextExplanationText.toString(),
-                                        minLines = 6,
-                                        modifier = Modifier.verticalScroll(rememberScrollState()),
-                                        onValueChange = { /* read-only */ }
+                                    ScrollableTitledOutlinedBox(
+                                        label = "Context  Score : ${state.contextScore}",
+                                        content = state.aiContextExplanationText.toString(),
+                                        modifier = Modifier.weight(1f)
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    OutlinedTextField(
-                                        label = {  Text("Feedback on application") },
-                                        value = state.applicationFeedback.toString(),
-                                        minLines = 10,
-                                        modifier = Modifier.verticalScroll(rememberScrollState()),
-                                        onValueChange = { /* read-only */ }
+                                    ScrollableTitledOutlinedBox(
+                                        label = "Feedback on application",
+                                        content = state.applicationFeedback.toString(),
+                                        modifier = Modifier.weight(1f)
                                     )
                                 }
                             }
@@ -1435,6 +1429,52 @@ fun EngageScreen(
             directQuoteSpeechRecognizer.destroy()
             contextSpeechRecognizer.destroy()
         }
+    }
+}
+
+@Composable
+fun ScrollableTitledOutlinedBox(
+    label: String,
+    content: String,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        // The main container with border and internal padding for content.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline,
+                    shape = RoundedCornerShape(4.dp)
+                )
+                .padding(top = 8.dp) // Padding to avoid content overlapping with the label area
+        ) {
+            SelectionContainer(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .verticalScroll(rememberScrollState())
+                )
+            }
+        }
+
+        // The overlapping label that "cuts" the border.
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .offset(x = 12.dp, y = (-8).dp) // Position on the top-left of the border
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(2.dp)
+                )
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        )
     }
 }
 
