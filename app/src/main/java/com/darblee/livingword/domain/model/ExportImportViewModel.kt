@@ -49,9 +49,6 @@ class ExportImportViewModel : ViewModel() {
         _exportState.value = OperationState.InProgress
         viewModelScope.launch {
             try {
-                // Close the database to ensure all recent changes are written to the main DB file.
-                AppDatabase.getDatabase(context).close()
-
                 // Generate a timestamped filename
                 val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
                 val exportFileName = "${Global.DATABASE_NAME}-$timestamp.db"
@@ -70,6 +67,10 @@ class ExportImportViewModel : ViewModel() {
                     driveService.uploadFile(exportFileName, dbPath, folderId)
                 }
                 _exportState.value = OperationState.Complete(true, "Export Successful.\nCreated file: $exportFileName")
+
+                // Force a WAL checkpoint to ensure all data is written to the main DB file.
+                // This is the correct way to sync the database without closing the connection.
+                AppDatabase.getDatabase(context).openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL);")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _exportState.value = OperationState.RequiresPermissions(e.intent)
@@ -131,12 +132,14 @@ class ExportImportViewModel : ViewModel() {
 
                 withContext(Dispatchers.IO) {
                     val dbPath = context.getDatabasePath(Global.DATABASE_NAME)
-                    AppDatabase.getDatabase(context).close() // Close DB before overwriting
                     val outputStream = java.io.FileOutputStream(dbPath)
                     driveService.downloadFile(fileId, outputStream)
                 }
                 // Use a specific message to signal the UI to show the exit dialog
                 _importState.value = OperationState.Complete(true, "IMPORT_SUCCESS_RESTART_REQUIRED")
+
+                // Force a WAL checkpoint to ensure the new data is loaded correctly.
+                AppDatabase.getDatabase(context).openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL);")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _importState.value = OperationState.RequiresPermissions(e.intent)
