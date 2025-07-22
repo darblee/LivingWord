@@ -64,7 +64,10 @@ This will create an APK file in the `app/build/outputs/apk/debug` directory.
 
 ## Screenshots
 
-*(Add screenshots of the app here to showcase the UI and features.)*
+| Home Screen | Verse Detail | Engage | Topic Management |
+| :---: | :---: | :---: | :---: |
+| ![Home Screen](./Screenshots/Home%20Screen.png) | ![Verse Detail](./Screenshots/Verse%20Detail.png) | ![Engage](./Screenshots/Engage%20in%20scripture.png) | ![Topic Management](./Screenshots/Topic%20Management.png) |
+
 
 ## Contributing
 
