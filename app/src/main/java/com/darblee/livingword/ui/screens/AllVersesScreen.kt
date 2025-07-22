@@ -45,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -404,7 +405,7 @@ fun AllVersesScreen(
                                 shape =  RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Add verse by description..", textAlign = TextAlign.Center)
+                                Text("Add by description", textAlign = TextAlign.Center)
                             }
                             Button(
                                 onClick = { showFilterDialog = true },
@@ -497,7 +498,7 @@ fun AllVersesScreen(
     )
 
     val activity = LocalActivity.current
-    var backPressedTime by remember { mutableStateOf(0L) }
+    var backPressedTime by remember { mutableLongStateOf(0L) }
     BackPressHandler {
         if (System.currentTimeMillis() - backPressedTime < 2000) {
             activity?.finish()
@@ -520,7 +521,7 @@ fun FilterDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Filter Verses") },
+        title = { Text("Verses Listing") },
         text = {
             Column {
                 Row(
@@ -558,7 +559,7 @@ fun FilterDialog(
                         onClick = { selectedOption = FilterOption.FAVORITES }
                     )
                     Text(
-                        text = "Favorites",
+                        text = "Favorites Only",
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(start = 8.dp)
                     )
