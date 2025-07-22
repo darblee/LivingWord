@@ -371,7 +371,8 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
         if (actualStartIndex < simpleTextSentences.size) {
             for (i in actualStartIndex until simpleTextSentences.size) {
                 val utteranceId = "$UTTERANCE_ID_SIMPLE_TEXT_SENTENCE_PREFIX$i"
-                tts?.speak(simpleTextSentences[i], TextToSpeech.QUEUE_ADD, null, utteranceId)
+                val processedText = preprocessScriptureTextForTts(simpleTextSentences[i])
+                tts?.speak(processedText, TextToSpeech.QUEUE_ADD, null, utteranceId)
                 queuedSomething = true
             }
         }
@@ -500,7 +501,8 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
             queueSequenceScripture()
         } else {
             _currentSentenceInBlockIndex.value = NO_ACTIVE_SENTENCE_INDEX // No sentences in ref
-            tts?.speak(sequenceScriptureReference, TextToSpeech.QUEUE_ADD, null, UTTERANCE_ID_SEQUENCE_SCRIPTURE_REFERENCE)
+            val processedText = preprocessScriptureTextForTts(sequenceScriptureReference!!)
+            tts?.speak(processedText, TextToSpeech.QUEUE_ADD, null, UTTERANCE_ID_SEQUENCE_SCRIPTURE_REFERENCE)
         }
     }
 
@@ -526,7 +528,8 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
         var queuedSomething = false
         for (i in startIndex until sequenceScriptureSentences.size) {
-            tts?.speak(sequenceScriptureSentences[i], TextToSpeech.QUEUE_ADD, null, "$UTTERANCE_ID_SEQUENCE_SCRIPTURE_SENTENCE_PREFIX$i")
+            val processedText = preprocessScriptureTextForTts(sequenceScriptureSentences[i])
+            tts?.speak(processedText, TextToSpeech.QUEUE_ADD, null, "$UTTERANCE_ID_SEQUENCE_SCRIPTURE_SENTENCE_PREFIX$i")
             queuedSomething = true
         }
 
@@ -570,7 +573,8 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
         var queuedSomething = false
         for (i in startIndex until sequenceAiResponseSentences.size) {
-            tts?.speak(sequenceAiResponseSentences[i], TextToSpeech.QUEUE_ADD, null, "$UTTERANCE_ID_SEQUENCE_AI_RESPONSE_SENTENCE_PREFIX$i")
+            val processedText = preprocessScriptureTextForTts(sequenceAiResponseSentences[i])
+            tts?.speak(processedText, TextToSpeech.QUEUE_ADD, null, "$UTTERANCE_ID_SEQUENCE_AI_RESPONSE_SENTENCE_PREFIX$i")
             queuedSomething = true
         }
         if (!queuedSomething) {
@@ -615,6 +619,12 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
         cleanedText = cleanedText.replace(Regex("""\*(.*?)\*"""), "$1")
         cleanedText = cleanedText.replace(Regex("""^\* """, RegexOption.MULTILINE), "")
         return cleanedText.trim()
+    }
+
+    private fun preprocessScriptureTextForTts(text: String): String {
+        // This regex looks for a pattern of (number):(number)-(number)
+        // e.g., "3:16-20" and replaces the hyphen with " to "
+        return text.replace(Regex("""(\d+:\d+)-(\d+)"""), "$1 to $2")
     }
 
     private fun splitIntoSentences(text: String, locale: Locale): List<String> {
