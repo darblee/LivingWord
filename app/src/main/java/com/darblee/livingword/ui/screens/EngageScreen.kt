@@ -17,6 +17,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -511,10 +513,26 @@ fun EngageScreen(
 
     AppScaffold(
         title = {
-            if (verse != null) {
-                Text("Engage : ${verseReference(verse!!)}" )
-            } else {
-                Text("Engage Verse")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (verse != null) {
+                    Text("Engage : ${verseReference(verse!!)}" )
+                } else {
+                    Text("Engage Verse")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                if (verse != null) {
+                    IconButton(onClick = {
+                        bibleViewModel.updateFavoriteStatus(verse!!.id, !verse!!.favorite)
+                        // Optimistically update the local state
+                        verse = verse?.copy(favorite = !verse!!.favorite)
+                    }) {
+                        Icon(
+                            imageVector = if (verse!!.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (verse!!.favorite) Color.Red else LocalContentColor.current
+                        )
+                    }
+                }
             }
         },
         navController = navController,
