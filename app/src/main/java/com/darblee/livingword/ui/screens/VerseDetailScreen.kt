@@ -90,7 +90,6 @@ import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.Screen
 import com.darblee.livingword.SnackBarController
-import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.verseReference
 import com.darblee.livingword.domain.model.BibleVerseViewModel
