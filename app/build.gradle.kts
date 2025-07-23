@@ -102,18 +102,29 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.googleid)
+
+    // Core testing dependencies
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Compose UI Testing
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Navigation Testing
+    androidTestImplementation(libs.androidx.navigation.testing)
+
+    // Coroutines testing
+    testImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+
     implementation(libs.lifecycle.viewmodelCompose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.compose.material.iconsExtended)
     implementation(libs.androidx.foundation)  // Need to handle combinedClickable. See https://composables.com/foundation/combinedclickable
-
 
     // Serialization. This is needed for navigation-compose as well.
     implementation(libs.kotlinx.serialization.json)
@@ -125,7 +136,6 @@ dependencies {
     implementation(libs.google.ai.generativeai)
 
     implementation(libs.androidx.material.icons.core) // Use the latest version
-
 
     // Preference datastore
     implementation (libs.androidx.datastore.preferences.rxjava2)

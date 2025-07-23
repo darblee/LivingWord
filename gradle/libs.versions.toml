@@ -25,6 +25,8 @@ room = "2.7.2"
 ksp = "2.1.10-1.0.31"
 datastorePreferencesRxjava2 = "1.1.7"
 googleid = "1.1.1"
+navigation-testing = "2.9.2"
+kotlinx-coroutines-test = "1.10.2"
 
 
 [libraries]
@@ -48,6 +50,10 @@ androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-navigation-testing = { group = "androidx.navigation", name = "navigation-testing", version.ref = "navigation-testing" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
+
+
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 lifecycle-viewmodelCompose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleRuntimeKtx" }
 androidx-compose-material-iconsExtended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "composeMaterial" }
