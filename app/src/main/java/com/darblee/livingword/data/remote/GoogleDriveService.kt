@@ -81,27 +81,23 @@ class GoogleDriveService(credential: GoogleAccountCredential) {
         return file.id
     }
 
-    suspend fun getOrCreateFolderStructure(path: String): String? {
+    fun getOrCreateFolderStructure(path: String): String? {
         var currentParentId = "root"
         val folders = path.split('/').filter { it.isNotEmpty() }
 
         for (folderName in folders) {
             val folderId = findFolder(folderName, currentParentId)
-            if (folderId != null) {
-                currentParentId = folderId
+            currentParentId = if (folderId != null) {
+                folderId
             } else {
                 val newFolderId = createFolder(folderName, currentParentId)
-                if (newFolderId != null) {
-                    currentParentId = newFolderId
-                } else {
-                    return null // Failed to create folder
-                }
+                newFolderId ?: return null // Failed to create folder
             }
         }
         return currentParentId
     }
 
-    suspend fun findFolderIdByPath(path: String): String? {
+    fun findFolderIdByPath(path: String): String? {
         var currentParentId = "root"
         val folders = path.split('/').filter { it.isNotEmpty() }
 
@@ -114,16 +110,5 @@ class GoogleDriveService(credential: GoogleAccountCredential) {
             }
         }
         return currentParentId
-    }
-
-    // This old search function is no longer used for restore but could be useful elsewhere.
-    // Kept for potential future use or can be removed.
-    suspend fun searchFile(fileName: String): String? {
-        val result = drive.files().list()
-            .setQ("name='$fileName'")
-            .setSpaces("drive")
-            .setFields("files(id, name)")
-            .execute()
-        return result.files.firstOrNull()?.id
     }
 }

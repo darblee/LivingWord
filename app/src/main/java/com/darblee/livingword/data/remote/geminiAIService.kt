@@ -210,7 +210,7 @@ object GeminiAIService {
 
             Log.d("GeminiAIService", "Sending prompt to Gemini for scripture range: \"$prompt\"")
 
-            val response = retrieveScriptureModel!!.generateContent(prompt)
+            val response = retrieveScriptureModel.generateContent(prompt)
 
             val responseText = response.text
 
@@ -265,7 +265,7 @@ object GeminiAIService {
                 modelName = currentAISettings!!.modelName,
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
-                    temperature = 0.5f // HIgher  temperature to provide more variation on take-away response
+                    temperature = 0.5f // Higher  temperature to provide more variation on take-away response
                 },
                 safetySettings = listOf(harassmentSafety, hateSpeechSafety, explicitSexSafety, dangerSafety),
                 systemInstruction = takeAwaySystemPrompt
@@ -371,8 +371,8 @@ object GeminiAIService {
 
             var applicationFeedback: String? = null
             for (i in 1..3) {
-                val applicationFeedbackresponseText = getApplicationFeedback(verseRef, userApplicationComment)
-                applicationFeedback = applicationFeedbackresponseText.trimIndent()
+                val applicationFeedbackResponseText = getApplicationFeedback(verseRef, userApplicationComment)
+                applicationFeedback = applicationFeedbackResponseText.trimIndent()
                 if (applicationFeedback.isNotEmpty()) {
                     break
                 }
@@ -446,11 +446,7 @@ object GeminiAIService {
 
             Log.d("GeminiAIService", "Gemini Response: $applicationFeedback")
 
-            if (applicationFeedback != null) {
-                applicationFeedback
-            } else {
-                ""
-            }
+            applicationFeedback ?: ""
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
             ""
