@@ -1492,7 +1492,7 @@ private fun DisplayListeningStatus(isListening: Boolean) {
         )
     ) {
         Text(
-            text = if (isListening) "🎤 Listening..." else "⏸️ Not listening",
+            text = if (isListening) "Recording mode: 🎤 on ..." else "Recording mode: ⏸️",
             modifier = Modifier
                 .padding(4.dp)
                 .fillMaxWidth(), // Added fillMaxWidth
