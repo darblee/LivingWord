@@ -281,13 +281,19 @@ object GeminiAIService {
         """.trimIndent()
             Log.d("GeminiAIService", "Sending prompt to Gemini: \"$prompt\"")
 
-            val response: GenerateContentResponse = takeAwayModel.generateContent(prompt)
-            val responseText = response.text
+            var takeAwayResponseText: String? = ""
+            for (i in 1..3) {
+                val response: GenerateContentResponse = takeAwayModel.generateContent(prompt)
+                takeAwayResponseText = response.text
+                if (takeAwayResponseText != null) {
+                    break
+                }
+            }
 
-            Log.d("GeminiAIService", "Gemini Response: $responseText")
+            Log.d("GeminiAIService", "Gemini Response: $takeAwayResponseText")
 
-            if (responseText != null) {
-                val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
+            if (takeAwayResponseText != null) {
+                val cleanedJson = takeAwayResponseText.replace("```json", "").replace("```", "").trim()
                 val parsedResponse = jsonParser.decodeFromString<KeyTakeawayResponse>(cleanedJson)
 
                 // 3. Return the human-readable string from the parsed object
@@ -328,7 +334,7 @@ object GeminiAIService {
                 modelName = currentAISettings!!.modelName,
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
-                    temperature = 0.2f // Lower temperature for more deterministic evaluation
+                    temperature = 0.5f // Lower temperature for more deterministic evaluation
                 },
                 systemInstruction = scoreSystemPrompt
             )
@@ -363,7 +369,18 @@ object GeminiAIService {
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
 
-            val applicationFeedback = getApplicationFeedback(verseRef, userApplicationComment)
+            var applicationFeedback: String? = null
+            for (i in 1..3) {
+                val applicationFeedbackresponseText = getApplicationFeedback(verseRef, userApplicationComment)
+                applicationFeedback = applicationFeedbackresponseText.trimIndent()
+                if (applicationFeedback.isNotEmpty()) {
+                    break
+                }
+            }
+
+            if (applicationFeedback == null) {
+                applicationFeedback = "Unable to obtain application feedback after 3 attempts. Try again later"
+            }
 
             if (responseText != null) {
                 val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
@@ -402,7 +419,7 @@ object GeminiAIService {
                 modelName = currentAISettings!!.modelName,
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
-                    temperature = 0.2f // Lower temperature for more deterministic evaluation
+                    temperature = 0.6f // Lower temperature for more deterministic evaluation
                 },
                 systemInstruction = scoreSystemPrompt
             )
@@ -418,8 +435,14 @@ object GeminiAIService {
             """
             Log.d("GeminiAIService", "Sending user application prompt to Gemini: \"$prompt\"")
 
-            val response: GenerateContentResponse = scoreModel.generateContent(prompt)
-            val applicationFeedback = (response.text)?.trimIndent()
+            var applicationFeedback: String? = null
+            for (i in 1..3) {
+                val response: GenerateContentResponse = scoreModel.generateContent(prompt)
+                applicationFeedback = (response.text)?.trimIndent()
+                if (!applicationFeedback.isNullOrEmpty()) {
+                    break
+                }
+            }
 
             Log.d("GeminiAIService", "Gemini Response: $applicationFeedback")
 
