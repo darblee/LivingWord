@@ -613,19 +613,6 @@ private fun AIModelSetting(
             )
         }
 
-        OutlinedTextField(
-            value = temperatureInput,
-            onValueChange = { newValue ->
-                // Allow empty, or valid float format
-                if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
-                    onTemperatureInputChange(newValue)
-                }
-            },
-            label = { Text("Temperature (0.0 - 1.0)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true
-        )
         val tempFloat = temperatureInput.toFloatOrNull()
         if (tempFloat == null && temperatureInput.isNotEmpty() || (tempFloat != null && (tempFloat < 0f || tempFloat > 1f))) {
             Text(

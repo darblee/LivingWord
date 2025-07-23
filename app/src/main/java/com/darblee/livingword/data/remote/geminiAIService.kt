@@ -167,7 +167,7 @@ object GeminiAIService {
             modelName = currentAISettings!!.modelName,
             apiKey = currentAISettings!!.apiKey,
             generationConfig = generationConfig {
-                temperature = 0.2f // Lower temperature for more deterministic evaluation
+                temperature = 0.1f // Lower temperature for more deterministic evaluation
                 responseMimeType = "application/json"
             },
             systemInstruction = systemPrompt
@@ -265,7 +265,7 @@ object GeminiAIService {
                 modelName = currentAISettings!!.modelName,
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
-                    temperature = 0.2f // Lower temperature for more deterministic evaluation
+                    temperature = 0.5f // HIgher  temperature to provide more variation on take-away response
                 },
                 safetySettings = listOf(harassmentSafety, hateSpeechSafety, explicitSexSafety, dangerSafety),
                 systemInstruction = takeAwaySystemPrompt
@@ -334,7 +334,7 @@ object GeminiAIService {
                 modelName = currentAISettings!!.modelName,
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
-                    temperature = 0.5f // Lower temperature for more deterministic evaluation
+                    temperature = 0.5f // Middle temperature for more deterministic evaluation
                 },
                 systemInstruction = scoreSystemPrompt
             )
