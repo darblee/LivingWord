@@ -74,7 +74,7 @@ object GeminiAIService {
             if (settings.apiKey.isNotBlank()) {
                 // Define the system instruction
                 val instruction = content(role = "system") {
-                    text ("You are an expert in theology. Respond in English. Your answers must align closely with core Judeo-Christian values.".trimIndent())
+                    text ("You are an expert in theology. Respond in English.".trimIndent())
                 }
 
                 generativeModel = GenerativeModel(
@@ -160,7 +160,7 @@ object GeminiAIService {
         }
 
         val systemPrompt = content(role = "system") {
-            text("You are an AI assistant that retrieves specific biblical scripture verse(s)")
+            text("You are a scripture retrieval assistant. Your task is to provide the scripture for a given verse in a specified translation. You must respond in JSON format as requested by the user")
         }
 
         val retrieveScriptureModel = GenerativeModel(
@@ -182,29 +182,37 @@ object GeminiAIService {
 
             val prompt = if (verseRef.startVerse == verseRef.endVerse) {
                 """
-                Provide the scripture for $verseString from the $translation translation.
+                 You will be provided with the verse string and the translation.
+                
+                Verse String: $verseString
+                Translation: $translation
+                
                 Respond in the following JSON schema:
+                ```json
                 [
                   {
-                    "verse_num": ${verseRef.startVerse},
+                    "verse_num": {$verseRef.startVerse},
                     "verse_string": "String content of the verse."
                   }
                 ]
+                ``` 
                 """.trimIndent()
             } else {
                 """
                 Retrieve the scripture for the range of verses $verseString from the $translation translation.
                 Your sole function is to return the content of those verses in the following JSON schema, which is an array of verse objects:
+                ```json
                 [
                   {
                     "verse_num": ${verseRef.startVerse},
                     "verse_string": "The content of the start verse."
                   },
                   {
-                    "verse_num": ${verseRef.startVerse + 1},
+                    "verse_num": {$verseRef.startVerse + 1},
                     "verse_string": "The content of the next verse."
                   }
                 ]
+                ``` 
                 """.trimIndent()
             }
 
@@ -247,7 +255,7 @@ object GeminiAIService {
 
         return try {
             val takeAwaySystemPrompt = content (role = "system") {
-                text("You are highly respected minister and Bible Scholar, who loves Jesus deeply and desire to guide other to have deep relationship with God and Jesus. You desire to guide everyone to follow Jesus teaching.  You will align to core Judeo-Christian values")
+                text("You are a scripture expert, skilled at extracting key takeaways from religious texts. Your task is to analyze a given verse reference and provide the key takeaway in a JSON format.")
             }
 
             val harassmentSafety = SafetySetting(HarmCategory.HARASSMENT, BlockThreshold.LOW_AND_ABOVE)
@@ -272,12 +280,20 @@ object GeminiAIService {
             )
 
             val prompt = """
-        Tell me the key take-away for $verseRef.
-        Respond in the following JSON format:
-        {
-          "key_takeaway_text": "The key takeaway."
-          "sources": [ "source1", "source2" ]
-        }
+            Analyze the following verse reference:
+            $verseRef
+            
+            Provide the key takeaway from this verse. Your response must be in the following JSON format:
+            
+            ```json
+            {
+              "key_takeaway_text": "The key takeaway.",
+              "sources": [ "source1", "source2" ]
+            }
+            ```
+            
+            *   `key_takeaway_text`: A concise summary of the main lesson or insight from the verse.
+            *   `sources`: A list of any resources (e.g., commentaries, scholarly articles) you consulted to determine the key takeaway. If no external sources were used, list "None". 
         """.trimIndent()
             Log.d("GeminiAIService", "Sending prompt to Gemini: \"$prompt\"")
 
@@ -325,7 +341,7 @@ object GeminiAIService {
         return try {
             // System prompt for the evaluator model
             val scoreSystemPrompt = content(role = "system") {
-                text("You are an Bible scholar that need to do an assessment based on core Judeo-Christian values and theological accuracy for the specific verse provided.")
+                text("You are an expert in theology, You are an expert in analyzing Bible verses and determining the accuracy of direct quotes and their context. ")
             }
 
             // It's good practice to create a specific model for this specific task
@@ -340,27 +356,32 @@ object GeminiAIService {
             )
 
             val prompt = """
-            Bible verse is $verseRef.
-            DirectQuoteScore - Calculate direct quote accuracy score from range of 0 to 100 on the following text:
+             You will be provided with a Bible verse reference and a direct quote to evaluate.
 
-            $directQuoteToEvaluate
-
-            DirectQuoteExplanation - This the explanation on how DirectQuoteScore was derived.
-
-            ContextScore - Calculate the contextual accuracy on the same provided text.
-
-            ContextExplanation - This the explanation on how ContextScore was derived.
+            Bible verse reference: $verseRef
+            Direct quote to evaluate: $directQuoteToEvaluate
             
-            ApplicationFeedback - Just create this field with empty string. It is not used here.
-
-            Only respond in the following JSON format with no other text:
+            Follow these steps:
+            
+            1.  Calculate the `DirectQuoteScore`: Determine the accuracy of the direct quote compared to the Bible verse reference. Provide a score between 0 and 100.
+            2.  Calculate the `ContextScore`: Evaluate the contextual accuracy of the direct quote. Consider whether the quote is used in a way that aligns with the original meaning and intent of the verse. Provide a score between 0 and 100.
+            3.  Provide `DirectQuoteExplanation`: Explain how you derived the `DirectQuoteScore`. Detail any differences between the provided quote and the actual verse.
+            4.  Provide `ContextExplanation`: Explain how you derived the `ContextScore`. Discuss the context of the verse and whether the provided quote aligns with that context.
+            5.  Create `ApplicationFeedback`: Create this field with an empty string: "". This field is not used in this task.
+            
+            Respond ONLY in the following JSON format:
+            
+            ```json
             {
-             "DirectQuoteScore" : integer between 0 to 100,
-             "ContextScore" : integer between 0 to 100,
-             "DirectQuoteExplanation": "This is sample text"
-             "ContextExplanation": "This is sample text"
-             "ApplicationFeedback": "Place-holder. Not used here"
+            "DirectQuoteScore": integer between 0 to 100,
+            "ContextScore": integer between 0 to 100,
+            "DirectQuoteExplanation": "Explanation of the DirectQuoteScore",
+            "ContextExplanation": "Explanation of the ContextScore",
+            "ApplicationFeedback": ""
             }
+            ```
+            
+            Ensure that your response is ONLY in JSON format with no other text or explanations outside of the JSON structure. 
             """
             Log.d("GeminiAIService", "Sending memorized score prompt to Gemini: \"$prompt\"")
 
@@ -409,9 +430,7 @@ object GeminiAIService {
         return try {
             // System prompt for the evaluator model
             val scoreSystemPrompt = content(role = "system") {
-                text("You are an caring Pastor who wants to provide feedback on how the person trying to live out specific scripture verse. Give encouraging words if person is doing a good job applying the scripture as it was intended. " +
-                        "if person cited examples, comment on it. If person is not following verse in practice, provide constructive feedback to help person abide to the scripture verse.  All comments needs to be based on core Judeo-Christian values. Keep feedback less than 100 words.")
-            }
+                text("You are a knowledgeable theologian and biblical scholar, skilled in providing constructive feedback on the application of Bible verses in daily life. Your feedback should be insightful, encouraging, and theologically sound.")}
 
             // It's good practice to create a specific model for this specific task
             // This ensures the system prompts do not conflict
@@ -425,13 +444,18 @@ object GeminiAIService {
             )
 
             val prompt = """
-            Bible verse is $verseRef.
+            You will be provided with a Bible verse and a user's comment on how they are applying the scripture. Your task is to provide feedback on the user's application.
             
-            Here is the user's comment on how he/she is applying the scripture:
-
+            Here is the Bible verse:
+            $verseRef
+            
+            Here is the user's comment on how they are applying the scripture:
             $userApplicationComment
-
-           Provide feedback.
+            
+            Provide feedback that is:
+            *   Insightful: Offer a deeper understanding of the verse and its implications.
+            *   Encouraging: Affirm the user's efforts and provide motivation.
+            *   Theologically Sound: Ensure the application aligns with biblical principles. 
             """
             Log.d("GeminiAIService", "Sending user application prompt to Gemini: \"$prompt\"")
 
@@ -473,7 +497,7 @@ object GeminiAIService {
         try {
             // System prompt for the evaluator model
             val evaluatorSystemPrompt = content(role = "system") {
-                text("You are an evaluator that decides whether a take-away answer is acceptable or not based on its alignment with core Judeo-Christian values and theological accuracy for the specific verse provided.")
+                text("You are a theological text evaluator. You will be given a verse reference and a take-away text. Your task is to evaluate the take-away text in the context of the verse and respond in JSON format.")
             }
 
             // It's good practice to create a specific model for this specific task
@@ -488,14 +512,17 @@ object GeminiAIService {
             )
 
             val prompt = """
-            Please evaluate the following take-away text for $verseRef.
+            Please evaluate the following take-away text for ${verseRef}:
             Take-away: "$takeawayToEvaluate"
-
+            
             Respond in the following JSON format:
+            ```json
             {
               "is_acceptable": boolean,
               "feedback": "Your brief feedback on the evaluation, considering the context of the verse."
             }
+            ```
+            Consider the context of the verse when evaluating the take-away text. 
             """.trimIndent()
 
             Log.d("GeminiAIService", "Sending evaluation prompt to Gemini: \"$prompt\"")
@@ -532,16 +559,34 @@ object GeminiAIService {
         if (!isConfigured) {
             return AiServiceResult.Error("GeminiAIService has not been configured.")
         }
-        if (generativeModel == null) {
-            return AiServiceResult.Error(initializationErrorMessage ?: "Gemini model not initialized or API key missing.")
-        }
 
         return try {
-            val prompt = """
-            Please get me a list of verses that meet this description: "$description"
+            // System prompt for the evaluator model
+            val systemPrompt = content(role = "system") {
+                text("You are a knowledgeable assistant specialized in biblical scripture. Your task is to identify and list verses that match a given description. You must respond in a specific JSON format.")
+            }
 
-            Respond in the following JSON format, which is an array of verse reference objects.
-            If no verses are found, return an empty array [].
+            val getCorrespondingVersesGenerativeModel = GenerativeModel(
+                modelName =   currentAISettings!!.modelName,
+                apiKey = currentAISettings!!.apiKey,
+                generationConfig = generationConfig {
+                    temperature = 0.3f // Lower temperature for more deterministic evaluation
+                },
+                systemInstruction = systemPrompt
+            )
+
+            val prompt = """
+            You will be provided with a description of verses:
+            $description
+            
+            Based on the description, find the corresponding verses and respond in the following JSON format:
+            
+            *   If no verses are found, return an empty array `[]`.
+            *   If verses are found, return an array of verse reference objects.
+            
+            Here is the JSON format:
+            
+            ```json
             [
               {
                 "book": "BookName",
@@ -550,11 +595,33 @@ object GeminiAIService {
                 "endVerse": 2
               }
             ]
+            ```
+            
+            Example:
+            
+            If the description is "verses about love in the New Testament", the response might be:
+            
+            ```json
+            [
+              {
+                "book": "1 Corinthians",
+                "chapter": 13,
+                "startVerse": 4,
+                "endVerse": 8
+              },
+              {
+                "book": "John",
+                "chapter": 3,
+                "startVerse": 16,
+                "endVerse": 16
+              }
+            ]
+            ``` 
             """.trimIndent()
 
             Log.d("GeminiAIService", "Sending prompt to Gemini for description-based verses: \"$prompt\"")
 
-            val response = generativeModel!!.generateContent(prompt)
+            val response = getCorrespondingVersesGenerativeModel.generateContent(prompt)
             val responseText = response.text
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")

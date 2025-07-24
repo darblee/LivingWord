@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="LivingWord.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-07-23T05:13:53.629211100Z">
+        <DropdownSelection timestamp="2025-07-24T17:26:10.279052700Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\darbl\.android\avd\Pixel_9_Pro_XL.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=b0d8da1c" />
             </handle>
           </Target>
         </DropdownSelection>
