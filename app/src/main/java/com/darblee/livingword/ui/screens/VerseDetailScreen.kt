@@ -81,6 +81,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.BaselineShift
@@ -98,6 +99,11 @@ import com.darblee.livingword.domain.model.TTS_OperationMode
 import com.darblee.livingword.domain.model.VerseDetailSequencePart
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import com.darblee.livingword.data.ScriptureUtils.verseListToString
 
 // Helper extension function to append text with verse number styling
 fun AnnotatedString.Builder.appendWithVerseStyling(
@@ -191,6 +197,8 @@ fun VerseDetailScreen(
 
     // State for the dropdown menu
     var showButtonDropdownMenu by remember { mutableStateOf(false) }
+
+    var showShareDialog by remember { mutableStateOf(false) }
 
     // States for dropdown menus on text boxes
     var showScriptureDropdownMenu by remember { mutableStateOf(false) }
@@ -326,6 +334,17 @@ fun VerseDetailScreen(
                             imageVector = if (verseItem!!.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                             contentDescription = "Favorite",
                             tint = if (verseItem!!.favorite) Color.Red else LocalContentColor.current
+                        )
+                    }
+                    val sharedEnabled = verseItem!!.scriptureVerses.isNotEmpty() && verseItem!!.aiTakeAwayResponse.isNotEmpty()
+                    IconButton(
+                        onClick = { showShareDialog = true },
+                        enabled = sharedEnabled
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = "Share",
+                            tint = if (sharedEnabled) LocalContentColor.current else LocalContentColor.current
                         )
                     }
                 }
@@ -1007,6 +1026,42 @@ fun VerseDetailScreen(
                         }
                     )
                 }
+            }
+
+            if (showShareDialog) {
+                ShareDialog(
+                    onDismiss = { showShareDialog = false },
+                    onCopy = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val textToCopy = verseItem?.aiTakeAwayResponse
+                        val clip = ClipData.newPlainText( "Verse Text Clipboard",  textToCopy )
+                        clipboard.setPrimaryClip(clip)
+                        showShareDialog = false
+                    },
+                    onSendEmail = {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            if (verseItem != null) {
+                                putExtra(
+                                    Intent.EXTRA_SUBJECT,
+                                    "Take-away for ${verseReference(verseItem!!)}"
+                                )
+                            } else {
+                                putExtra(
+                                    Intent.EXTRA_SUBJECT,
+                                    "Take-away"
+                                )
+                            }
+                            val verseText = verseListToString(verseItem?.scriptureVerses ?: emptyList())
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "Verse\n$verseText\n\nTake-Away\n${verseItem?.aiTakeAwayResponse}"
+                            )
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Send Email"))
+                        showShareDialog = false
+                    }
+                )
             }
         }
     )

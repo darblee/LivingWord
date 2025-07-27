@@ -54,6 +54,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,6 +62,11 @@ import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.domain.model.EngageVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 
 @Composable
 fun EngageScreen(
@@ -119,16 +125,8 @@ fun EngageScreen(
 
     // State to track if saved data has been loaded and modified
     var isSavedDataLoaded by remember { mutableStateOf(false) }
-    var hasContentChangedSinceLoad by remember { mutableStateOf(false) }
     var showCompareDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(directQuoteTextFieldValue, userApplicationTextFieldValue, verse) {
-        if (isSavedDataLoaded && verse != null) {
-            val quoteChanged = directQuoteTextFieldValue.text != verse!!.userDirectQuote
-            val contextChanged = userApplicationTextFieldValue.text != verse!!.userContext
-            hasContentChangedSinceLoad = quoteChanged || contextChanged
-        }
-    }
+    var showShareDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
@@ -530,6 +528,17 @@ fun EngageScreen(
                             imageVector = if (verse!!.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                             contentDescription = "Favorite",
                             tint = if (verse!!.favorite) Color.Red else LocalContentColor.current
+                        )
+                    }
+                    val shareEnabled = directQuoteTextFieldValue.text.isNotEmpty() && userApplicationTextFieldValue.text.isNotEmpty()
+                    IconButton(
+                        onClick = { showShareDialog = true },
+                        enabled = shareEnabled
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = if (shareEnabled) LocalContentColor.current else Color.Gray
                         )
                     }
                 }
@@ -1006,7 +1015,6 @@ fun EngageScreen(
                                             )
 
                                             // Reset the change tracking flags
-                                            hasContentChangedSinceLoad = false
                                             isSavedDataLoaded = true
 
                                             // The coroutine now serves to verify and sync with the database post-write.
@@ -1056,7 +1064,6 @@ fun EngageScreen(
                                                     contextScore = savedVerse.userContextScore
                                                 )
                                                 isSavedDataLoaded = true
-                                                hasContentChangedSinceLoad = false // Reset on load
                                             }
                                         }
                                         isCompareMode -> {
@@ -1352,6 +1359,42 @@ fun EngageScreen(
                     }
                 }
 
+                if (showShareDialog) {
+                    ShareDialog(
+                        onDismiss = { showShareDialog = false },
+                        onCopy = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val textToCopy = "User Quote\n${directQuoteTextFieldValue.text}\n\nUser Application\n${userApplicationTextFieldValue.text}"
+                            val clip = ClipData.newPlainText("Memorized Content Clipboard", textToCopy)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                            showShareDialog = false
+                        },
+                        onSendEmail = {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                if (verse != null) {
+                                    putExtra(
+                                        Intent.EXTRA_SUBJECT,
+                                        "My Bible Verse Memorization for ${verseReference(verse!!)}"
+                                    )
+                                } else {
+                                    putExtra(
+                                        Intent.EXTRA_SUBJECT,
+                                        "My Bible Verse Memorization"
+                                    )
+                                }
+                                putExtra(
+                                        Intent.EXTRA_TEXT,
+                                "User Quote\n${directQuoteTextFieldValue.text}\n\nUser Application\n${userApplicationTextFieldValue.text}"
+                                )
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Send Email"))
+                            showShareDialog = false
+                        }
+                    )
+                }
+
                 // Dialog to display score and AI explanation
                 if (showScoreDialog) {
                     AlertDialog(
@@ -1470,6 +1513,7 @@ fun ScrollableTitledOutlinedBox(
             modifier = Modifier
                 .offset(x = 12.dp, y = (-8).dp) // Position on the top-left of the border
                 .background(
+                    // Dialogs use Surface color, so this creates the "cut-out" effect
                     color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(2.dp)
                 )
