@@ -140,12 +140,8 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
-    fun getVersesByTopic(topic: String) {
-        viewModelScope.launch {
-            repository.getVersesByTopic(topic).collectLatest { verses ->
-                _allVerses.value = verses
-            }
-        }
+    fun getVersesByTopic(topic: String): Flow<List<BibleVerse>> {
+        return repository.getVersesByTopic(topic)
     }
 
     /**

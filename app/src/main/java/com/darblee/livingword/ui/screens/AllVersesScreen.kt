@@ -77,6 +77,7 @@ import com.darblee.livingword.domain.model.NewVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
@@ -101,9 +102,19 @@ fun AllVersesScreen(
     val allTopics by bibleViewModel.allTopicsWithCount.collectAsState()
     val favoriteVerses by bibleViewModel.favoriteVerses.collectAsState()
     var versesToDisplay by remember { mutableStateOf<List<BibleVerse>>(emptyList()) }
+    var filterOption by remember { mutableStateOf(FilterOption.ALL) }
+    var selectedTopic by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(allVerses, favoriteVerses) {
-        versesToDisplay = allVerses
+    val versesForTopic by remember(selectedTopic) {
+        selectedTopic?.let { bibleViewModel.getVersesByTopic(it) } ?: flowOf(emptyList())
+    }.collectAsState(initial = emptyList())
+
+    LaunchedEffect(allVerses, favoriteVerses, filterOption, versesForTopic) {
+        versesToDisplay = when (filterOption) {
+            FilterOption.ALL -> allVerses
+            FilterOption.FAVORITES -> favoriteVerses
+            FilterOption.TOPIC -> versesForTopic
+        }
     }
 
     var showRetrievingDataDialog by remember { mutableStateOf(false) }
@@ -115,26 +126,25 @@ fun AllVersesScreen(
         FilterDialog(
             topics = allTopics.map { it.topic },
             onDismiss = { showFilterDialog = false },
-            onApplyFilter = { filterOption, selectedTopic ->
-                when (filterOption) {
+            onApplyFilter = { newFilterOption, newSelectedTopic ->
+                filterOption = newFilterOption
+                selectedTopic = newSelectedTopic
+                when (newFilterOption) {
                     FilterOption.ALL -> {
                         bibleViewModel.getAllVerses()
-                        versesToDisplay = allVerses
                     }
                     FilterOption.FAVORITES -> {
                         bibleViewModel.getAllFavoriteVerses()
-                        versesToDisplay = favoriteVerses
                     }
                     FilterOption.TOPIC -> {
-                        if (selectedTopic != null) {
-                            bibleViewModel.getVersesByTopic(selectedTopic)
-                        }
+                        // The LaunchedEffect will handle updating versesToDisplay
                     }
                 }
                 showFilterDialog = false
             }
         )
     }
+
 
     LaunchedEffect(newVerseJson) {
         newVerseJson?.let {

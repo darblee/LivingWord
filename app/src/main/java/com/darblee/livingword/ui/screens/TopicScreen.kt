@@ -175,8 +175,8 @@ fun TopicScreen(
 ) {
     val context = LocalContext.current
 
-    val allDbTopicsWithCount by bibleViewModel.allTopicsWithCount.collectAsState() //
-    val allVerseToList by bibleViewModel.allVerses.collectAsState() //
+    val allDbTopicsWithCount by bibleViewModel.allTopicsWithCount.collectAsState()
+    val allVerseToList by bibleViewModel.allVerses.collectAsState()
 
     // Recalculate counts based on ListVerses logic
     val topicsForDisplay: List<TopicWithUiCount> = remember(allDbTopicsWithCount, allVerseToList) {
@@ -230,9 +230,9 @@ fun TopicScreen(
             ) {
                 Box() {
                     Text(
-                        text = "Select one or more topics to perform task.", //
-                        style = MaterialTheme.typography.bodyLarge, //
-                        modifier = Modifier.padding(top = 16.dp, start = 8.dp) //
+                        text = "Select one or more topics to perform task.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(top = 16.dp, start = 8.dp)
                     )
 
                     LazyVerticalGrid(
@@ -246,12 +246,12 @@ fun TopicScreen(
                     ) {
                         items(topicsForDisplay.size) { index -> // Use topicsForDisplay
                             val topicToDisplay = topicsForDisplay[index]
-                            val isSelected = selectedTopics.contains(topicToDisplay.name) //
+                            val isSelected = selectedTopics.contains(topicToDisplay.name)
                             Row(
                                 modifier = Modifier
-                                    .selectable( //
-                                        selected = isSelected, //
-                                        onClick = { //
+                                    .selectable(
+                                        selected = isSelected,
+                                        onClick = {
                                             // Pass topicToDisplay.name instead of TopicWithCount object
                                             selectedTopics = onSelectTopicCheckBox(
                                                 !isSelected,
@@ -260,12 +260,12 @@ fun TopicScreen(
                                             )
                                         }
                                     )
-                                    .padding(vertical = 0.dp), //
-                                verticalAlignment = Alignment.CenterVertically //
+                                    .padding(vertical = 0.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Checkbox(
-                                    checked = isSelected, //
-                                    onCheckedChange = { isChecked -> //
+                                    checked = isSelected,
+                                    onCheckedChange = { isChecked ->
                                         selectedTopics = onSelectTopicCheckBox(
                                             isChecked,
                                             selectedTopics,
@@ -276,8 +276,8 @@ fun TopicScreen(
                                 Text(
                                     // Use topicToDisplay.name and topicToDisplay.uiVerseCount
                                     text = "${topicToDisplay.name} (${topicToDisplay.uiVerseCount})",
-                                    style = MaterialTheme.typography.bodyLarge, //
-                                    modifier = Modifier.padding(start = 0.dp) //
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.padding(start = 0.dp)
                                 )
                             }
                         }
@@ -286,15 +286,15 @@ fun TopicScreen(
                     Text(
                         // Use topicsForDisplay.size
                         text = "${topicsForDisplay.size} topics",
-                        style = MaterialTheme.typography.labelLarge, //
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), //
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         modifier = Modifier
-                            .offset(x = 12.dp, y = (-8).dp) //
-                            .background( //
-                                color = MaterialTheme.colorScheme.surface, //
-                                shape = RoundedCornerShape(2.dp) //
+                            .offset(x = 12.dp, y = (-8).dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(2.dp)
                             )
-                            .padding(horizontal = 4.dp, vertical = 2.dp) //
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
                     )
                 }
 
