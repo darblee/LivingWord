@@ -741,7 +741,7 @@ fun VerseDetailScreen(
                         modifier = Modifier.weight(1f),
                     ) {
                         if (inEditMode) {
-                            Text(if (newContentNeedToBeSaved) "Save" else "Done")
+                            Text("Save")
                         } else {
                             Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
                         }
