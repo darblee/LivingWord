@@ -88,7 +88,7 @@ fun GetStartVerseNumberScreen(
                         )
                 ) {
                     val annotatedString = buildAnnotatedString {
-                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
+                        withStyle(style = MaterialTheme.typography.titleMedium.toSpanStyle()) {
                             append("$book ")
                         }
                     }
@@ -109,7 +109,7 @@ fun GetStartVerseNumberScreen(
                     // .padding(horizontal = 4.dp) // Deliberately no padding here
                 ) {
                     val annotatedString = buildAnnotatedString {
-                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle()) {
+                        withStyle(style = MaterialTheme.typography.titleMedium.toSpanStyle()) {
                             append("$chapter ")
                         }
                     }
@@ -118,7 +118,7 @@ fun GetStartVerseNumberScreen(
 
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle().copy(
+                        withStyle(style = MaterialTheme.typography.titleMedium.toSpanStyle().copy(
                             color = LocalContentColor.current.copy(alpha = 0.5f)  // Set alpha for 50% transparency
                         )) {
                             append(" [Verse - Verse]")

@@ -74,7 +74,7 @@ fun GetBookScreen(
             ) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(style = MaterialTheme.typography.titleLarge.toSpanStyle().copy(
+                        withStyle(style = MaterialTheme.typography.titleMedium.toSpanStyle().copy(
                             color = LocalContentColor.current.copy(alpha = 0.5f)  // Set alpha for 50% transparency
                         )) {
                             append("[Book] [Chapter] [Verse - Verse]") // Non-bold part
