@@ -392,13 +392,13 @@ fun AllVersesScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
@@ -406,30 +406,42 @@ fun AllVersesScreen(
                                     newVerseViewModel.resetNavigationState()
                                     navController.navigate(Screen.GetBookScreen)
                                 },
-                                shape =  RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Add new verse ...")
+                                Text(
+                                    "Add new verse ...",
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2
+                                )
                             }
                             Button(
                                 onClick = { navController.navigate(Screen.AddVerseByDescriptionScreen) },
-                                shape =  RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Add by description", textAlign = TextAlign.Center)
+                                Text(
+                                    "Add by\ndescription", // Manual line break
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2
+                                )
                             }
                             Button(
                                 onClick = { showFilterDialog = true },
-                                shape =  RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Custom listing")
+                                Text(
+                                    "Custom listing",
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2
+                                )
                             }
                         }
                     }
 
                     if (versesToDisplay.isEmpty()) {
-                        Text("No verses added yet.", style = MaterialTheme.typography.bodyMedium)
+                        Text("No verses to display.", style = MaterialTheme.typography.bodyMedium)
                     } else {
                         Box(modifier = Modifier.weight(1f)) {
                             val listState = rememberLazyListState()

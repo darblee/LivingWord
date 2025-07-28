@@ -932,7 +932,7 @@ fun EngageScreen(
                                     (userApplicationTextFieldValue.text != verse!!.userContext)) } ?: false
 
                         // Second button ("Save"/"Show"/"Compare") text logic
-                        val secondButtonText = if (isShowDataMode) "Show Saved" else "Compare with saved"
+                        val secondButtonText = if (isShowDataMode) "Show Saved" else "Compare w/ saved"
 
                         // Second button enabled logic
                         val secondButtonEnabled = isShowDataMode || isCompareMode
@@ -1370,13 +1370,30 @@ fun EngageScreen(
                         onDismiss = { showShareDialog = false },
                         onCopy = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val textToCopy = "User Quote\n${directQuoteTextFieldValue.text}\n\nUser Application\n${userApplicationTextFieldValue.text}"
+                            val textToCopy = buildShareText(
+                                directQuoteText = directQuoteTextFieldValue.text,
+                                userApplicationText = userApplicationTextFieldValue.text,
+                                directQuoteScore = state.directQuoteScore,
+                                contextScore = state.contextScore,
+                                aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText,
+                                aiContextExplanation = state.aiContextExplanationText,
+                                applicationFeedback = state.applicationFeedback
+                            )
                             val clip = ClipData.newPlainText("Memorized Content Clipboard", textToCopy)
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                             showShareDialog = false
                         },
                         onSendEmail = {
+                            val shareText = buildShareText(
+                                directQuoteText = directQuoteTextFieldValue.text,
+                                userApplicationText = userApplicationTextFieldValue.text,
+                                directQuoteScore = state.directQuoteScore,
+                                contextScore = state.contextScore,
+                                aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText,
+                                aiContextExplanation = state.aiContextExplanationText,
+                                applicationFeedback = state.applicationFeedback
+                            )
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 if (verse != null) {
@@ -1390,10 +1407,7 @@ fun EngageScreen(
                                         "My Bible Verse Memorization"
                                     )
                                 }
-                                putExtra(
-                                        Intent.EXTRA_TEXT,
-                                "User Quote\n${directQuoteTextFieldValue.text}\n\nUser Application\n${userApplicationTextFieldValue.text}"
-                                )
+                                putExtra(Intent.EXTRA_TEXT, shareText)
                             }
                             context.startActivity(Intent.createChooser(intent, "Send Email"))
                             showShareDialog = false
@@ -1688,4 +1702,60 @@ private fun CompareContentBox(label: String, content: String) {
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         )
     }
+}
+
+private fun buildShareText(
+    directQuoteText: String,
+    userApplicationText: String,
+    directQuoteScore: Int,
+    contextScore: Int,
+    aiDirectQuoteExplanation: String?,
+    aiContextExplanation: String?,
+    applicationFeedback: String?
+): String {
+    val stringBuilder = StringBuilder()
+
+    // Always include the basic content
+    stringBuilder.append("User Quote\n")
+    stringBuilder.append(directQuoteText)
+    stringBuilder.append("\n\n")
+
+    stringBuilder.append("User Application\n")
+    stringBuilder.append(userApplicationText)
+
+    // Add AI feedback content if it exists
+    val hasAiFeedback = directQuoteScore >= 0 || contextScore >= 0 ||
+            !aiDirectQuoteExplanation.isNullOrBlank() ||
+            !aiContextExplanation.isNullOrBlank() ||
+            !applicationFeedback.isNullOrBlank()
+
+    if (hasAiFeedback) {
+        stringBuilder.append("\n\n--- AI Feedback ---\n")
+
+        // Add Direct Quote Score and explanation if available
+        if (directQuoteScore >= 0) {
+            stringBuilder.append("\nDirect Quote Score: $directQuoteScore")
+            if (!aiDirectQuoteExplanation.isNullOrBlank()) {
+                stringBuilder.append("\nDirect Quote Feedback:\n")
+                stringBuilder.append(aiDirectQuoteExplanation.trim())
+            }
+        }
+
+        // Add Context Score and explanation if available
+        if (contextScore >= 0) {
+            stringBuilder.append("\n\nContext Score: $contextScore")
+            if (!aiContextExplanation.isNullOrBlank()) {
+                stringBuilder.append("\nContext Feedback:\n")
+                stringBuilder.append(aiContextExplanation.trim())
+            }
+        }
+
+        // Add Application Feedback if available
+        if (!applicationFeedback.isNullOrBlank()) {
+            stringBuilder.append("\n\nFeedback on Application:\n")
+            stringBuilder.append(applicationFeedback.trim())
+        }
+    }
+
+    return stringBuilder.toString()
 }
