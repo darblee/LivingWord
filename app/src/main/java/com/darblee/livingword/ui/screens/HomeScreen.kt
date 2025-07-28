@@ -606,7 +606,7 @@ fun VerseOfTheDaySection(
                 Column {
                     Text(
                         text = "Verse of the Day",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -617,7 +617,10 @@ fun VerseOfTheDaySection(
                     )
                 }
                 Row {
-                    Button(onClick = onPlayPauseClick) {
+                    Button(
+                        onClick = onPlayPauseClick,
+                        contentPadding = PaddingValues(8.dp)
+                    ) {
                         Icon(
                             imageVector = when {
                                 isSpeaking && !isPaused && currentTtsTextId == "votd" -> Icons.Default.PauseCircleOutline
@@ -629,15 +632,19 @@ fun VerseOfTheDaySection(
                                 isPaused && currentTtsTextId == "votd" -> "Resume VOTD"
                                 else -> "Read VOTD"
                             },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Button(
                         onClick = onAddClick,
-                        enabled = verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day"
+                        enabled = verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day",
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Add")
+                        Text(
+                            "Add",
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
                 }
             }
@@ -684,20 +691,20 @@ fun VerseOfTheDaySection(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
-                    text = buildAnnotatedStringForScripture(
-                        verseOfTheDayReference,
-                        verseContent,
-                        currentlySpeakingIndex,
-                        isSpeaking,
-                        isPaused,
-                        currentTtsTextId,
-                        highlightStyle = SpanStyle(
-                            background = MaterialTheme.colorScheme.primaryContainer,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ),
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                text = buildAnnotatedStringForScripture(
+                    verseOfTheDayReference,
+                    verseContent,
+                    currentlySpeakingIndex,
+                    isSpeaking,
+                    isPaused,
+                    currentTtsTextId,
+                    highlightStyle = SpanStyle(
+                        background = MaterialTheme.colorScheme.primaryContainer,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ),
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
 }
@@ -727,11 +734,14 @@ fun DailyPrayerSection(
             ) {
                 Text(
                     text = "Daily Prayer",
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Button(onClick = onPlayPauseClick) {
+                Button(
+                    onClick = onPlayPauseClick,
+                    contentPadding = PaddingValues(8.dp)
+                ) {
                     Icon(
                         imageVector = when {
                             isSpeaking && !isPaused && currentTtsTextId == "morningPrayer" -> Icons.Default.PauseCircleOutline
@@ -743,7 +753,7 @@ fun DailyPrayerSection(
                             isPaused && currentTtsTextId == "morningPrayer" -> "Resume Speech"
                             else -> "Play Speech"
                         },
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
