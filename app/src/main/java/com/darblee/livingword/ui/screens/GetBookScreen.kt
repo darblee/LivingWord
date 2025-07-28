@@ -118,8 +118,6 @@ fun GetBookScreen(
                 }
             }
 
-            //Spacer(modifier = Modifier.height(16.dp))
-
             // Content of the selected tab
             when (tabIndex) {
                 0 -> OldTestamentTab(navController, oldTestamentBooks, currentTheme)
@@ -156,7 +154,7 @@ fun OldTestamentTab(
                         else -> Color.Blue // Minor Prophets
                     }
                 }
-                bookButton(navController, bookInfo, buttonColor)
+                BookButton(navController, bookInfo, buttonColor)
             }
         }
     )
@@ -190,7 +188,7 @@ fun NewTestamentTab(
                         else -> Color.Blue // Revelation (Apocalyptic)
                     }
                 }
-                bookButton(navController, bookInfo, buttonColor)
+                BookButton(navController, bookInfo, buttonColor)
             }
         }
     )
@@ -199,7 +197,7 @@ fun NewTestamentTab(
 
 // Reusable composable for book buttons
 @Composable
-private fun bookButton(
+private fun BookButton(
     navController: NavHostController,
     bookInfo: BookInfo,
     buttonColor: Color

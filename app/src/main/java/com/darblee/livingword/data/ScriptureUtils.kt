@@ -1,6 +1,5 @@
 package com.darblee.livingword.data
 
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
@@ -19,7 +18,7 @@ object ScriptureUtils {
         val verses = mutableListOf<Verse>()
 
         // Regex to match [number] followed by text until next [number] or end of string
-        val regex = "\\[(\\d+)\\]\\s*([^\\[]+?)(?=\\s*\\[\\d+\\]|\\$)".toRegex()
+        val regex = "\\[(\\d+)]\\s*([^\\[]+?)(?=\\s*\\[\\d+]|\\$)".toRegex()
 
         regex.findAll(scripture).forEach { matchResult ->
             val verseNum = matchResult.groupValues[1].toIntOrNull() ?: 0

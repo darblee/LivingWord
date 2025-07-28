@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -62,7 +63,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
-import com.darblee.livingword.Global
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
@@ -228,7 +228,7 @@ fun TopicScreen(
                     .zIndex(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box() {
+                Box {
                     Text(
                         text = "Select one or more topics to perform task.",
                         style = MaterialTheme.typography.bodyLarge,
@@ -369,7 +369,7 @@ fun TopicScreen(
     )
 
     val activity = LocalActivity.current
-    var backPressedTime by remember { mutableStateOf(0L) }
+    var backPressedTime by remember { mutableLongStateOf(0L) }
     BackPressHandler {
         if (System.currentTimeMillis() - backPressedTime < 2000) {
             activity?.finish()

@@ -128,6 +128,9 @@ fun EngageScreen(
     var showCompareDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
 
+    /***
+     * Set up listeners for speech recognition - directQuoteSpeechRecognizer
+     */
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
         if (!isSpeechRecognitionAvailable) {
@@ -262,6 +265,9 @@ fun EngageScreen(
         }
     }
 
+    /***
+     * Set up listeners for speech recognition - contextSpeechRecognizer
+     */
     LaunchedEffect(Unit) {
         isSpeechRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(context)
         if (!isSpeechRecognitionAvailable) {
