@@ -7,14 +7,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
-import com.darblee.livingword.ui.theme.SetColorTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import com.darblee.livingword.ui.theme.ColorThemeOption
 
 @RunWith(AndroidJUnit4::class)
 class HomeScreenTest {

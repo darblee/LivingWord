@@ -263,7 +263,6 @@ object GeminiAIService {
             val explicitSexSafety = SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.LOW_AND_ABOVE)
             val dangerSafety = SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.LOW_AND_ABOVE)
 
-
             // TODO: In the future. we will add GoogleSearch tool support which will reduce AI hallucination
             val groundingTool = Tool(
                 functionDeclarations = listOf()
