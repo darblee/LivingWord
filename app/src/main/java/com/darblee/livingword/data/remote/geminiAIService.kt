@@ -12,7 +12,6 @@ import com.google.ai.client.generativeai.type.HarmCategory
 import com.google.ai.client.generativeai.type.SafetySetting
 import com.google.ai.client.generativeai.type.generationConfig
 import com.google.ai.client.generativeai.type.content
-import com.google.ai.client.generativeai.type.Tool
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.Serializable // Add this import at the top of the file
 
@@ -263,11 +262,6 @@ object GeminiAIService {
             val explicitSexSafety = SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.LOW_AND_ABOVE)
             val dangerSafety = SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.LOW_AND_ABOVE)
 
-            // TODO: In the future. we will add GoogleSearch tool support which will reduce AI hallucination
-            val groundingTool = Tool(
-                functionDeclarations = listOf()
-            )
-
             val takeAwayModel = GenerativeModel(
                 modelName = currentAISettings!!.modelName,
                 apiKey = currentAISettings!!.apiKey,
@@ -297,12 +291,14 @@ object GeminiAIService {
             Log.d("GeminiAIService", "Sending prompt to Gemini: \"$prompt\"")
 
             var takeAwayResponseText: String? = ""
-            for (i in 1..3) {
+            var attempts = 0
+            while (attempts < 3) {
                 val response: GenerateContentResponse = takeAwayModel.generateContent(prompt)
                 takeAwayResponseText = response.text
                 if (takeAwayResponseText != null) {
                     break
                 }
+                attempts++
             }
 
             Log.d("GeminiAIService", "Gemini Response: $takeAwayResponseText")
@@ -390,22 +386,23 @@ object GeminiAIService {
             Log.d("GeminiAIService", "Gemini Response: $responseText")
 
             var applicationFeedback: String? = null
-            for (i in 1..3) {
-                val applicationFeedbackResponseText = getApplicationFeedback(verseRef, userApplicationComment)
+            var attempts = 0
+            while (attempts < 3) {
+                val applicationFeedbackResponseText =
+                    getApplicationFeedback(verseRef, userApplicationComment)
                 applicationFeedback = applicationFeedbackResponseText.trimIndent()
                 if (applicationFeedback.isNotEmpty()) {
                     break
                 }
-            }
-
-            if (applicationFeedback == null) {
-                applicationFeedback = "Unable to obtain application feedback after 3 attempts. Try again later"
+                attempts++
             }
 
             if (responseText != null) {
                 val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
                 val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
-                parseResponse.ApplicationFeedback = applicationFeedback
+                if (applicationFeedback != null) {
+                    parseResponse.ApplicationFeedback = applicationFeedback
+                }
 
                 AiServiceResult.Success(parseResponse)
             } else {
@@ -459,12 +456,14 @@ object GeminiAIService {
             Log.d("GeminiAIService", "Sending user application prompt to Gemini: \"$prompt\"")
 
             var applicationFeedback: String? = null
-            for (i in 1..3) {
+            var attempts = 0
+            while (attempts < 3) {
                 val response: GenerateContentResponse = scoreModel.generateContent(prompt)
                 applicationFeedback = (response.text)?.trimIndent()
                 if (!applicationFeedback.isNullOrEmpty()) {
                     break
                 }
+                attempts++
             }
 
             Log.d("GeminiAIService", "Gemini Response: $applicationFeedback")
