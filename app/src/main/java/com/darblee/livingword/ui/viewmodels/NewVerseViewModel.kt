@@ -1,4 +1,4 @@
-package com.darblee.livingword.domain.model
+package com.darblee.livingword.ui.viewmodels
 
 import android.app.Application
 import android.util.Log
@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
 
 /**
  * ViewModel for the Learn Screen, responsible for managing state and fetching data for a

@@ -25,7 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.data.remote.GeminiAIService
-import com.darblee.livingword.domain.model.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.components.AIDisclaimerDialog
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.theme.SetColorTheme

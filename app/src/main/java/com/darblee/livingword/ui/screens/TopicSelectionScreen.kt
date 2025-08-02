@@ -43,8 +43,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
-import com.darblee.livingword.domain.model.BibleVerseViewModel
-import com.darblee.livingword.domain.model.TopicSelectionViewModel
+import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.TopicSelectionViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.serialization.builtins.ListSerializer

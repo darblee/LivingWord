@@ -1,4 +1,4 @@
-package com.darblee.livingword.domain.model
+package com.darblee.livingword.ui.viewmodels
 
 import android.accounts.Account
 import android.content.Context
@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -132,7 +133,7 @@ class ExportImportViewModel : ViewModel() {
 
                 withContext(Dispatchers.IO) {
                     val dbPath = context.getDatabasePath(Global.DATABASE_NAME)
-                    val outputStream = java.io.FileOutputStream(dbPath)
+                    val outputStream = FileOutputStream(dbPath)
                     driveService.downloadFile(fileId, outputStream)
                 }
                 // Use a specific message to signal the UI to show the exit dialog

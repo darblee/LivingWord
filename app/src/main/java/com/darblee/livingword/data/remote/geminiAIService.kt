@@ -4,7 +4,7 @@ import android.util.Log
 import com.darblee.livingword.AISettings // Import AISettings
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
-import com.darblee.livingword.domain.model.ScoreData
+import com.darblee.livingword.ui.viewmodels.ScoreData
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.BlockThreshold
 import com.google.ai.client.generativeai.type.GenerateContentResponse

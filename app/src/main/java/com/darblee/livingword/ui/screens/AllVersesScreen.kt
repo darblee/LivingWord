@@ -72,8 +72,8 @@ import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
-import com.darblee.livingword.domain.model.BibleVerseViewModel
-import com.darblee.livingword.domain.model.NewVerseViewModel
+import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.NewVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.flow.filterNotNull

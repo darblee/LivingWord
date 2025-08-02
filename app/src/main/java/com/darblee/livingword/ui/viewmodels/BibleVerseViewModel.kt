@@ -1,5 +1,6 @@
-package com.darblee.livingword.domain.model
+package com.darblee.livingword.ui.viewmodels
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -402,9 +403,9 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     }
 
     companion object {
-        fun Factory(context: android.content.Context): ViewModelProvider.Factory = viewModelFactory {
+        fun Factory(context: Context): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val database = AppDatabase.getDatabase(context)
+                val database = AppDatabase.Companion.getDatabase(context)
                 val repository = BibleVerseRepository(database.bibleVerseDao())
                 BibleVerseViewModel(repository)
             }

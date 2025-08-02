@@ -66,7 +66,7 @@ import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
-import com.darblee.livingword.domain.model.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch

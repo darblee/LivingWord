@@ -1,4 +1,4 @@
-package com.darblee.livingword.domain.model
+package com.darblee.livingword.ui.viewmodels
 
 
 import android.app.Application

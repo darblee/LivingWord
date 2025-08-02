@@ -93,10 +93,10 @@ import com.darblee.livingword.Screen
 import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.verseReference
-import com.darblee.livingword.domain.model.BibleVerseViewModel
-import com.darblee.livingword.domain.model.TTSViewModel
-import com.darblee.livingword.domain.model.TTS_OperationMode
-import com.darblee.livingword.domain.model.VerseDetailSequencePart
+import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.TTSViewModel
+import com.darblee.livingword.ui.viewmodels.TTS_OperationMode
+import com.darblee.livingword.ui.viewmodels.VerseDetailSequencePart
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import android.content.ClipData

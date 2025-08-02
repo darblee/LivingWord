@@ -3,8 +3,6 @@ package com.darblee.livingword.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,9 +61,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
-import com.darblee.livingword.domain.model.DriveFile
-import com.darblee.livingword.domain.model.ExportImportViewModel
-import com.darblee.livingword.domain.model.OperationState
+import com.darblee.livingword.ui.viewmodels.DriveFile
+import com.darblee.livingword.ui.viewmodels.ExportImportViewModel
+import com.darblee.livingword.ui.viewmodels.OperationState
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption

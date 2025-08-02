@@ -195,7 +195,6 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         }
     }
 
-
     /**
      * Adds a new topic to the database if it doesn't already exist.
      * @param topicName The name of the topic to add

@@ -19,7 +19,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.darblee.livingword.domain.model.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.screens.AddVerseByDescriptionScreen
 import com.darblee.livingword.ui.screens.AddVerseByDescriptionViewModel
 import com.darblee.livingword.ui.screens.AllVersesScreen

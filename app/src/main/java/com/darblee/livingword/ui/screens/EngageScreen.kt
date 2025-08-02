@@ -45,7 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
-import com.darblee.livingword.domain.model.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.data.verseReference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -59,7 +59,7 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.data.BibleVerseRef
-import com.darblee.livingword.domain.model.EngageVerseViewModel
+import com.darblee.livingword.ui.viewmodels.EngageVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import android.content.ClipData

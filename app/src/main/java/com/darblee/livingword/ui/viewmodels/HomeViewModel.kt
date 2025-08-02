@@ -1,4 +1,4 @@
-package com.darblee.livingword.domain.model
+package com.darblee.livingword.ui.viewmodels
 
 import android.app.Application
 import android.util.Log
@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.Long
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
