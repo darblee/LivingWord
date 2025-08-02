@@ -65,8 +65,122 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
+import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.PauseCircleOutline
+import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.text.AnnotatedString
+import com.darblee.livingword.ui.viewmodels.TTSViewModel
+import java.text.BreakIterator
+import java.util.Locale
+
+
+private fun splitIntoSentences(text: String, locale: Locale): List<String> {
+    if (text.isBlank()) return emptyList()
+    val iterator = BreakIterator.getSentenceInstance(locale)
+    iterator.setText(text)
+    val sentenceList = mutableListOf<String>()
+    var start = iterator.first()
+    var end = iterator.next()
+    while (end != BreakIterator.DONE) {
+        val sentence = text.substring(start, end)
+        if (sentence.isNotBlank()) {
+            sentenceList.add(sentence)
+        }
+        start = end
+        end = iterator.next()
+    }
+    return sentenceList
+}
+
+// Helper function to build annotated string for TTS highlighting
+private fun buildAnnotatedStringForScoreDialog(
+    aiDirectQuoteExplanation: String,
+    aiContextExplanation: String,
+    applicationFeedback: String,
+    currentlySpeakingIndex: Int,
+    isSpeaking: Boolean,
+    isPaused: Boolean,
+    currentTtsTextId: String?,
+    highlightStyle: SpanStyle,
+    baseTextColor: Color
+): List<AnnotatedString> {
+    val locale = Locale.getDefault()
+
+    // Split into sections based on content
+    val directQuoteFeedbackText = "Direct Quote Feedback: $aiDirectQuoteExplanation"
+    val contextFeedbackText = "Context Feedback: $aiContextExplanation"
+    val applicationFeedbackText = "Feedback on Application: $applicationFeedback"
+
+    val directQuoteSentences = splitIntoSentences(directQuoteFeedbackText, locale)
+    val contextSentences = splitIntoSentences(contextFeedbackText, locale)
+    val applicationSentences = splitIntoSentences(applicationFeedbackText, locale)
+
+    // Calculate offset indices for each section
+    val directQuoteStartIndex = 1 // After "Direct Quote Score: X."
+
+    // +1 is needed for "Context Score: X"
+    val contextStartIndex = directQuoteStartIndex + directQuoteSentences.size + 1
+    val applicationStartIndex = contextStartIndex + contextSentences.size
+
+    // Build annotated strings for each section
+    val directQuoteAnnotated = buildAnnotatedString {
+        directQuoteSentences.forEachIndexed { index, sentence ->
+            val globalIndex = directQuoteStartIndex + index
+            val shouldHighlight = (isSpeaking && !isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog") ||
+                    (isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog")
+
+            if (shouldHighlight) {
+                withStyle(style = highlightStyle) {
+                    append(sentence)
+                }
+            } else {
+                withStyle(style = SpanStyle(color = baseTextColor)) {
+                    append(sentence)
+                }
+            }
+        }
+    }
+
+    val contextAnnotated = buildAnnotatedString {
+        contextSentences.forEachIndexed { index, sentence ->
+            val globalIndex = contextStartIndex + index
+            val shouldHighlight = (isSpeaking && !isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog") ||
+                    (isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog")
+
+            if (shouldHighlight) {
+                withStyle(style = highlightStyle) {
+                    append(sentence)
+                }
+            } else {
+                withStyle(style = SpanStyle(color = baseTextColor)) {
+                    append(sentence)
+                }
+            }
+        }
+    }
+
+    val applicationAnnotated = buildAnnotatedString {
+        applicationSentences.forEachIndexed { index, sentence ->
+            val globalIndex = applicationStartIndex + index
+            val shouldHighlight = (isSpeaking && !isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog") ||
+                    (isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog")
+
+            if (shouldHighlight) {
+                withStyle(style = highlightStyle) {
+                    append(sentence)
+                }
+            } else {
+                withStyle(style = SpanStyle(color = baseTextColor)) {
+                    append(sentence)
+                }
+            }
+        }
+    }
+
+    return listOf(directQuoteAnnotated, contextAnnotated, applicationAnnotated)
+}
 
 @Composable
 fun EngageScreen(
@@ -78,6 +192,10 @@ fun EngageScreen(
 ) {
     val engageVerseViewModel : EngageVerseViewModel = viewModel()
     val state by engageVerseViewModel.state.collectAsStateWithLifecycle()
+
+    // Add TTS ViewModel
+    val ttsViewModel: TTSViewModel = viewModel()
+    val isTtsInitialized by ttsViewModel.isInitialized.collectAsStateWithLifecycle()
 
     var verse by remember { mutableStateOf<BibleVerse?>(null) }
     var directQuoteTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
@@ -127,6 +245,31 @@ fun EngageScreen(
     var isSavedDataLoaded by remember { mutableStateOf(false) }
     var showCompareDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+
+    // TTS state for score dialog
+    var currentlySpeakingIndex by remember { mutableIntStateOf(-1) }
+    var isSpeaking by remember { mutableStateOf(false) }
+    var isPaused by remember { mutableStateOf(false) }
+    var currentTtsTextId by remember { mutableStateOf<String?>(null) }
+
+    // Collect TTS state
+    LaunchedEffect(ttsViewModel.currentSentenceInBlockIndex) {
+        ttsViewModel.currentSentenceInBlockIndex.collect { newIndex ->
+            currentlySpeakingIndex = newIndex
+        }
+    }
+
+    LaunchedEffect(ttsViewModel.isSpeaking) {
+        ttsViewModel.isSpeaking.collect { newIsSpeaking ->
+            isSpeaking = newIsSpeaking
+        }
+    }
+
+    LaunchedEffect(ttsViewModel.isPaused) {
+        ttsViewModel.isPaused.collect { newIsPaused ->
+            isPaused = newIsPaused
+        }
+    }
 
     /***
      * Set up listeners for speech recognition - directQuoteSpeechRecognizer
@@ -1417,19 +1560,86 @@ fun EngageScreen(
 
                 // Dialog to display score and AI explanation
                 if (showScoreDialog) {
+                    // Build the combined text for TTS
+                    val combinedScoreDialogText = buildString {
+                        append("Direct Quote Score: ${state.directQuoteScore}. ")
+                        append("Direct Quote Feedback: ${state.aiDirectQuoteExplanationText} ")
+                        append("Context Score: ${state.contextScore}. ")
+                        append("Context Feedback: ${state.aiContextExplanationText} ")
+                        append("Feedback on Application: ${state.applicationFeedback}")
+                    }
+
+                    // Build annotated strings for highlighting
+                    val annotatedStrings = buildAnnotatedStringForScoreDialog(
+                        aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText.toString(),
+                        aiContextExplanation = state.aiContextExplanationText.toString(),
+                        applicationFeedback = state.applicationFeedback.toString(),
+                        currentlySpeakingIndex = currentlySpeakingIndex,
+                        isSpeaking = isSpeaking,
+                        isPaused = isPaused,
+                        currentTtsTextId = currentTtsTextId,
+                        highlightStyle = SpanStyle(
+                            background = MaterialTheme.colorScheme.primaryContainer,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        baseTextColor = MaterialTheme.colorScheme.onSurface
+                    )
+
                     AlertDialog(
                         modifier = Modifier.padding(4.dp),
                         onDismissRequest = {
                             // Only allow dismiss if not loading, or handle dismiss during loading appropriately
                             if (!state.aiResponseLoading) {
                                 showScoreDialog = false
+                                ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
                             }
                         },
                         title = {
-                            Text(
-                                text = if (state.aiResponseLoading) "Getting feedback..." else "Score / Feedback",
-                                style = MaterialTheme.typography.titleLarge
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (state.aiResponseLoading) "Getting feedback..." else "Score / Feedback",
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                                // TTS Play/Pause button - only show when not loading and content is available
+                                if (!state.aiResponseLoading &&
+                                    state.aiDirectQuoteExplanationText!!.isNotEmpty() &&
+                                    state.aiContextExplanationText!!.isNotEmpty() &&
+                                    state.applicationFeedback!!.isNotEmpty()
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            if (!isTtsInitialized) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "TTS initializing...",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                ttsViewModel.togglePlayPauseResumeSingleText(combinedScoreDialogText)
+                                                currentTtsTextId = "scoreDialog"
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = when {
+                                                isSpeaking && !isPaused && currentTtsTextId == "scoreDialog" -> Icons.Default.PauseCircleOutline
+                                                isPaused && currentTtsTextId == "scoreDialog" -> Icons.Default.PlayCircleOutline
+                                                else -> Icons.Filled.Headset
+                                            },
+                                            contentDescription = when {
+                                                isSpeaking && !isPaused && currentTtsTextId == "scoreDialog" -> "Pause Score Dialog"
+                                                isPaused && currentTtsTextId == "scoreDialog" -> "Resume Score Dialog"
+                                                else -> "Read Score Dialog"
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
                         },
                         text = {
                             Column(
@@ -1439,25 +1649,25 @@ fun EngageScreen(
                                 if (state.aiResponseLoading) {
                                     CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
                                 } else {
-                                    ScrollableTitledOutlinedBox(
+                                    ScrollableTitledOutlinedBoxWithTTS(
                                         label = "Direct Quote Score : ${state.directQuoteScore}",
-                                        content = state.aiDirectQuoteExplanationText.toString(),
+                                        content = annotatedStrings[0],
                                         modifier = Modifier.weight(1f)
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    ScrollableTitledOutlinedBox(
+                                    ScrollableTitledOutlinedBoxWithTTS(
                                         label = "Context  Score : ${state.contextScore}",
-                                        content = state.aiContextExplanationText.toString(),
+                                        content = annotatedStrings[1],
                                         modifier = Modifier.weight(1f)
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    ScrollableTitledOutlinedBox(
+                                    ScrollableTitledOutlinedBoxWithTTS(
                                         label = "Feedback on application",
-                                        content = state.applicationFeedback.toString(),
+                                        content = annotatedStrings[2],
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -1465,7 +1675,10 @@ fun EngageScreen(
                         },
                         confirmButton = {
                             if (!state.aiResponseLoading) { // Show OK button only when not loading
-                                TextButton(onClick = { showScoreDialog = false }) {
+                                TextButton(onClick = {
+                                    showScoreDialog = false
+                                    ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
+                                }) {
                                     Text("OK")
                                 }
                             }
@@ -1476,6 +1689,7 @@ fun EngageScreen(
                                     // Handle cancel/dismiss during loading if necessary
                                     // e.g., engageViewModel.cancelScoreCalculation()
                                     showScoreDialog = false // For now, just dismiss
+                                    ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
                                 }) {
                                     Text("Cancel")
                                 }
@@ -1491,14 +1705,15 @@ fun EngageScreen(
         onDispose {
             directQuoteSpeechRecognizer.destroy()
             contextSpeechRecognizer.destroy()
+            ttsViewModel.stopAllSpeaking()
         }
     }
 }
 
 @Composable
-fun ScrollableTitledOutlinedBox(
+fun ScrollableTitledOutlinedBoxWithTTS(
     label: String,
-    content: String,
+    content: AnnotatedString,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {

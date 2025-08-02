@@ -225,6 +225,7 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
 
     /**
      * Determines what happens after the Text-to-Speech (TTS) engine finishes speaking a specific utterance.
+     * This is specific to the VerseDetailsScreen.kt
      */
     private fun handlePlaybackCompletion(utteranceId: String?) {
         // The 'when' statement correctly compares the .value of the StateFlow
@@ -298,7 +299,7 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
         }
     }
 
-    // --- Public Methods for HomeScreen ---
+    // --- Public Methods for HomeScreen & EngageScreen ---
     fun togglePlayPauseResumeSingleText(text: String) {
         if (!_isInitialized.value || tts == null) {
             Log.w("TtsViewModel", "togglePlayPauseResumeSingleText: TTS not ready.")
@@ -568,8 +569,6 @@ class TTSViewModel(application: Application) : AndroidViewModel(application), Te
             handlePlaybackCompletion("$UTTERANCE_ID_SEQUENCE_AI_RESPONSE_SENTENCE_PREFIX${sequenceAiResponseSentences.size - 1}")
             return
         }
-
-        // _currentSentenceInBlockIndex is set in resumeSequenceFromPausedState or by onStart
 
         var queuedSomething = false
         for (i in startIndex until sequenceAiResponseSentences.size) {
