@@ -121,6 +121,13 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.kotlinx.coroutines.test)
 
+    // Mockk for mocking in tests
+    testImplementation(libs.mockk)
+    androidTestImplementation(libs.mockk.android)
+
+    // Ktor client mock for testing
+    testImplementation(libs.ktor.client.mock)
+
     implementation(libs.lifecycle.viewmodelCompose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.compose.material.iconsExtended)

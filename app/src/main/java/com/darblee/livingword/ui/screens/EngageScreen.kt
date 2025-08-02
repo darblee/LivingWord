@@ -30,6 +30,7 @@ import androidx.compose.ui.focus.onFocusChanged // Import for onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
@@ -761,6 +762,7 @@ fun EngageScreen(
                                     },
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .testTag("directQuoteTextField")
                                         .border(
                                             width = if (isDirectQuoteTextFieldFocused) 2.dp else 1.dp,
                                             color = if (isDirectQuoteTextFieldFocused)
@@ -926,6 +928,7 @@ fun EngageScreen(
                                     },
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .testTag("userApplicationTextField")
                                         .border(
                                             width = if (isContextTextFieldFocused) 2.dp else 1.dp,
                                             color = if (isContextTextFieldFocused)
