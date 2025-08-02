@@ -21,7 +21,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.screens.AddVerseByDescriptionScreen
-import com.darblee.livingword.ui.screens.AddVerseByDescriptionViewModel
 import com.darblee.livingword.ui.screens.AllVersesScreen
 import com.darblee.livingword.ui.screens.GetBookScreen
 import com.darblee.livingword.ui.screens.GetChapterScreen
@@ -34,6 +33,7 @@ import com.darblee.livingword.ui.screens.TopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
 import com.darblee.livingword.ui.screens.VerseDetailScreen
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import com.darblee.livingword.ui.viewmodels.AddVerseByDescriptionViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable // Mark the sealed class as Serializable
@@ -229,9 +229,9 @@ fun ObserveNavigationStack(navController: NavHostController) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             navController.currentBackStackEntryFlow.collect { entry ->
                 // Log the entire back stack
-                val backStack = navController.currentBackStack.value
+                val currentNavigationHistory = navController.currentBackStack.value
                 Log.d(TAG, "Current Back Stack:")
-                backStack.forEach {
+                currentNavigationHistory.forEach {
                     Log.d(TAG, "  Entry: ${it.destination.route}")
                 }
             }
