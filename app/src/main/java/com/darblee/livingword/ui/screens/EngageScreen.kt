@@ -37,6 +37,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,6 +95,28 @@ private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     return sentenceList
 }
 
+private fun AnnotatedString.Builder.appendFormattedSentence(sentence: String, boldColor: Color) {
+    val processedSentence = if (sentence.trim().startsWith("* ")) {
+        "• " + sentence.trim().substring(1).trim()
+    } else {
+        sentence
+    }
+
+    val boldRegex = """\*\*(.*?)\*\*""".toRegex()
+    var lastIndex = 0
+    boldRegex.findAll(processedSentence).forEach { matchResult ->
+        val range = matchResult.range
+        append(processedSentence.substring(lastIndex, range.first))
+        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = boldColor)) {
+            append(matchResult.groupValues[1])
+        }
+        lastIndex = range.last + 1
+    }
+    if (lastIndex < processedSentence.length) {
+        append(processedSentence.substring(lastIndex))
+    }
+}
+
 // Helper function to build annotated string for TTS highlighting
 private fun buildAnnotatedStringForScoreDialog(
     aiDirectQuoteExplanation: String,
@@ -104,7 +127,8 @@ private fun buildAnnotatedStringForScoreDialog(
     isPaused: Boolean,
     currentTtsTextId: String?,
     highlightStyle: SpanStyle,
-    baseTextColor: Color
+    baseTextColor: Color,
+    boldColor: Color
 ): List<AnnotatedString> {
     val locale = Locale.getDefault()
 
@@ -133,11 +157,11 @@ private fun buildAnnotatedStringForScoreDialog(
 
             if (shouldHighlight) {
                 withStyle(style = highlightStyle) {
-                    append(sentence)
+                    appendFormattedSentence(sentence, boldColor)
                 }
             } else {
                 withStyle(style = SpanStyle(color = baseTextColor)) {
-                    append(sentence)
+                    appendFormattedSentence(sentence, boldColor)
                 }
             }
         }
@@ -151,11 +175,11 @@ private fun buildAnnotatedStringForScoreDialog(
 
             if (shouldHighlight) {
                 withStyle(style = highlightStyle) {
-                    append(sentence)
+                    appendFormattedSentence(sentence, boldColor)
                 }
             } else {
                 withStyle(style = SpanStyle(color = baseTextColor)) {
-                    append(sentence)
+                    appendFormattedSentence(sentence, boldColor)
                 }
             }
         }
@@ -169,11 +193,11 @@ private fun buildAnnotatedStringForScoreDialog(
 
             if (shouldHighlight) {
                 withStyle(style = highlightStyle) {
-                    append(sentence)
+                    appendFormattedSentence(sentence, boldColor)
                 }
             } else {
                 withStyle(style = SpanStyle(color = baseTextColor)) {
-                    append(sentence)
+                    appendFormattedSentence(sentence, boldColor)
                 }
             }
         }
@@ -1582,7 +1606,8 @@ fun EngageScreen(
                             background = MaterialTheme.colorScheme.primaryContainer,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
-                        baseTextColor = MaterialTheme.colorScheme.onSurface
+                        baseTextColor = MaterialTheme.colorScheme.onSurface,
+                        boldColor = MaterialTheme.colorScheme.primary
                     )
 
                     AlertDialog(
