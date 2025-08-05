@@ -50,7 +50,7 @@ class PreferenceStore(private val context: Context) {
         val VOTD_LAST_FETCH_DATE_KEY = stringPreferencesKey("votd_last_fetch_date")
 
         // Default AI Settings
-        val DEFAULT_AI_MODEL_NAME = "gemini-2.0-flash"
+        val DEFAULT_AI_MODEL_NAME = "gemini-2.5-flash"
         val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
         const val DEFAULT_AI_TEMPERATURE = 0.7f
         val DEFAULT_TRANSLATION = "ESV"
