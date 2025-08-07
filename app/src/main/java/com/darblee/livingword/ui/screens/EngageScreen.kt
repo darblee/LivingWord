@@ -30,6 +30,7 @@ import androidx.compose.ui.focus.onFocusChanged // Import for onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -54,10 +55,12 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.darblee.livingword.data.BibleVerseRef
@@ -72,6 +75,8 @@ import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
 import com.darblee.livingword.ui.viewmodels.TTSViewModel
 import java.text.BreakIterator
@@ -276,6 +281,11 @@ fun EngageScreen(
     var isSpeaking by remember { mutableStateOf(false) }
     var isPaused by remember { mutableStateOf(false) }
     var currentTtsTextId by remember { mutableStateOf<String?>(null) }
+    // State for the dropdown menu
+    var showScriptureDropdownMenu by remember { mutableStateOf(false) }
+    var scriptureDropdownMenuOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val localDensity = LocalDensity.current
 
     // Collect TTS state
     LaunchedEffect(ttsViewModel.currentSentenceInBlockIndex) {
@@ -1462,15 +1472,52 @@ fun EngageScreen(
                                     scriptureAnnotatedText = buildAnnotatedString { append("Loading scripture....") }
                                 }
 
-                                SelectionContainer {
+                                Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
                                     Text(
                                         text = scriptureAnnotatedText,
                                         style = MaterialTheme.typography.bodyMedium, // Adjusted for potentially longer text
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .verticalScroll(rememberScrollState())
-                                            .padding(8.dp),
+                                            .padding(8.dp)
+                                            .pointerInput(Unit) {
+                                                detectTapGestures(
+                                                    onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
+                                                        if (isTtsInitialized && verse != null) {
+                                                            scriptureDropdownMenuOffset =
+                                                                touchOffset // Store the touch position
+                                                            showScriptureDropdownMenu = true
+                                                        }
+                                                    }
+                                                )
+                                            }
                                     )
+                                    DropdownMenu(
+                                        expanded = showScriptureDropdownMenu,
+                                        onDismissRequest = { showScriptureDropdownMenu = false },
+                                        offset = DpOffset(
+                                            x = with(localDensity) { scriptureDropdownMenuOffset.x.toDp() },
+                                            y = with(localDensity) { scriptureDropdownMenuOffset.y.toDp() }
+                                        )
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = {
+                                                val textToShow = if (scriptureBoxContentMode == "scripture") "Read scripture" else "Read take-away"
+                                                Text(textToShow)
+                                            },
+                                            onClick = {
+                                                showScriptureDropdownMenu = false
+                                                if (isTtsInitialized && verse != null) {
+                                                    val textToRead = if (scriptureBoxContentMode == "scripture") {
+                                                        verse!!.scriptureVerses.joinToString(" ") { it.verseString }
+                                                    } else {
+                                                        verse!!.aiTakeAwayResponse
+                                                    }
+                                                    ttsViewModel.restartSingleText(textToRead)
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                             } else {
                                 Box(
