@@ -83,6 +83,10 @@ import java.text.BreakIterator
 import java.util.Locale
 
 
+// Enum to track which text block is targeted for single TTS playback in this screen
+enum class EngageSingleTtsTarget { NONE, SCRIPTURE, TAKE_AWAY }
+
+
 private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     if (text.isBlank()) return emptyList()
     val iterator = BreakIterator.getSentenceInstance(locale)
@@ -212,6 +216,52 @@ private fun buildAnnotatedStringForScoreDialog(
     return listOf(directQuoteAnnotated, contextAnnotated, applicationAnnotated)
 }
 
+// Helper function to build AnnotatedString with potential TTS highlighting & Markdown
+@Composable
+private fun buildAnnotatedStringForEngageTTS(
+    fullText: String,
+    isTargeted: Boolean,
+    highlightSentenceIndex: Int,
+    isSpeaking: Boolean,
+    isPaused: Boolean,
+    baseStyle: SpanStyle, // Base style for normal text (includes color from theme)
+    highlightStyle: SpanStyle, // Style for highlighted TTS sentence
+): AnnotatedString {
+    val sentences = remember(fullText, Locale.getDefault()) {
+        splitIntoSentences(fullText, Locale.getDefault())
+    }
+
+    return buildAnnotatedString {
+        var currentIndex = 0
+        for ((sentenceIndex, sentence) in sentences.iterator().withIndex()) {
+            val startIndex = fullText.indexOf(sentence, currentIndex)
+            if (startIndex != -1) {
+                // Append any text between the last sentence and this one (e.g., whitespace)
+                if (startIndex > currentIndex) {
+                    withStyle(style = baseStyle) {
+                        append(fullText.substring(currentIndex, startIndex))
+                    }
+                }
+
+                val shouldHighlight = isTargeted &&
+                        ((isSpeaking && !isPaused && sentenceIndex == highlightSentenceIndex) ||
+                                (isPaused && sentenceIndex == highlightSentenceIndex))
+
+                withStyle(style = if (shouldHighlight) highlightStyle else baseStyle) {
+                    append(sentence)
+                }
+                currentIndex = startIndex + sentence.length
+            }
+        }
+        // Append any remaining text after the last sentence
+        if (currentIndex < fullText.length) {
+            withStyle(style = baseStyle) {
+                append(fullText.substring(currentIndex))
+            }
+        }
+    }
+}
+
 @Composable
 fun EngageScreen(
     navController: NavController,
@@ -286,6 +336,9 @@ fun EngageScreen(
     var scriptureDropdownMenuOffset by remember { mutableStateOf(Offset.Zero) }
 
     val localDensity = LocalDensity.current
+
+    // State to track which block (Scripture or AI) is the target for single TTS playback
+    var activeSingleTtsTextBlock by remember { mutableStateOf(EngageSingleTtsTarget.NONE) }
 
     // Collect TTS state
     LaunchedEffect(ttsViewModel.currentSentenceInBlockIndex) {
@@ -1448,28 +1501,42 @@ fun EngageScreen(
                         {
                             if (isScriptureVisible) {
                                 val baseTextColor = MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
-                                var scriptureAnnotatedText = when (scriptureBoxContentMode) {
-                                    "scripture" -> verse?.let {
-                                        buildAnnotatedStringForScripture(
-                                            scriptureVerses = it.scriptureVerses,
-                                            isTargeted = false,
-                                            highlightSentenceIndex = -1,
-                                            isSpeaking = false,
-                                            isPaused = false,
-                                            baseStyle = SpanStyle(color = baseTextColor),
-                                            highlightStyle = SpanStyle(
-                                                background = MaterialTheme.colorScheme.primaryContainer,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                val scriptureAnnotatedText = when (scriptureBoxContentMode) {
+                                    "scripture" -> {
+                                        val isScriptureTargetedForTts = activeSingleTtsTextBlock == EngageSingleTtsTarget.SCRIPTURE
+                                        verse?.let {
+                                            buildAnnotatedStringForScripture(
+                                                scriptureVerses = it.scriptureVerses,
+                                                isTargeted = isScriptureTargetedForTts,
+                                                highlightSentenceIndex = currentlySpeakingIndex,
+                                                isSpeaking = isSpeaking,
+                                                isPaused = isPaused,
+                                                baseStyle = SpanStyle(color = baseTextColor),
+                                                highlightStyle = SpanStyle(
+                                                    background = MaterialTheme.colorScheme.primaryContainer,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
                                             )
-                                        )
+                                        } ?: buildAnnotatedString { append("Loading scripture....") }
                                     }
-                                    "takeAway" -> verse?.let {
-                                        buildAnnotatedString { append(it.aiTakeAwayResponse) }}
+                                    "takeAway" -> {
+                                        val isTakeAwayTargetedForTts = activeSingleTtsTextBlock == EngageSingleTtsTarget.TAKE_AWAY
+                                        verse?.let {
+                                            buildAnnotatedStringForEngageTTS(
+                                                fullText = it.aiTakeAwayResponse,
+                                                isTargeted = isTakeAwayTargetedForTts,
+                                                highlightSentenceIndex = currentlySpeakingIndex,
+                                                isSpeaking = isSpeaking,
+                                                isPaused = isPaused,
+                                                baseStyle = SpanStyle(color = baseTextColor),
+                                                highlightStyle = SpanStyle(
+                                                    background = MaterialTheme.colorScheme.primaryContainer,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            )
+                                        } ?: buildAnnotatedString { append("Loading take-away....") }
+                                    }
                                     else -> buildAnnotatedString { append("Loading content....") }
-                                }
-
-                                if (scriptureAnnotatedText == null) {
-                                    scriptureAnnotatedText = buildAnnotatedString { append("Loading scripture....") }
                                 }
 
                                 Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
@@ -1508,12 +1575,15 @@ fun EngageScreen(
                                             onClick = {
                                                 showScriptureDropdownMenu = false
                                                 if (isTtsInitialized && verse != null) {
-                                                    val textToRead = if (scriptureBoxContentMode == "scripture") {
-                                                        verse!!.scriptureVerses.joinToString(" ") { it.verseString }
+                                                    if (scriptureBoxContentMode == "scripture") {
+                                                        activeSingleTtsTextBlock = EngageSingleTtsTarget.SCRIPTURE
+                                                        val textToRead = verse!!.scriptureVerses.joinToString(" ") { it.verseString }
+                                                        ttsViewModel.restartSingleText(textToRead)
                                                     } else {
-                                                        verse!!.aiTakeAwayResponse
+                                                        activeSingleTtsTextBlock = EngageSingleTtsTarget.TAKE_AWAY
+                                                        val textToRead = verse!!.aiTakeAwayResponse
+                                                        ttsViewModel.restartSingleText(textToRead)
                                                     }
-                                                    ttsViewModel.restartSingleText(textToRead)
                                                 }
                                             }
                                         )
