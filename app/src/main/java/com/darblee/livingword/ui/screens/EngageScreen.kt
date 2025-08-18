@@ -145,7 +145,7 @@ private fun buildAnnotatedStringForScoreDialog(
     // Split into sections based on content
     val directQuoteFeedbackText = "Direct Quote Feedback: $aiDirectQuoteExplanation"
     val contextFeedbackText = "Context Feedback: $aiContextExplanation"
-    val applicationFeedbackText = "Feedback on Application: $applicationFeedback"
+    val applicationFeedbackText = "Feedback on Application: ${applicationFeedback.replace("###", "")}"
 
     val directQuoteSentences = splitIntoSentences(directQuoteFeedbackText, locale)
     val contextSentences = splitIntoSentences(contextFeedbackText, locale)
