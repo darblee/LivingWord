@@ -1793,6 +1793,13 @@ fun EngageScreen(
                             ) {
                                 if (state.aiResponseLoading) {
                                     CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
+                                } else if (state.aiResponseError != null) {
+                                    Text(
+                                        text = "Error: ${state.aiResponseError}",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        modifier = Modifier.padding(vertical = 16.dp)
+                                    )
                                 } else {
                                     ScrollableTitledOutlinedBoxWithTTS(
                                         label = "Direct Quote Score : ${state.directQuoteScore}",
