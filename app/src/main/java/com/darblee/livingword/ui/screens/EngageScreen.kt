@@ -1186,10 +1186,12 @@ fun EngageScreen(
                                                 startVerse = verse!!.startVerse,
                                                 endVerse = verse!!.endVerse
                                             )
+                                            // Pass the cached BibleVerse object to enable caching
                                             engageVerseViewModel.getAIFeedback(
                                                 verseInfo,
                                                 directQuoteToEvaluate,
-                                                userApplicationComment
+                                                userApplicationComment,
+                                                cachedBibleVerse = verse // Pass the verse object for caching
                                             )
                                             showScoreDialog = true
                                         }
@@ -1229,7 +1231,10 @@ fun EngageScreen(
                                                 userDirectQuote = directQuoteToSave,
                                                 userDirectQuoteScore = directQuoteScoreToSave,
                                                 userContext = contextToSave,
-                                                userContextScore = contextScoreToSave
+                                                userContextScore = contextScoreToSave,
+                                                aiDirectQuoteExplanationText = state.aiDirectQuoteExplanationText ?: "",
+                                                aiContextExplanationText = state.aiContextExplanationText ?: "",
+                                                applicationFeedback = state.applicationFeedback ?: ""
                                             )
 
                                             // Optimistically update all relevant local state.
@@ -1707,17 +1712,17 @@ fun EngageScreen(
                     // Build the combined text for TTS
                     val combinedScoreDialogText = buildString {
                         append("Direct Quote Score: ${state.directQuoteScore}. ")
-                        append("Direct Quote Feedback: ${state.aiDirectQuoteExplanationText} ")
+                        append("Direct Quote Feedback: ${state.aiDirectQuoteExplanationText ?: ""} ")
                         append("Context Score: ${state.contextScore}. ")
-                        append("Context Feedback: ${state.aiContextExplanationText} ")
-                        append("Feedback on Application: ${state.applicationFeedback}")
+                        append("Context Feedback: ${state.aiContextExplanationText ?: ""} ")
+                        append("Feedback on Application: ${state.applicationFeedback ?: ""}")
                     }
 
                     // Build annotated strings for highlighting
                     val annotatedStrings = buildAnnotatedStringForScoreDialog(
-                        aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText.toString(),
-                        aiContextExplanation = state.aiContextExplanationText.toString(),
-                        applicationFeedback = state.applicationFeedback.toString(),
+                        aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText ?: "",
+                        aiContextExplanation = state.aiContextExplanationText ?: "",
+                        applicationFeedback = state.applicationFeedback ?: "",
                         currentlySpeakingIndex = currentlySpeakingIndex,
                         isSpeaking = isSpeaking,
                         isPaused = isPaused,
@@ -1739,50 +1744,64 @@ fun EngageScreen(
                                 ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
                             }
                         },
+
                         title = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = if (state.aiResponseLoading) "Getting feedback..." else "Score / Feedback",
-                                    style = MaterialTheme.typography.titleLarge
-                                )
-                                // TTS Play/Pause button - only show when not loading and content is available
-                                if (!state.aiResponseLoading &&
-                                    state.aiDirectQuoteExplanationText!!.isNotEmpty() &&
-                                    state.aiContextExplanationText!!.isNotEmpty() &&
-                                    state.applicationFeedback!!.isNotEmpty()
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    IconButton(
-                                        onClick = {
-                                            if (!isTtsInitialized) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "TTS initializing...",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            } else {
-                                                ttsViewModel.togglePlayPauseResumeSingleText(combinedScoreDialogText)
-                                                currentTtsTextId = "scoreDialog"
-                                            }
-                                        }
+                                    Text(
+                                        text = if (state.aiResponseLoading) "Getting feedback..." else "Score / Feedback",
+                                        style = MaterialTheme.typography.titleLarge
+                                    )
+                                    // TTS Play/Pause button - only show when not loading and content is available
+                                    if (!state.aiResponseLoading &&
+                                        !state.aiDirectQuoteExplanationText.isNullOrEmpty() &&
+                                        !state.aiContextExplanationText.isNullOrEmpty() &&
+                                        !state.applicationFeedback.isNullOrEmpty()
                                     ) {
-                                        Icon(
-                                            imageVector = when {
-                                                isSpeaking && !isPaused && currentTtsTextId == "scoreDialog" -> Icons.Default.PauseCircleOutline
-                                                isPaused && currentTtsTextId == "scoreDialog" -> Icons.Default.PlayCircleOutline
-                                                else -> Icons.Filled.Headset
-                                            },
-                                            contentDescription = when {
-                                                isSpeaking && !isPaused && currentTtsTextId == "scoreDialog" -> "Pause Score Dialog"
-                                                isPaused && currentTtsTextId == "scoreDialog" -> "Resume Score Dialog"
-                                                else -> "Read Score Dialog"
-                                            },
-                                            modifier = Modifier.size(24.dp)
-                                        )
+                                        IconButton(
+                                            onClick = {
+                                                if (!isTtsInitialized) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "TTS initializing...",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                } else {
+                                                    ttsViewModel.togglePlayPauseResumeSingleText(combinedScoreDialogText)
+                                                    currentTtsTextId = "scoreDialog"
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = when {
+                                                    isSpeaking && !isPaused && currentTtsTextId == "scoreDialog" -> Icons.Default.PauseCircleOutline
+                                                    isPaused && currentTtsTextId == "scoreDialog" -> Icons.Default.PlayCircleOutline
+                                                    else -> Icons.Filled.Headset
+                                                },
+                                                contentDescription = when {
+                                                    isSpeaking && !isPaused && currentTtsTextId == "scoreDialog" -> "Pause Score Dialog"
+                                                    isPaused && currentTtsTextId == "scoreDialog" -> "Resume Score Dialog"
+                                                    else -> "Read Score Dialog"
+                                                },
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
                                     }
+                                }
+
+                                // Add cached results indicator
+                                if (state.isUsingCachedResults && !state.aiResponseLoading) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "📋 Using cached results",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
                                 }
                             }
                         },

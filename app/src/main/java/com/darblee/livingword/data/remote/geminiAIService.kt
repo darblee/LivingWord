@@ -52,7 +52,11 @@ object GeminiAIService {
     private var currentAISettings: AISettings? = null
 
     // JSON parser for handling responses from the Gemini API.
-    private val jsonParser = Json { ignoreUnknownKeys = true }
+    private val jsonParser = Json { 
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
 
     /**
      * Configures and initializes the Gemini GenerativeModel with the provided settings.
@@ -398,13 +402,36 @@ object GeminiAIService {
             }
 
             if (responseText != null) {
-                val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
-                val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
-                if (applicationFeedback != null) {
-                    parseResponse.ApplicationFeedback = applicationFeedback
+                // More aggressive JSON cleaning - remove various markdown artifacts
+                var cleanedJson = responseText
+                    .replace("```json", "")
+                    .replace("```", "")
+                    .replace("**JSON:**", "")
+                    .replace("**Response:**", "")
+                    .trim()
+                
+                // Remove any leading/trailing text that isn't JSON
+                val jsonStart = cleanedJson.indexOf('{')
+                val jsonEnd = cleanedJson.lastIndexOf('}')
+                
+                if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
+                    cleanedJson = cleanedJson.substring(jsonStart, jsonEnd + 1)
                 }
+                
+                Log.d("GeminiAIService", "Cleaned JSON for parsing: $cleanedJson")
+                
+                try {
+                    val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
+                    if (applicationFeedback != null) {
+                        parseResponse.ApplicationFeedback = applicationFeedback
+                    }
 
-                AiServiceResult.Success(parseResponse)
+                    AiServiceResult.Success(parseResponse)
+                } catch (serializationException: Exception) {
+                    Log.e("GeminiAIService", "Failed to parse AI response JSON: $cleanedJson", serializationException)
+                    Log.e("GeminiAIService", "Original AI response: $responseText")
+                    AiServiceResult.Error("AI returned invalid JSON format. Please try again.", serializationException)
+                }
             } else {
                 AiServiceResult.Error("Received empty response from AI.")
             }

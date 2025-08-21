@@ -26,12 +26,43 @@ data class BibleVerse(
     val userDirectQuoteScore: Int = 0,
     val userContext: String = "",
     val userContextScore: Int = 0,
+    // Add null-safe getters for migrated fields
+    val aiDirectQuoteExplanationText: String = "",
+    val aiContextExplanationText: String = "",
+    val applicationFeedback: String = "",
     val translation: String = "",
     val favorite: Boolean = false,
     val scriptureVerses: List<Verse> = emptyList(),
     val dateCreated: Long = System.currentTimeMillis(),
     val lastModified: Long = System.currentTimeMillis()
-)
+) {
+    // Provide safe accessors for AI feedback fields to handle migration edge cases
+    fun getSafeAIDirectQuoteExplanation(): String {
+        return aiDirectQuoteExplanationText.takeIf { it.isNotBlank() } ?: ""
+    }
+
+    fun getSafeAIContextExplanation(): String {
+        return aiContextExplanationText.takeIf { it.isNotBlank() } ?: ""
+    }
+
+    fun getSafeApplicationFeedback(): String {
+        return applicationFeedback.takeIf { it.isNotBlank() } ?: ""
+    }
+
+    // Helper method to check if this verse has cached AI feedback
+    fun hasCachedAIFeedback(): Boolean {
+        return (getSafeAIDirectQuoteExplanation().isNotEmpty() ||
+                getSafeAIContextExplanation().isNotEmpty() ||
+                getSafeApplicationFeedback().isNotEmpty()) &&
+                (userDirectQuoteScore > 0 || userContextScore > 0)
+    }
+
+    // Helper method to check if input matches cached evaluation
+    fun matchesCachedInput(directQuote: String, userApplication: String): Boolean {
+        return userDirectQuote.trim() == directQuote.trim() &&
+                userContext.trim() == userApplication.trim()
+    }
+}
 
 @Serializable
 data class Verse(
@@ -49,17 +80,25 @@ class Converters {
 
     @TypeConverter
     fun toList(value: String): List<String> {
-        return value.split(",").map { it.trim() }
+        return if (value.isBlank()) {
+            emptyList()
+        } else {
+            value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        }
     }
 
     @TypeConverter
     fun fromVerseList(value: List<Verse>): String {
-        return Json.encodeToString(value)
+        return try {
+            Json.encodeToString(value)
+        } catch (e: Exception) {
+            "[]" // Return empty array JSON if serialization fails
+        }
     }
 
     @TypeConverter
     fun toVerseList(value: String): List<Verse> {
-        return if (value.isEmpty()) {
+        return if (value.isEmpty() || value.isBlank()) {
             emptyList()
         } else {
             try {

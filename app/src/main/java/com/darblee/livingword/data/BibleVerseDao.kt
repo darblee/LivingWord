@@ -283,4 +283,60 @@ interface BibleVerseDao {
     @Query("UPDATE BibleVerse_Items SET scriptureVerses = :scriptureVerses WHERE id = :verseId")
     suspend fun updateScriptureVerses(verseId: Long, scriptureVerses: String)
 
+    /**
+     * Helper method to safely retrieve verse with null-safe field handling
+     * This is particularly useful after database migrations
+     */
+    @Query("SELECT * FROM BibleVerse_Items WHERE id = :id")
+    suspend fun getVerseSafely(id: Long): BibleVerse?
+
+    /**
+     * Update AI feedback fields safely, handling null values
+     */
+    @Query("""
+        UPDATE BibleVerse_Items 
+        SET aiDirectQuoteExplanationText = :aiDirectQuoteExplanation,
+            aiContextExplanationText = :aiContextExplanation,
+            applicationFeedback = :applicationFeedback,
+            userDirectQuoteScore = :directQuoteScore,
+            userContextScore = :contextScore,
+            lastModified = :lastModified
+        WHERE id = :verseId
+    """)
+    suspend fun updateAIFeedbackData(
+        verseId: Long,
+        aiDirectQuoteExplanation: String,
+        aiContextExplanation: String,
+        applicationFeedback: String,
+        directQuoteScore: Int,
+        contextScore: Int,
+        lastModified: Long = System.currentTimeMillis()
+    )
+
+    /**
+     * Check if a verse has valid AI feedback data
+     */
+    @Query("""
+        SELECT COUNT(*) FROM BibleVerse_Items 
+        WHERE id = :verseId 
+        AND (aiDirectQuoteExplanationText != '' 
+             OR aiContextExplanationText != '' 
+             OR applicationFeedback != '')
+        AND (userDirectQuoteScore > 0 OR userContextScore > 0)
+    """)
+    suspend fun hasValidAIFeedback(verseId: Long): Int
+
+    /**
+     * Clean up verses that might have inconsistent data from migration
+     */
+    @Query("""
+        UPDATE BibleVerse_Items 
+        SET aiDirectQuoteExplanationText = COALESCE(aiDirectQuoteExplanationText, ''),
+            aiContextExplanationText = COALESCE(aiContextExplanationText, ''),
+            applicationFeedback = COALESCE(applicationFeedback, '')
+        WHERE aiDirectQuoteExplanationText IS NULL 
+           OR aiContextExplanationText IS NULL 
+           OR applicationFeedback IS NULL
+    """)
+    suspend fun cleanupMigrationData()
 }

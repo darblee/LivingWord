@@ -39,10 +39,41 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     init {
         viewModelScope.launch {
             repository.addDefaultTopicsIfEmpty()
+            // Clean up any migration data issues
+            cleanupMigrationData()
         }
         getAllVerses()
         getAllTopics()
-        getAllFavoriteVerses() // Add this line to your existing init block
+        getAllFavoriteVerses()
+    }
+
+    /**
+     * Clean up any data inconsistencies from database migration
+     */
+    private suspend fun cleanupMigrationData() {
+        try {
+            repository.cleanupMigrationData()
+            Log.i("BibleVerseViewModel", "Migration data cleanup completed")
+        } catch (e: Exception) {
+            Log.e("BibleVerseViewModel", "Error during migration cleanup", e)
+        }
+    }
+
+    /**
+     * Public method to force cleanup migration data if needed
+     * This can be called if users experience issues after database migration
+     */
+    fun forceCleanupMigrationData() {
+        viewModelScope.launch {
+            try {
+                cleanupMigrationData()
+                Log.i("BibleVerseViewModel", "Forced migration cleanup completed")
+                _errorMessage.value = "Database cleanup completed. Please try again."
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error during forced migration cleanup", e)
+                _errorMessage.value = "Error during database cleanup: ${e.localizedMessage}"
+            }
+        }
     }
 
     /**
@@ -56,7 +87,6 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     fun getVerseFlow(id: Long): Flow<BibleVerse> {
         return repository.getVerseFlow(id)
     }
-
 
     /**
      * Reloads the scripture text for a given verse with a new translation.
@@ -106,7 +136,6 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
             }
         }
     }
-
 
     /**
      * Updates the favorite status of a verse.
@@ -231,11 +260,10 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
-
     private fun NewVerseViewModel?.updateGeneralError(string: String) {
-
+        // This method appears to be incomplete in the original code
+        // You may need to implement this based on your NewVerseViewModel class
     }
-
 
     fun addTopic(topicName: String) {
         viewModelScope.launch {
@@ -298,32 +326,45 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         }
     }
 
-
     /**
      * Updates a verse with the user's memorized direct quote, context, and the scores.
-     * This function assumes the BibleVerse data class has fields for this data.
+     * This function now uses safe handling for the new AI feedback fields.
      */
     fun updateUserData(
         verseId: Long,
         userDirectQuote: String,
         userDirectQuoteScore: Int,
         userContext: String,
-        userContextScore: Int
+        userContextScore: Int,
+        aiDirectQuoteExplanationText: String,
+        aiContextExplanationText: String,
+        applicationFeedback: String
     ) {
         viewModelScope.launch {
             try {
-                // Get the existing verse from the repository
-                val verseToUpdate = repository.getVerseById(verseId)
-
-                // Create an updated instance of the verse using the .copy() method
-                val updatedVerse = verseToUpdate.copy(
-                    userDirectQuote = userDirectQuote,
-                    userDirectQuoteScore = userDirectQuoteScore,
-                    userContext = userContext,
-                    userContextScore = userContextScore
+                // Use the safe DAO method for updating AI feedback data
+                repository.updateAIFeedbackData(
+                    verseId = verseId,
+                    aiDirectQuoteExplanation = aiDirectQuoteExplanationText,
+                    aiContextExplanation = aiContextExplanationText,
+                    applicationFeedback = applicationFeedback,
+                    directQuoteScore = userDirectQuoteScore,
+                    contextScore = userContextScore
                 )
 
-                // Call the repository to update the verse in the database
+                // Also update the basic user data (direct quote and context)
+                val verseToUpdate = repository.getVerseById(verseId)
+                val updatedVerse = verseToUpdate.copy(
+                    userDirectQuote = userDirectQuote,
+                    userContext = userContext,
+                    userDirectQuoteScore = userDirectQuoteScore,
+                    userContextScore = userContextScore,
+                    aiDirectQuoteExplanationText = aiDirectQuoteExplanationText,
+                    aiContextExplanationText = aiContextExplanationText,
+                    applicationFeedback = applicationFeedback,
+                    lastModified = System.currentTimeMillis()
+                )
+
                 repository.updateVerse(updatedVerse)
                 SnackBarController.showMessage("Memorized Content is saved")
                 Log.i("BibleVerseViewModel", "Successfully updated user memorization data for verse ID: $verseId")
@@ -337,25 +378,35 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
     /**
      * Checks if a BibleVerse has any user memorization data saved.
-     * The determination is based on whether the user-provided text fields are empty or not.
+     * Updated to use safe accessor methods for the new fields.
      *
      * @param bibleVerse The BibleVerse object to check.
      * @return True if user-entered text exists in either the direct quote or context fields, false otherwise.
      */
     fun hasUserData(bibleVerse: BibleVerse): Boolean {
-        // Data is considered "set" if either the direct quote or context text is not empty.
-        return bibleVerse.userDirectQuote.isNotEmpty() || bibleVerse.userContext.isNotEmpty()
+        return try {
+            // Data is considered "set" if either the direct quote or context text is not empty.
+            bibleVerse.userDirectQuote.isNotEmpty() || bibleVerse.userContext.isNotEmpty()
+        } catch (e: Exception) {
+            Log.w("BibleVerseViewModel", "Error checking user data for verse ${bibleVerse.id}: ${e.message}", e)
+            false // Return false if there's any serialization/access error
+        }
     }
-
 
     /**
      * Retrieves a specific Bible verse by its ID using the repository.
-     * This is a suspend function as it calls a suspend function in the repository.
+     * Updated with error handling for migration issues.
      * @param id The unique ID of the Bible verse to retrieve.
      * @return The BibleVerse object matching the ID.
      */
     suspend fun getVerseById(id: Long): BibleVerse {
-        return repository.getVerseById(id)
+        return try {
+            repository.getVerseById(id)
+        } catch (e: Exception) {
+            Log.e("BibleVerseViewModel", "Error retrieving verse by ID $id: ${e.message}", e)
+            // Try to get the verse safely (this should handle migration issues)
+            repository.getVerseSafely(id) ?: throw e
+        }
     }
 
     fun renameOrMergeTopic(oldTopicName: String, newTopicName: String, isMergeIntent: Boolean) {
@@ -414,11 +465,61 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
     /***
      * Check if verse exist on database. We only need to check for matching book, chapter, and startingVerse.
-     * You'll need a way to communicate the found verse or the "not found" status. A StateFlow or a simple
-     * callback could work. For simplicity, let's make it a suspend function that returns the BibleVerse or null.
+     * Updated with error handling for migration issues.
      */
     suspend fun findExistingVerse(book: String, chapter: Int, startVerse: Int): BibleVerse? {
-        return repository.findVerseByReference(book, chapter, startVerse)
+        return try {
+            repository.findVerseByReference(book, chapter, startVerse)
+        } catch (e: Exception) {
+            Log.e("BibleVerseViewModel", "Error finding existing verse: ${e.message}", e)
+            null // Return null if there's any error during lookup
+        }
     }
 
+    /**
+     * Check if the verse has AI feedback data for the given input
+     * Updated to use safe accessor methods.
+     */
+    fun hasCachedAIFeedback(verse: BibleVerse, directQuote: String, userApplication: String): Boolean {
+        return try {
+            verse.hasCachedAIFeedback() && verse.matchesCachedInput(directQuote, userApplication)
+        } catch (e: Exception) {
+            Log.w("BibleVerseViewModel", "Error checking cached AI feedback: ${e.message}", e)
+            false // Return false if there's any error accessing the data
+        }
+    }
+
+    /**
+     * Get cached AI feedback if it exists for the given input
+     * Updated to use safe accessor methods.
+     */
+    fun getCachedAIFeedback(verse: BibleVerse): Triple<String, String, String>? {
+        return try {
+            if (verse.hasCachedAIFeedback()) {
+                Triple(
+                    verse.getSafeAIDirectQuoteExplanation(),
+                    verse.getSafeAIContextExplanation(),
+                    verse.getSafeApplicationFeedback()
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.w("BibleVerseViewModel", "Error getting cached AI feedback: ${e.message}", e)
+            null // Return null if there's any error accessing the data
+        }
+    }
+
+    /**
+     * Check if the verse has valid AI feedback data
+     * This is useful for determining if feedback can be displayed
+     */
+    suspend fun hasValidAIFeedback(verseId: Long): Boolean {
+        return try {
+            repository.hasValidAIFeedback(verseId) > 0
+        } catch (e: Exception) {
+            Log.w("BibleVerseViewModel", "Error checking valid AI feedback: ${e.message}", e)
+            false
+        }
+    }
 }
