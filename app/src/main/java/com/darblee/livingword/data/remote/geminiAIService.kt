@@ -362,27 +362,27 @@ object GeminiAIService {
             
             Follow these steps:
             
-            1.  Calculate the `DirectQuoteScore`: Determine the accuracy of the direct quote compared to the Bible verse reference. Provide a score between 0 and 100.
-            2.  Calculate the `ContextScore`: Evaluate the contextual accuracy of the direct quote. Consider whether the quote is used in a way that aligns with the original meaning and intent of the verse. Provide a score between 0 and 100.
-            3.  Provide `DirectQuoteExplanation`: Explain how you derived the `DirectQuoteScore`. Detail any differences between the provided quote and the actual verse.
-            4.  Provide `ContextExplanation`: Explain how you derived the `ContextScore`. Discuss the context of the verse and whether the provided quote aligns with that context.
-            5.  Create `ApplicationFeedback`: Create this field with an empty string: "". This field is not used in this task.
+            1.  Calculate the `ContextScore`: Evaluate the contextual accuracy of the direct quote. Consider whether the quote is used in a way that aligns with the original meaning and intent of the verse. Provide a score between 0 and 100.
+            2.  Provide `ContextExplanation`: Explain how you derived the `ContextScore`. Discuss the context of the verse and whether the provided quote aligns with that context.
             
             Respond ONLY in the following JSON format:
             
             ```json
             {
-            "DirectQuoteScore": integer between 0 to 100,
+            "DirectQuoteScore": 0,
             "ContextScore": integer between 0 to 100,
-            "DirectQuoteExplanation": "Explanation of the DirectQuoteScore",
+            "DirectQuoteExplanation": "",
             "ContextExplanation": "Explanation of the ContextScore",
             "ApplicationFeedback": ""
             }
             ```
             
+            Note: DirectQuoteScore and DirectQuoteExplanation are hardcoded values and not used in evaluation.
+            ApplicationFeedback will be populated separately.
+            
             Ensure that your response is ONLY in JSON format with no other text or explanations outside of the JSON structure. 
             """
-            Log.d("GeminiAIService", "Sending memorized score prompt to Gemini: \"$prompt\"")
+            Log.d("GeminiAIService", "Sending optimized prompt to Gemini (DirectQuote fields removed for token reduction): \"$prompt\"")
 
             val response: GenerateContentResponse = scoreModel.generateContent(prompt)
             val responseText = (response.text)?.trimIndent()
@@ -422,10 +422,16 @@ object GeminiAIService {
                 
                 try {
                     val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
+                    
+                    // Ensure hardcoded values are set correctly to reduce token usage
+                    parseResponse.DirectQuoteScore = 0
+                    parseResponse.DirectQuoteExplanation = ""
+                    
                     if (applicationFeedback != null) {
                         parseResponse.ApplicationFeedback = applicationFeedback
                     }
 
+                    Log.d("GeminiAIService", "AI response processed with hardcoded DirectQuote values (token optimization)")
                     AiServiceResult.Success(parseResponse)
                 } catch (serializationException: Exception) {
                     Log.e("GeminiAIService", "Failed to parse AI response JSON: $cleanedJson", serializationException)

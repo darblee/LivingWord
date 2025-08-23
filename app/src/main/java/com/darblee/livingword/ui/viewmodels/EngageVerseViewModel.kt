@@ -15,9 +15,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ScoreData(
-    val DirectQuoteScore: Int,
+    var DirectQuoteScore: Int,
     val ContextScore: Int,
-    val DirectQuoteExplanation: String,
+    var DirectQuoteExplanation: String,
     val ContextExplanation: String,
     var ApplicationFeedback: String
 )
@@ -164,10 +164,10 @@ class EngageVerseViewModel() : ViewModel(){
         Log.d("EngageVerseViewModel", "  - Context: '${currentState.lastEvaluatedUserApplication}'")
         Log.d("EngageVerseViewModel", "Input matches: ${currentState.lastEvaluatedDirectQuote.trim() == userDirectQuote.trim() && currentState.lastEvaluatedUserApplication.trim() == userContext.trim()}")
         Log.d("EngageVerseViewModel", "Has valid AI data:")
-        Log.d("EngageVerseViewModel", "  - DirectQuoteExplanation: ${!currentState.aiDirectQuoteExplanationText.isNullOrEmpty()}")
+        Log.d("EngageVerseViewModel", "  - DirectQuoteExplanation: ${!currentState.aiDirectQuoteExplanationText.isNullOrEmpty()} (always empty for token optimization)")
         Log.d("EngageVerseViewModel", "  - ContextExplanation: ${!currentState.aiContextExplanationText.isNullOrEmpty()}")
         Log.d("EngageVerseViewModel", "  - ApplicationFeedback: ${!currentState.applicationFeedback.isNullOrEmpty()}")
-        Log.d("EngageVerseViewModel", "  - DirectQuoteScore: ${currentState.directQuoteScore}")
+        Log.d("EngageVerseViewModel", "  - DirectQuoteScore: ${currentState.directQuoteScore} (always 0 for token optimization)")
         Log.d("EngageVerseViewModel", "  - ContextScore: ${currentState.contextScore}")
         Log.d("EngageVerseViewModel", "  - No error: ${currentState.aiResponseError == null}")
         Log.d("EngageVerseViewModel", "Using cached results flag: ${currentState.isUsingCachedResults}")
@@ -209,14 +209,13 @@ class EngageVerseViewModel() : ViewModel(){
                 Log.d("EngageVerseViewModel", "  - ContextScore: ${verse.userContextScore}")
 
                 // Check if the cached data is actually valid (not empty or placeholder text)
+                // Note: DirectQuoteExplanation is now always empty and DirectQuoteScore is always 0 for token optimization
                 val isValidCache = (
-                    cachedDirectExplanation.isNotEmpty() &&
                     cachedContextExplanation.isNotEmpty() &&
                     cachedApplicationFeedback.isNotEmpty() &&
-                    !cachedDirectExplanation.contains("Getting score") &&
                     !cachedContextExplanation.contains("Getting score") &&
-                    verse.userDirectQuoteScore > 0 &&
                     verse.userContextScore > 0
+                    // DirectQuoteScore and DirectQuoteExplanation are hardcoded values, not validated
                 )
                 
                 Log.d("EngageVerseViewModel", "Cache validity check: $isValidCache")
@@ -294,12 +293,11 @@ class EngageVerseViewModel() : ViewModel(){
         )
         
         val hasValidStateResults = (
-            !currentState.aiDirectQuoteExplanationText.isNullOrEmpty() &&
             !currentState.aiContextExplanationText.isNullOrEmpty() &&
             !currentState.applicationFeedback.isNullOrEmpty() &&
-            currentState.directQuoteScore > 0 &&
             currentState.contextScore > 0 &&
             currentState.aiResponseError == null
+            // DirectQuoteScore is always 0 and DirectQuoteExplanation is always empty for token optimization
         )
         
         if (currentInputMatches && hasValidStateResults) {
