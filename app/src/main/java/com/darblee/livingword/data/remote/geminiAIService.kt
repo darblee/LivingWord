@@ -121,33 +121,15 @@ object GeminiAIService {
     fun getInitializationError(): String? = initializationErrorMessage
 
     /**
-     * Fetches scripture text for a given Bible verse reference.
-     * This function delegates to the appropriate service based on the requested translation.
-     * If the ESV service fails, it falls back to using Gemini.
+     * Fetches scripture text using Gemini AI for any translation.
+     * ESV logic has been moved to the top-level AIService for cleaner architecture.
      *
      * @param verseRef The Bible verse reference object.
      * @param translation The desired Bible translation.
      * @return [AiServiceResult.Success] with [List<Verse>], or [AiServiceResult.Error].
      */
     suspend fun fetchScripture(verseRef: BibleVerseRef, translation: String): AiServiceResult<List<Verse>> {
-        // Route to the dedicated ESV service if translation is ESV
-        if (translation.equals("ESV", ignoreCase = true)) {
-            Log.i("GeminiAIService", "ESV translation requested. Routing to ESVBibleLookupService.")
-            val esvService = ESVBibleLookupService()
-            val esvResult = esvService.fetchScripture(verseRef)
-
-            return when (esvResult) {
-                is AiServiceResult.Success -> esvResult // Return successful ESV result immediately
-                is AiServiceResult.Error -> {
-                    // If ESV service fails, log it and fall back to Gemini
-                    Log.w("GeminiAIService", "ESV service failed: ${esvResult.message}. Falling back to Gemini.")
-                    fetchScriptureWithGemini(verseRef, translation)
-                }
-            }
-        } else {
-            // Use Gemini for all other translations
-            return fetchScriptureWithGemini(verseRef, translation)
-        }
+        return fetchScriptureWithGemini(verseRef, translation)
     }
 
     /**

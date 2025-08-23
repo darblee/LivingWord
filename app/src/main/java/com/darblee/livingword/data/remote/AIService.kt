@@ -58,14 +58,31 @@ object AIService {
     fun getInitializationError(): String? = initializationErrorMessage
     
     /**
-     * Fetches scripture with fallback mechanism.
+     * Fetches scripture with priority order: ESV → Gemini → OpenAI
      */
     suspend fun fetchScripture(verseRef: BibleVerseRef, translation: String): AiServiceResult<List<Verse>> {
         if (!isConfigured) {
             return AiServiceResult.Error("AI service not configured: ${getInitializationError()}")
         }
         
-        // Try Gemini first
+        // Priority 1: Try ESV service first if translation is ESV
+        if (translation.equals("ESV", ignoreCase = true)) {
+            Log.d("AIService", "ESV translation requested. Attempting ESV service...")
+            val esvService = ESVBibleLookupService()
+            val esvResult = esvService.fetchScripture(verseRef)
+            
+            when (esvResult) {
+                is AiServiceResult.Success -> {
+                    Log.d("AIService", "Scripture fetch successful with ESV service")
+                    return esvResult
+                }
+                is AiServiceResult.Error -> {
+                    Log.w("AIService", "ESV service failed: ${esvResult.message}. Falling back to AI services.")
+                }
+            }
+        }
+        
+        // Priority 2: Try Gemini AI
         if (GeminiAIService.isInitialized()) {
             Log.d("AIService", "Attempting scripture fetch with Gemini...")
             val geminiResult = GeminiAIService.fetchScripture(verseRef, translation)
@@ -78,7 +95,7 @@ object AIService {
             }
         }
         
-        // Fallback to OpenAI
+        // Priority 3: Fallback to OpenAI
         if (OpenAIService.isInitialized()) {
             Log.d("AIService", "Falling back to OpenAI for scripture fetch...")
             val openAiResult = OpenAIService.fetchScripture(verseRef, translation)
@@ -92,7 +109,7 @@ object AIService {
             return openAiResult
         }
         
-        return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
+        return AiServiceResult.Error("All scripture services (ESV, Gemini, OpenAI) are unavailable")
     }
     
     /**
