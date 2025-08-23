@@ -62,6 +62,7 @@ import com.darblee.livingword.Screen // Your sealed class for routes
 import com.darblee.livingword.click
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
 
@@ -399,7 +400,7 @@ private fun SettingPopup(
                         Button(
                             onClick = {
                                 val tempFloat = temperatureInput.toFloatOrNull() ?: PreferenceStore.DEFAULT_AI_TEMPERATURE
-                                val newSettings = AISettings(modelName, apiKey, tempFloat.coerceIn(0f, 1f))
+                                val newSettings = AISettings(modelName, apiKey, PreferenceStore.DEFAULT_OPENAI_API_KEY, tempFloat.coerceIn(0f, 1f))
                                 scope.launch {
                                     preferenceStore.saveAISettings(newSettings)
                                     onConfirmation(newSettings) // Pass new settings back
@@ -644,14 +645,15 @@ private fun AIModelSetting(
                             val testSettings = AISettings(
                                 modelName = modelName,
                                 apiKey = apiKey,
+                                openAiApiKey = PreferenceStore.DEFAULT_OPENAI_API_KEY,
                                 temperature = tempFloat.coerceIn(0f, 1f)
                             )
 
                             // Configure the service with test settings
-                            GeminiAIService.configure(testSettings)
+                            AIService.configure(testSettings)
 
                             // Test the connection with a simple prompt
-                            val result = GeminiAIService.getKeyTakeaway("John 3:16")
+                            val result = AIService.getKeyTakeaway("John 3:16")
 
                             when (result) {
                                 is AiServiceResult.Success -> {

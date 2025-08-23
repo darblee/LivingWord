@@ -58,7 +58,7 @@ import androidx.navigation.NavController
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.VotdService
 import com.darblee.livingword.PreferenceStore
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
 import androidx.compose.material3.OutlinedCard
@@ -220,7 +220,7 @@ fun HomeScreen(
                 if (chapter != null && startVerse != null && endVerse != null) {
                     val bibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
                     val result = withTimeoutOrNull(10000) {
-                        GeminiAIService.fetchScripture(bibleVerseRef, selectedTranslation)
+                        AIService.fetchScripture(bibleVerseRef, selectedTranslation)
                     }
                     if (result == null) {
                         verseContent = emptyList()

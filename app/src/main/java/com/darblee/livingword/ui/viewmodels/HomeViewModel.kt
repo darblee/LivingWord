@@ -9,7 +9,7 @@ import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.data.verseReferenceBibleVerseRef
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -50,7 +50,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var fetchDataJob: Job? = null
 
     private val preferenceStore = PreferenceStore(application)
-    private val geminiService = GeminiAIService // Singleton instance
+    private val hybridService = AIService // Singleton instance
 
     init {
         updateAiServiceStatus()
@@ -110,7 +110,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             delay(100)
 
 
-            when (val scriptureResult = geminiService.fetchScripture(verse, translation)) {
+            when (val scriptureResult = hybridService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
                     Log.i("HomeViewModel", "Fetched scripture for $verse")
                     _state.update { it.copy(
@@ -135,7 +135,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             delay(100)
 
-            when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     val takeawayResponseText = takeAwayResult.data
 
@@ -143,7 +143,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     Log.d("HomeViewModel", "Before updating to VALIDATING_TAKEAWAY. Current loadingStage: ${_state.value.loadingStage}")
                     _state.update { it.copy(loadingStage = LoadingStage.VALIDATING_TAKEAWAY) }
                     Log.d("HomeViewModel", "After updating to VALIDATING_TAKEAWAY. New loadingStage: ${_state.value.loadingStage}")
-                    when (val validationResult = GeminiAIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
+                    when (val validationResult = AIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
                         is AiServiceResult.Success -> {
                             if (validationResult.data) {
                                 Log.i("HomeViewModel", "Takeaway for $verseRef is acceptable: $takeawayResponseText")
@@ -187,8 +187,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
     private fun updateAiServiceStatus() {
-        val isReady = geminiService.isInitialized()
-        val initError = if (!isReady) geminiService.getInitializationError() else null
+        val isReady = hybridService.isInitialized()
+        val initError = if (!isReady) hybridService.getInitializationError() else null
         _state.update {
             it.copy(
                 isAiServiceReady = isReady,
@@ -201,11 +201,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun fetchKeyTakeAwayOnly(verse: BibleVerseRef) {
         updateAiServiceStatus()
         if (!_state.value.isAiServiceReady) {
-            Log.w("HomeViewModel", "Skipping take-away retry as GeminiAIService is not initialized/configured.")
+            Log.w("HomeViewModel", "Skipping take-away retry as AIService is not initialized/configured.")
             _state.update {
                 it.copy(
                     loadingStage = LoadingStage.NONE,
-                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() ?: "AI Service not ready."
+                    aiResponseError = it.aiResponseError ?: hybridService.getInitializationError() ?: "AI Service not ready."
                 )
             }
             return
@@ -218,7 +218,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val verseRef = verseReferenceBibleVerseRef(verse)
 
         viewModelScope.launch {
-            when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     Log.d("HomeViewModel", "Before updating to NONE (fetchKeyTakeAwayOnly success). Current loadingStage: ${_state.value.loadingStage}")
                     _state.update {

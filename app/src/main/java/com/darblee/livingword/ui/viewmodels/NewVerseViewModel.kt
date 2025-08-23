@@ -9,7 +9,7 @@ import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.data.verseReferenceBibleVerseRef
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,15 +58,15 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
     private var fetchDataJob: Job? = null
 
     private val preferenceStore = PreferenceStore(application)
-    private val geminiService = GeminiAIService // Singleton instance
+    private val hybridService = AIService // Singleton instance
 
     init {
         updateAiServiceStatus()
     }
 
     private fun updateAiServiceStatus() {
-        val isReady = geminiService.isInitialized()
-        val initError = if (!isReady) geminiService.getInitializationError() else null
+        val isReady = hybridService.isInitialized()
+        val initError = if (!isReady) hybridService.getInitializationError() else null
         _state.update {
             it.copy(
                 isAiServiceReady = isReady,
@@ -173,7 +173,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
 
             // STAGE 1: Fetch Scripture
             _state.update { it.copy(loadingStage = LoadingStage.FETCHING_SCRIPTURE) }
-            when (val scriptureResult = geminiService.fetchScripture(verse, translation)) {
+            when (val scriptureResult = hybridService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
                     _state.update { it.copy(
                         scriptureVerses = scriptureResult.data,
@@ -190,13 +190,13 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             // STAGE 2: Get Key Takeaway
             _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY) }
             val verseRef = verseReferenceBibleVerseRef(verse)
-            when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     val takeawayResponseText = takeAwayResult.data
 
                     // STAGE 3: Validate Takeaway
                     _state.update { it.copy(loadingStage = LoadingStage.VALIDATING_TAKEAWAY) }
-                    when (val validationResult = GeminiAIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
+                    when (val validationResult = AIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
                         is AiServiceResult.Success -> {
                             if (validationResult.data) {
                                 Log.i("NewVerse", "Takeaway for $verseRef is acceptable: $takeawayResponseText")
@@ -233,11 +233,11 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
     private fun fetchKeyTakeAwayOnly(verse: BibleVerseRef) {
         updateAiServiceStatus() // Refresh AI status
         if (!_state.value.isAiServiceReady) {
-            Log.w("NewVerseViewModel", "Skipping take-away retry as GeminiAIService is not initialized/configured.")
+            Log.w("NewVerseViewModel", "Skipping take-away retry as AIService is not initialized/configured.")
             _state.update {
                 it.copy(
                     loadingStage = LoadingStage.NONE,
-                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError() ?: "AI Service not ready."
+                    aiResponseError = it.aiResponseError ?: hybridService.getInitializationError() ?: "AI Service not ready."
                 )
             }
             return
@@ -248,7 +248,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         val verseRef = verseReferenceBibleVerseRef(verse)
 
         viewModelScope.launch {
-            when (val takeAwayResult = geminiService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     _state.update {
                         it.copy(

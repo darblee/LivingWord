@@ -15,7 +15,7 @@ import com.darblee.livingword.data.BibleVerseRepository
 import com.darblee.livingword.data.TopicWithCount
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -109,7 +109,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
                 // Step 2: Fetch the new scripture text from the service.
                 Log.i("BibleVerseViewModel", "Fetching new scripture for $verseRef in $newTranslation")
-                when (val result = GeminiAIService.fetchScripture(verseRef, newTranslation)) {
+                when (val result = AIService.fetchScripture(verseRef, newTranslation)) {
                     is AiServiceResult.Success -> {
                         // Step 3a: On success, create the updated verse and save it.
                         val newScriptureVerses = result.data

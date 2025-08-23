@@ -24,7 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.darblee.livingword.data.BibleData
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.components.AIDisclaimerDialog
 import com.darblee.livingword.ui.theme.ColorThemeOption
@@ -60,10 +60,10 @@ class MainActivity : ComponentActivity() {
         // Initialize BibleData with application context
         BibleData.init(applicationContext)
 
-        // Configure GeminiAIService on startup
+        // Configure AIService (Gemini + OpenAI fallback) on startup
         lifecycleScope.launch {
             val aiSettings = preferenceStore.readAISettings()
-            GeminiAIService.configure(aiSettings)
+            AIService.configure(aiSettings)
         }
 
 

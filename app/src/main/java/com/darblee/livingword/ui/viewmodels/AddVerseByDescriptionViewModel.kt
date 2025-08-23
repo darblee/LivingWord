@@ -7,7 +7,7 @@ import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 class AddVerseByDescriptionViewModel (application: Application) : AndroidViewModel(application) {
 
-    private val geminiService = GeminiAIService // Singleton instance
+    private val hybridService = AIService // Singleton instance
 
     private val _uiState = MutableStateFlow(AddVerseByDescriptionUiState())
     val uiState: StateFlow<AddVerseByDescriptionUiState> = _uiState.asStateFlow()
@@ -39,7 +39,7 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
                 previewError = null,
                 translation = translation
             )
-            when (val result = geminiService.fetchScripture(verse, translation)) {
+            when (val result = hybridService.fetchScripture(verse, translation)) {
 
                 is AiServiceResult.Error -> {
                     _uiState.value = _uiState.value.copy(
@@ -70,7 +70,7 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
                 previewScriptureVerses = emptyList()
             )
 
-            when (val result = geminiService.fetchScripture(currentVerseRef, newTranslation)) {
+            when (val result = hybridService.fetchScripture(currentVerseRef, newTranslation)) {
                 is AiServiceResult.Success<List<Verse>> -> {
                     val scriptureVerses = result.data
                     _uiState.value = _uiState.value.copy(
@@ -102,7 +102,7 @@ class AddVerseByDescriptionViewModel (application: Application) : AndroidViewMod
             _uiState.value =
                 _uiState.value.copy(loading = true, error = null, selectedVerse = null)
             when (val result =
-                GeminiAIService.getNewVersesBasedOnDescription(_uiState.value.description)) {
+                AIService.getNewVersesBasedOnDescription(_uiState.value.description)) {
                 is AiServiceResult.Success -> {
                     _uiState.value = _uiState.value.copy(loading = false, verses = result.data)
                 }

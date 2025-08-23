@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,16 +54,16 @@ class EngageVerseViewModel() : ViewModel(){
     private val _state = MutableStateFlow(MemorizedVerseScreenState())
     val state: StateFlow<MemorizedVerseScreenState> = _state.asStateFlow()
 
-    // Use the GeminiAIService object directly
-    private val geminiService = GeminiAIService // Changed from: GeminiAIService()
+    // Use the AIService which handles Gemini + OpenAI fallback
+    private val aiService = AIService
 
     init {
         updateAiServiceStatus()
     }
 
     private fun updateAiServiceStatus() {
-        val isReady = geminiService.isInitialized()
-        val initError = if (!isReady) geminiService.getInitializationError() else null
+        val isReady = aiService.isInitialized()
+        val initError = if (!isReady) aiService.getInitializationError() else null
         _state.update {
             it.copy(
                 isAiServiceReady = isReady,
@@ -119,7 +119,7 @@ class EngageVerseViewModel() : ViewModel(){
         if (!geminiReady) {
             _state.update {
                 it.copy(
-                    aiResponseError = "AI service not ready: ${geminiService.getInitializationError()}"
+                    aiResponseError = "AI service not ready: ${aiService.getInitializationError()}"
                 )
             }
             return
@@ -129,7 +129,7 @@ class EngageVerseViewModel() : ViewModel(){
             Log.d("EngageVerseViewModel", "Testing AI service with simple request...")
             
             // Test with a simple verse and input
-            when (val result = geminiService.getAIScore("John 3:16", "For God so loved the world", "This verse teaches about God's love")) {
+            when (val result = aiService.getAIScore("John 3:16", "For God so loved the world", "This verse teaches about God's love")) {
                 is AiServiceResult.Success -> {
                     _state.update {
                         it.copy(
@@ -279,7 +279,7 @@ class EngageVerseViewModel() : ViewModel(){
             _state.update {
                 it.copy(
                     aiResponseLoading = false,
-                    aiResponseError = it.aiResponseError ?: geminiService.getInitializationError()
+                    aiResponseError = it.aiResponseError ?: aiService.getInitializationError()
                 )
             }
             return
@@ -352,10 +352,10 @@ class EngageVerseViewModel() : ViewModel(){
         val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
 
         viewModelScope.launch {
-            Log.d("EngageVerseViewModel", "Calling Gemini API for verse: $verseRef")
+            Log.d("EngageVerseViewModel", "Calling Hybrid AI service (Gemini + OpenAI fallback) for verse: $verseRef")
 
-            // Call the GeminiAIService
-            when (val scoreData = geminiService.getAIScore(verseRef, userMemorizedScripture, userApplicationContent)) {
+            // Call the AIService (Gemini with OpenAI fallback)
+            when (val scoreData = aiService.getAIScore(verseRef, userMemorizedScripture, userApplicationContent)) {
                 is AiServiceResult.Success -> {
                     try {
                         Log.d("EngageVerseViewModel", "AI service returned success with score data: ${scoreData.data}")

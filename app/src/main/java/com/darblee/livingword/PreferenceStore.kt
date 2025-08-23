@@ -24,6 +24,7 @@ import java.io.IOException
 data class AISettings(
     val modelName: String,
     val apiKey: String,
+    val openAiApiKey: String,
     val temperature: Float
 )
 
@@ -37,6 +38,7 @@ class PreferenceStore(private val context: Context) {
         // Keys for AI Settings
         val AI_MODEL_NAME_KEY = stringPreferencesKey("ai_model_name")
         val AI_API_KEY_KEY = stringPreferencesKey("ai_api_key")
+        val OPENAI_API_KEY_KEY = stringPreferencesKey("openai_api_key")
         val AI_TEMPERATURE_KEY = floatPreferencesKey("ai_temperature")
         val TRANSLATION_KEY = stringPreferencesKey("translation")
 
@@ -52,6 +54,7 @@ class PreferenceStore(private val context: Context) {
         // Default AI Settings
         val DEFAULT_AI_MODEL_NAME = "gemini-2.5-flash"
         val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
+        val DEFAULT_OPENAI_API_KEY = BuildConfig.OPENAI_API_KEY
         const val DEFAULT_AI_TEMPERATURE = 0.7f
         val DEFAULT_TRANSLATION = "ESV"
         const val DEFAULT_AI_DISCLAIMER_SHOWN = false
@@ -106,6 +109,7 @@ class PreferenceStore(private val context: Context) {
         context.datastore.edit { preferences ->
             preferences[AI_MODEL_NAME_KEY] = aiSettings.modelName
             preferences[AI_API_KEY_KEY] = aiSettings.apiKey
+            preferences[OPENAI_API_KEY_KEY] = aiSettings.openAiApiKey
             preferences[AI_TEMPERATURE_KEY] = aiSettings.temperature
         }
     }
@@ -122,8 +126,9 @@ class PreferenceStore(private val context: Context) {
         }.map { preferences ->
             val modelName = preferences[AI_MODEL_NAME_KEY] ?: DEFAULT_AI_MODEL_NAME
             val apiKey = preferences[AI_API_KEY_KEY] ?: DEFAULT_AI_API_KEY
+            val openAiApiKey = preferences[OPENAI_API_KEY_KEY] ?: DEFAULT_OPENAI_API_KEY
             val temperature = preferences[AI_TEMPERATURE_KEY] ?: DEFAULT_AI_TEMPERATURE
-            AISettings(modelName, apiKey, temperature)
+            AISettings(modelName, apiKey, openAiApiKey, temperature)
         }
 
     // Read AI Settings once (suspending function)

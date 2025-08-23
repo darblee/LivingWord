@@ -484,7 +484,6 @@ object GeminiAIService {
             Provide feedback that is:
             *   Insightful: Offer a deeper understanding of the verse and its implications.
             *   Encouraging: Affirm the user's efforts and provide motivation.
-            *   Theologically Sound: Ensure the application aligns with biblical principles. 
             """
             Log.d("GeminiAIService", "Sending user application prompt to Gemini: \"$prompt\"")
 

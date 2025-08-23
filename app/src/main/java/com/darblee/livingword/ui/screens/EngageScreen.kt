@@ -129,7 +129,6 @@ private fun AnnotatedString.Builder.appendFormattedSentence(sentence: String, bo
 
 // Helper function to build annotated string for TTS highlighting
 private fun buildAnnotatedStringForScoreDialog(
-    aiDirectQuoteExplanation: String,
     aiContextExplanation: String,
     applicationFeedback: String,
     currentlySpeakingIndex: Int,
@@ -143,40 +142,16 @@ private fun buildAnnotatedStringForScoreDialog(
     val locale = Locale.getDefault()
 
     // Split into sections based on content
-    val directQuoteFeedbackText = "Direct Quote Feedback: $aiDirectQuoteExplanation"
     val contextFeedbackText = "Context Feedback: $aiContextExplanation"
-    val applicationFeedbackText = "Feedback on Application: ${applicationFeedback.replace("###", "")}"
-
-    val directQuoteSentences = splitIntoSentences(directQuoteFeedbackText, locale)
+    val applicationFeedbackText = "Application Feedback: ${applicationFeedback.replace("###", "")}"
     val contextSentences = splitIntoSentences(contextFeedbackText, locale)
     val applicationSentences = splitIntoSentences(applicationFeedbackText, locale)
 
     // Calculate offset indices for each section
-    val directQuoteStartIndex = 1 // After "Direct Quote Score: X."
-
-    // +1 is needed for "Context Score: X"
-    val contextStartIndex = directQuoteStartIndex + directQuoteSentences.size + 1
+    val contextStartIndex = 1 // After "Context Score: X."
     val applicationStartIndex = contextStartIndex + contextSentences.size
 
     // Build annotated strings for each section
-    val directQuoteAnnotated = buildAnnotatedString {
-        directQuoteSentences.forEachIndexed { index, sentence ->
-            val globalIndex = directQuoteStartIndex + index
-            val shouldHighlight = (isSpeaking && !isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog") ||
-                    (isPaused && globalIndex == currentlySpeakingIndex && currentTtsTextId == "scoreDialog")
-
-            if (shouldHighlight) {
-                withStyle(style = highlightStyle) {
-                    appendFormattedSentence(sentence, boldColor)
-                }
-            } else {
-                withStyle(style = SpanStyle(color = baseTextColor)) {
-                    appendFormattedSentence(sentence, boldColor)
-                }
-            }
-        }
-    }
-
     val contextAnnotated = buildAnnotatedString {
         contextSentences.forEachIndexed { index, sentence ->
             val globalIndex = contextStartIndex + index
@@ -213,7 +188,7 @@ private fun buildAnnotatedStringForScoreDialog(
         }
     }
 
-    return listOf(directQuoteAnnotated, contextAnnotated, applicationAnnotated)
+    return listOf(contextAnnotated, applicationAnnotated)
 }
 
 // Helper function to build AnnotatedString with potential TTS highlighting & Markdown
@@ -1719,16 +1694,13 @@ fun EngageScreen(
                 if (showScoreDialog) {
                     // Build the combined text for TTS
                     val combinedScoreDialogText = buildString {
-                        append("Direct Quote Score: ${state.directQuoteScore}. ")
-                        append("Direct Quote Feedback: ${state.aiDirectQuoteExplanationText ?: ""} ")
                         append("Context Score: ${state.contextScore}. ")
                         append("Context Feedback: ${state.aiContextExplanationText ?: ""} ")
-                        append("Feedback on Application: ${state.applicationFeedback ?: ""}")
+                        append("Application Feedback: ${state.applicationFeedback ?: ""}")
                     }
 
-                    // Build annotated strings for highlighting
+                    // Build annotated strings for highlighting (now only 2 sections: Context + Application)
                     val annotatedStrings = buildAnnotatedStringForScoreDialog(
-                        aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText ?: "",
                         aiContextExplanation = state.aiContextExplanationText ?: "",
                         applicationFeedback = state.applicationFeedback ?: "",
                         currentlySpeakingIndex = currentlySpeakingIndex,
@@ -1766,7 +1738,6 @@ fun EngageScreen(
                                     )
                                     // TTS Play/Pause button - only show when not loading and content is available
                                     if (!state.aiResponseLoading &&
-                                        !state.aiDirectQuoteExplanationText.isNullOrEmpty() &&
                                         !state.aiContextExplanationText.isNullOrEmpty() &&
                                         !state.applicationFeedback.isNullOrEmpty()
                                     ) {
@@ -1829,24 +1800,16 @@ fun EngageScreen(
                                     )
                                 } else {
                                     ScrollableTitledOutlinedBoxWithTTS(
-                                        label = "Direct Quote Score : ${state.directQuoteScore}",
+                                        label = "Context Score: ${state.contextScore}",
                                         content = annotatedStrings[0],
                                         modifier = Modifier.weight(1f)
                                     )
 
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
 
                                     ScrollableTitledOutlinedBoxWithTTS(
-                                        label = "Context  Score : ${state.contextScore}",
+                                        label = "Application Feedback",
                                         content = annotatedStrings[1],
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    ScrollableTitledOutlinedBoxWithTTS(
-                                        label = "Feedback on application",
-                                        content = annotatedStrings[2],
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
