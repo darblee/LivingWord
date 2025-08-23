@@ -51,10 +51,10 @@ data class BibleVerse(
 
     // Helper method to check if this verse has cached AI feedback
     fun hasCachedAIFeedback(): Boolean {
-        return (getSafeAIDirectQuoteExplanation().isNotEmpty() ||
-                getSafeAIContextExplanation().isNotEmpty() ||
+        return (getSafeAIContextExplanation().isNotEmpty() ||
                 getSafeApplicationFeedback().isNotEmpty()) &&
-                (userDirectQuoteScore > 0 || userContextScore > 0)
+                (userContextScore > 0)
+        // Note: DirectQuoteScore is always 0 and DirectQuoteExplanation is always empty for token optimization
     }
 
     // Helper method to check if input matches cached evaluation

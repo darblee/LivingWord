@@ -1158,11 +1158,15 @@ fun EngageScreen(
                                      } ?: false
 
                         val saveButtonEnabled = verse?.let {
-                            ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
-                                    ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) &&
-                                    ((state.directQuoteScore >= 0) || (state.contextScore >= 0)) &&
-                                    ((directQuoteTextFieldValue.text != verse!!.userDirectQuote) ||
-                                    (userApplicationTextFieldValue.text != verse!!.userContext)) } ?: false
+                            val hasDirectQuote = ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty())
+                            val hasApplicationContent = ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty())
+                            
+                            val enabled = hasDirectQuote && hasApplicationContent
+                            if (enabled && state.directQuoteScore < 0 && state.contextScore < 0) {
+                                Log.d("EngageScreen", "Save button enabled without AI scores - user can override/save content")
+                            }
+                            enabled
+                        } ?: false
 
                         // Second button ("Save"/"Show"/"Compare") text logic
                         val secondButtonText = if (isShowDataMode) "Show Saved" else "Compare w/ saved"
@@ -1223,8 +1227,12 @@ fun EngageScreen(
                                         verse?.let { currentVerse ->
                                             val directQuoteToSave = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
                                             val contextToSave = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
-                                            val directQuoteScoreToSave = state.directQuoteScore.coerceAtLeast(0)
-                                            val contextScoreToSave = state.contextScore.coerceAtLeast(0)
+                                            // Save actual scores or -1 if no AI evaluation was performed
+                                            val directQuoteScoreToSave = if (state.directQuoteScore >= 0) state.directQuoteScore else -1
+                                            val contextScoreToSave = if (state.contextScore >= 0) state.contextScore else -1
+
+                                            Log.d("EngageScreen", "Saving user data - DirectQuoteScore: $directQuoteScoreToSave, ContextScore: $contextScoreToSave")
+                                            Log.d("EngageScreen", "AI Explanations - Direct: '${(state.aiDirectQuoteExplanationText ?: "").take(30)}...', Context: '${(state.aiContextExplanationText ?: "").take(30)}...', App: '${(state.applicationFeedback ?: "").take(30)}...'")
 
                                             bibleViewModel.updateUserData(
                                                 verseId = currentVerse.id,
