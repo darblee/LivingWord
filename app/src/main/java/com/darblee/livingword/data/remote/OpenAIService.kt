@@ -486,4 +486,52 @@ object OpenAIService {
             throw e
         }
     }
+    
+    /**
+     * Test method to perform a basic scripture lookup of John 3:16.
+     * @return true if successful, false if failed
+     */
+    suspend fun test(): Boolean {
+        return try {
+            // Create John 3:16 reference for testing
+            val testVerseRef = com.darblee.livingword.data.BibleVerseRef(
+                book = "John",
+                chapter = 3,
+                startVerse = 16,
+                endVerse = 16
+            )
+            val testTranslation = "ESV"
+            val testSystemInstruction = "You are a Biblical scholar with deep knowledge of scripture. Your task is to provide accurate Bible verses in the requested translation format."
+            val testUserPrompt = """
+                Please provide the Bible verse for John 3:16 in the ESV translation.
+
+                Return ONLY a JSON array in the following format:
+                [
+                    {
+                        "verse_num": 16,
+                        "verse_string": "verse_text"
+                    }
+                ]
+
+                Do not include any other text or explanations.
+                """.trimIndent()
+            
+            Log.d("OpenAIService", "Running test: fetching John 3:16 in $testTranslation")
+            val result = fetchScripture(testVerseRef, testTranslation, testSystemInstruction, testUserPrompt)
+            
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("OpenAIService", "Test successful: Retrieved ${result.data.size} verse(s)")
+                    true
+                }
+                is AiServiceResult.Error -> {
+                    Log.e("OpenAIService", "Test failed: ${result.message}")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("OpenAIService", "Test failed with exception: ${e.message}", e)
+            false
+        }
+    }
 }

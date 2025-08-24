@@ -402,4 +402,39 @@ object AIService {
         
         return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
     }
+    
+    /**
+     * Test method to perform a basic scripture lookup of John 3:16.
+     * Uses the same fallback mechanism as fetchScripture().
+     * @return true if successful, false if failed
+     */
+    suspend fun test(): Boolean {
+        return try {
+            // Create John 3:16 reference for testing
+            val testVerseRef = com.darblee.livingword.data.BibleVerseRef(
+                book = "John",
+                chapter = 3,
+                startVerse = 16,
+                endVerse = 16
+            )
+            val testTranslation = "ESV"
+            
+            Log.d("AIService", "Running test: fetching John 3:16 in $testTranslation")
+            val result = fetchScripture(testVerseRef, testTranslation)
+            
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("AIService", "Test successful: Retrieved ${result.data.size} verse(s)")
+                    true
+                }
+                is AiServiceResult.Error -> {
+                    Log.e("AIService", "Test failed: ${result.message}")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AIService", "Test failed with exception: ${e.message}", e)
+            false
+        }
+    }
 }

@@ -105,4 +105,37 @@ class ESVBibleLookupService {
             }
         }
     }
+    
+    /**
+     * Test method to perform a basic scripture lookup of John 3:16.
+     * @return true if successful, false if failed
+     */
+    suspend fun test(): Boolean {
+        return try {
+            // Create John 3:16 reference for testing
+            val testVerseRef = BibleVerseRef(
+                book = "John",
+                chapter = 3,
+                startVerse = 16,
+                endVerse = 16
+            )
+            
+            Log.d("ESVBibleLookupService", "Running test: fetching John 3:16")
+            val result = fetchScripture(testVerseRef)
+            
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("ESVBibleLookupService", "Test successful: Retrieved ${result.data.size} verse(s)")
+                    true
+                }
+                is AiServiceResult.Error -> {
+                    Log.e("ESVBibleLookupService", "Test failed: ${result.message}")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ESVBibleLookupService", "Test failed with exception: ${e.message}", e)
+            false
+        }
+    }
 }
