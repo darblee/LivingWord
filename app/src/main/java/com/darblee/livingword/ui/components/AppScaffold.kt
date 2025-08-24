@@ -53,6 +53,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.darblee.livingword.AIServiceType
 import com.darblee.livingword.AISettings
 import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.Global
@@ -353,9 +354,7 @@ private fun SettingPopup(
         ) {
             // Only show content when settings are loaded
             currentAISettings?.let { loadedSettings ->
-                var modelName by remember { mutableStateOf(loadedSettings.modelName) }
-                var apiKey by remember { mutableStateOf(loadedSettings.apiKey) }
-                var temperatureInput by remember { mutableStateOf(loadedSettings.temperature.toString()) }
+                var aiSettings by remember { mutableStateOf(loadedSettings) }
 
                 Column(
                     modifier = Modifier
@@ -379,12 +378,8 @@ private fun SettingPopup(
                     HorizontalDivider()
 
                     AIModelSetting(
-                        modelName = modelName,
-                        onModelNameChange = { modelName = it },
-                        apiKey = apiKey,
-                        onApiKeyChange = { apiKey = it },
-                        temperatureInput = temperatureInput,
-                        onTemperatureInputChange = { temperatureInput = it }
+                        aiSettings = aiSettings,
+                        onAISettingsChange = { aiSettings = it }
                     )
 
                     HorizontalDivider()
@@ -399,14 +394,15 @@ private fun SettingPopup(
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = {
-                                val tempFloat = temperatureInput.toFloatOrNull() ?: PreferenceStore.DEFAULT_AI_TEMPERATURE
-                                val newSettings = AISettings(modelName, apiKey, PreferenceStore.DEFAULT_OPENAI_API_KEY, tempFloat.coerceIn(0f, 1f))
                                 scope.launch {
-                                    preferenceStore.saveAISettings(newSettings)
-                                    onConfirmation(newSettings) // Pass new settings back
+                                    preferenceStore.saveAISettings(aiSettings)
+                                    onConfirmation(aiSettings) // Pass new settings back
                                 }
                             },
-                            enabled = apiKey.isNotBlank() && modelName.isNotBlank() // Basic validation
+                            enabled = when (aiSettings.selectedService) {
+                                AIServiceType.GEMINI -> aiSettings.geminiConfig.apiKey.isNotBlank() && aiSettings.geminiConfig.modelName.isNotBlank()
+                                AIServiceType.OPENAI -> aiSettings.openAiConfig.apiKey.isNotBlank() && aiSettings.openAiConfig.modelName.isNotBlank()
+                            }
                         ) {
                             Text(stringResource(id = R.string.OK))
                         }
@@ -556,15 +552,13 @@ private fun TranslationSetting(
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AIModelSetting(
-    modelName: String,
-    onModelNameChange: (String) -> Unit,
-    apiKey: String,
-    onApiKeyChange: (String) -> Unit,
-    temperatureInput: String,
-    onTemperatureInputChange: (String) -> Unit
+    aiSettings: AISettings,
+    onAISettingsChange: (AISettings) -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
     var apiKeyVisible by remember { mutableStateOf(false) }
     var isTestingConnection by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
@@ -573,25 +567,93 @@ private fun AIModelSetting(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "AI Model Configuration",
+            text = "AI Assistant Configuration",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp)
+            modifier = Modifier.padding(bottom = 4.dp)
         )
 
+        // AI Service Selection Dropdown
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = aiSettings.selectedService.displayName,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("AI Service") },
+                trailingIcon = {
+                    val rotation by animateFloatAsState(
+                        targetValue = if (expanded) 180f else 0f,
+                        animationSpec = tween(durationMillis = 500), label = ""
+                    )
+                    Icon(Icons.Filled.ArrowDropDown, "Dropdown Arrow", Modifier.rotate(rotation))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.animateContentSize()
+            ) {
+                AIServiceType.values().forEach { serviceType ->
+                    DropdownMenuItem(
+                        text = { Text(serviceType.displayName) },
+                        onClick = {
+                            onAISettingsChange(aiSettings.copy(selectedService = serviceType))
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Current Service Configuration
+        val currentConfig = when (aiSettings.selectedService) {
+            AIServiceType.GEMINI -> aiSettings.geminiConfig
+            AIServiceType.OPENAI -> aiSettings.openAiConfig
+        }
+
+        Text(
+            text = "${aiSettings.selectedService.displayName} Settings",
+            style = MaterialTheme.typography.titleSmall,
+            color = colorScheme.primary,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+        // Model Name Field
         OutlinedTextField(
-            value = modelName,
-            onValueChange = onModelNameChange,
+            value = currentConfig.modelName,
+            onValueChange = { newModelName ->
+                val newConfig = currentConfig.copy(modelName = newModelName)
+                val updatedSettings = when (aiSettings.selectedService) {
+                    AIServiceType.GEMINI -> aiSettings.copy(geminiConfig = newConfig)
+                    AIServiceType.OPENAI -> aiSettings.copy(openAiConfig = newConfig)
+                }
+                onAISettingsChange(updatedSettings)
+            },
             label = { Text("Model Name") },
+            placeholder = { Text(aiSettings.selectedService.defaultModel) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
 
+        // API Key Field
         OutlinedTextField(
-            value = apiKey,
-            onValueChange = onApiKeyChange,
+            value = currentConfig.apiKey,
+            onValueChange = { newApiKey ->
+                val newConfig = currentConfig.copy(apiKey = newApiKey)
+                val updatedSettings = when (aiSettings.selectedService) {
+                    AIServiceType.GEMINI -> aiSettings.copy(geminiConfig = newConfig)
+                    AIServiceType.OPENAI -> aiSettings.copy(openAiConfig = newConfig)
+                }
+                onAISettingsChange(updatedSettings)
+            },
             label = { Text("API Key") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -605,7 +667,8 @@ private fun AIModelSetting(
                 }
             }
         )
-        if (apiKey.isBlank()) {
+        
+        if (currentConfig.apiKey.isBlank()) {
             Text(
                 "API Key is required for AI features.",
                 style = MaterialTheme.typography.bodySmall,
@@ -614,19 +677,25 @@ private fun AIModelSetting(
             )
         }
 
-        val tempFloat = temperatureInput.toFloatOrNull()
-        if (tempFloat == null && temperatureInput.isNotEmpty() || (tempFloat != null && (tempFloat < 0f || tempFloat > 1f))) {
-            Text(
-                "Must be a number between 0.0 and 1.0.",
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.error,
-                modifier = Modifier.padding(start = 4.dp)
-            )
-        }
+        // Temperature Field
+        OutlinedTextField(
+            value = currentConfig.temperature.toString(),
+            onValueChange = { tempInput ->
+                val newTemp = tempInput.toFloatOrNull()?.coerceIn(0f, 1f) ?: currentConfig.temperature
+                val newConfig = currentConfig.copy(temperature = newTemp)
+                val updatedSettings = when (aiSettings.selectedService) {
+                    AIServiceType.GEMINI -> aiSettings.copy(geminiConfig = newConfig)
+                    AIServiceType.OPENAI -> aiSettings.copy(openAiConfig = newConfig)
+                }
+                onAISettingsChange(updatedSettings)
+            },
+            label = { Text("Temperature (0.0 - 1.0)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+        )
 
         // Test Configuration Section
-        Spacer(modifier = Modifier.height(8.dp))
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -640,17 +709,8 @@ private fun AIModelSetting(
                         testSuccess = null
 
                         try {
-                            // Create temporary AI settings for testing
-                            val tempFloat = temperatureInput.toFloatOrNull() ?: PreferenceStore.DEFAULT_AI_TEMPERATURE
-                            val testSettings = AISettings(
-                                modelName = modelName,
-                                apiKey = apiKey,
-                                openAiApiKey = PreferenceStore.DEFAULT_OPENAI_API_KEY,
-                                temperature = tempFloat.coerceIn(0f, 1f)
-                            )
-
-                            // Configure the service with test settings
-                            AIService.configure(testSettings)
+                            // Configure the service with current settings
+                            AIService.configure(aiSettings)
 
                             // Test the connection with a simple prompt
                             val result = AIService.getKeyTakeaway("John 3:16")
@@ -658,7 +718,7 @@ private fun AIModelSetting(
                             when (result) {
                                 is AiServiceResult.Success -> {
                                     testSuccess = true
-                                    testResult = "Connection successful! AI model is working properly."
+                                    testResult = "Connection successful! ${aiSettings.selectedService.displayName} is working properly."
                                 }
                                 is AiServiceResult.Error -> {
                                     testSuccess = false
@@ -673,8 +733,7 @@ private fun AIModelSetting(
                         }
                     }
                 },
-                enabled = !isTestingConnection && apiKey.isNotBlank() && modelName.isNotBlank() &&
-                        (tempFloat != null && tempFloat >= 0f && tempFloat <= 1f),
+                enabled = !isTestingConnection && currentConfig.apiKey.isNotBlank() && currentConfig.modelName.isNotBlank(),
                 modifier = Modifier.weight(1f)
             ) {
                 if (isTestingConnection) {

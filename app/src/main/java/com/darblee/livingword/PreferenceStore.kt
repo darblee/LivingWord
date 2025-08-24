@@ -20,13 +20,49 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-// Data class to hold AI settings
-data class AISettings(
+// Enum for AI service types
+enum class AIServiceType(val displayName: String, val defaultModel: String) {
+    GEMINI("Gemini AI", "gemini-1.5-flash"),
+    OPENAI("OpenAI", "gpt-4o-mini")
+}
+
+// Data class for individual AI service configuration
+data class AIServiceConfig(
+    val serviceType: AIServiceType,
     val modelName: String,
     val apiKey: String,
-    val openAiApiKey: String,
-    val temperature: Float
+    val temperature: Float = 0.7f
 )
+
+// Enhanced data class to hold AI settings for multiple services
+data class AISettings(
+    val selectedService: AIServiceType = AIServiceType.GEMINI,
+    val geminiConfig: AIServiceConfig = AIServiceConfig(
+        serviceType = AIServiceType.GEMINI,
+        modelName = AIServiceType.GEMINI.defaultModel,
+        apiKey = "",
+        temperature = 0.7f
+    ),
+    val openAiConfig: AIServiceConfig = AIServiceConfig(
+        serviceType = AIServiceType.OPENAI,
+        modelName = AIServiceType.OPENAI.defaultModel,
+        apiKey = "",
+        temperature = 0.7f
+    )
+) {
+    // Compatibility methods for existing code
+    val modelName: String get() = when (selectedService) {
+        AIServiceType.GEMINI -> geminiConfig.modelName
+        AIServiceType.OPENAI -> openAiConfig.modelName
+    }
+    
+    val apiKey: String get() = geminiConfig.apiKey
+    val openAiApiKey: String get() = openAiConfig.apiKey
+    val temperature: Float get() = when (selectedService) {
+        AIServiceType.GEMINI -> geminiConfig.temperature
+        AIServiceType.OPENAI -> openAiConfig.temperature
+    }
+}
 
 class PreferenceStore(private val context: Context) {
     companion object {
@@ -35,11 +71,19 @@ class PreferenceStore(private val context: Context) {
         // Keys for Color Mode
         private val COLOR_MODE_KEY = stringPreferencesKey("ColorMode")
 
-        // Keys for AI Settings
+        // Keys for AI Settings (legacy)
         val AI_MODEL_NAME_KEY = stringPreferencesKey("ai_model_name")
         val AI_API_KEY_KEY = stringPreferencesKey("ai_api_key")
         val OPENAI_API_KEY_KEY = stringPreferencesKey("openai_api_key")
         val AI_TEMPERATURE_KEY = floatPreferencesKey("ai_temperature")
+        
+        // Enhanced AI Settings keys for multiple services
+        val SELECTED_AI_SERVICE_KEY = stringPreferencesKey("selected_ai_service")
+        val GEMINI_MODEL_NAME_KEY = stringPreferencesKey("gemini_model_name")
+        val GEMINI_API_KEY_KEY = stringPreferencesKey("gemini_api_key")
+        val GEMINI_TEMPERATURE_KEY = floatPreferencesKey("gemini_temperature")
+        val OPENAI_MODEL_NAME_KEY = stringPreferencesKey("openai_model_name")
+        val OPENAI_TEMPERATURE_KEY = floatPreferencesKey("openai_temperature")
         val TRANSLATION_KEY = stringPreferencesKey("translation")
 
         // Key for AI Disclaimer Dialog
@@ -104,9 +148,18 @@ class PreferenceStore(private val context: Context) {
         return preferences[AI_DISCLAIMER_SHOWN_KEY] ?: DEFAULT_AI_DISCLAIMER_SHOWN
     }
 
-    // Save AI Settings
+    // Save AI Settings (enhanced for multiple services)
     suspend fun saveAISettings(aiSettings: AISettings) {
         context.datastore.edit { preferences ->
+            // Save enhanced settings
+            preferences[SELECTED_AI_SERVICE_KEY] = aiSettings.selectedService.name
+            preferences[GEMINI_MODEL_NAME_KEY] = aiSettings.geminiConfig.modelName
+            preferences[GEMINI_API_KEY_KEY] = aiSettings.geminiConfig.apiKey
+            preferences[GEMINI_TEMPERATURE_KEY] = aiSettings.geminiConfig.temperature
+            preferences[OPENAI_MODEL_NAME_KEY] = aiSettings.openAiConfig.modelName
+            preferences[OPENAI_TEMPERATURE_KEY] = aiSettings.openAiConfig.temperature
+            
+            // Maintain backward compatibility with legacy keys
             preferences[AI_MODEL_NAME_KEY] = aiSettings.modelName
             preferences[AI_API_KEY_KEY] = aiSettings.apiKey
             preferences[OPENAI_API_KEY_KEY] = aiSettings.openAiApiKey
@@ -124,11 +177,52 @@ class PreferenceStore(private val context: Context) {
                 throw exception
             }
         }.map { preferences ->
-            val modelName = preferences[AI_MODEL_NAME_KEY] ?: DEFAULT_AI_MODEL_NAME
-            val apiKey = preferences[AI_API_KEY_KEY] ?: DEFAULT_AI_API_KEY
-            val openAiApiKey = preferences[OPENAI_API_KEY_KEY] ?: DEFAULT_OPENAI_API_KEY
-            val temperature = preferences[AI_TEMPERATURE_KEY] ?: DEFAULT_AI_TEMPERATURE
-            AISettings(modelName, apiKey, openAiApiKey, temperature)
+            // Read enhanced settings first, fallback to legacy if not found
+            val selectedServiceString = preferences[SELECTED_AI_SERVICE_KEY]
+            val selectedService = try {
+                if (selectedServiceString != null) {
+                    AIServiceType.valueOf(selectedServiceString)
+                } else {
+                    AIServiceType.GEMINI // Default to Gemini
+                }
+            } catch (e: IllegalArgumentException) {
+                AIServiceType.GEMINI
+            }
+            
+            // Gemini configuration
+            val geminiModelName = preferences[GEMINI_MODEL_NAME_KEY] 
+                ?: preferences[AI_MODEL_NAME_KEY] // Fallback to legacy
+                ?: DEFAULT_AI_MODEL_NAME
+            val geminiApiKey = preferences[GEMINI_API_KEY_KEY] 
+                ?: preferences[AI_API_KEY_KEY] // Fallback to legacy
+                ?: DEFAULT_AI_API_KEY
+            val geminiTemperature = preferences[GEMINI_TEMPERATURE_KEY] 
+                ?: preferences[AI_TEMPERATURE_KEY] // Fallback to legacy
+                ?: DEFAULT_AI_TEMPERATURE
+            
+            // OpenAI configuration
+            val openAiModelName = preferences[OPENAI_MODEL_NAME_KEY] 
+                ?: AIServiceType.OPENAI.defaultModel
+            val openAiApiKey = preferences[OPENAI_API_KEY_KEY] 
+                ?: DEFAULT_OPENAI_API_KEY
+            val openAiTemperature = preferences[OPENAI_TEMPERATURE_KEY] 
+                ?: DEFAULT_AI_TEMPERATURE
+            
+            AISettings(
+                selectedService = selectedService,
+                geminiConfig = AIServiceConfig(
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = geminiModelName,
+                    apiKey = geminiApiKey,
+                    temperature = geminiTemperature
+                ),
+                openAiConfig = AIServiceConfig(
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = openAiModelName,
+                    apiKey = openAiApiKey,
+                    temperature = openAiTemperature
+                )
+            )
         }
 
     // Read AI Settings once (suspending function)
