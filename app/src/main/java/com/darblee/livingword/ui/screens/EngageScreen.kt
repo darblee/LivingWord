@@ -1132,13 +1132,28 @@ fun EngageScreen(
                                     ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty())
                                      } ?: false
 
-                        val saveButtonEnabled = verse?.let {
+                        val saveButtonEnabled = verse?.let { currentVerse ->
                             val hasDirectQuote = ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty())
                             val hasApplicationContent = ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty())
                             
-                            val enabled = hasDirectQuote && hasApplicationContent
+                            // Get current content including partial text
+                            val currentDirectQuote = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
+                            val currentApplication = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
+                            
+                            // Check if current content differs from saved content
+                            val directQuoteChanged = currentDirectQuote != currentVerse.userDirectQuote
+                            val applicationChanged = currentApplication != currentVerse.userContext
+                            val aiContentChanged = (state.aiContextExplanationText ?: "") != currentVerse.aiContextExplanationText ||
+                                                  (state.applicationFeedback ?: "") != currentVerse.applicationFeedback
+                            
+                            val hasContentChanged = directQuoteChanged || applicationChanged || aiContentChanged
+                            
+                            val enabled = hasDirectQuote && hasApplicationContent && hasContentChanged
                             if (enabled && state.directQuoteScore < 0 && state.contextScore < 0) {
                                 Log.d("EngageScreen", "Save button enabled without AI scores - user can override/save content")
+                            }
+                            if (!hasContentChanged && hasDirectQuote && hasApplicationContent) {
+                                Log.d("EngageScreen", "Save button disabled - no changes detected from saved content")
                             }
                             enabled
                         } ?: false

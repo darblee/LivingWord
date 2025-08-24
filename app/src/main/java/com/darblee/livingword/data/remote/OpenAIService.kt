@@ -83,45 +83,9 @@ object OpenAIService {
                 }
 
                 Log.d("OpenAIService", "Fetching scripture for $verseRef in $translation using centralized prompts")
+                Log.d("OpenAIService", "Using prompt: $userPrompt")
 
-                // Use external user prompt if provided, otherwise use default
-                val prompt = if (userPrompt.isNotBlank()) {
-                    userPrompt
-                } else {
-                    if (verseRef.startVerse == verseRef.endVerse) {
-                        """
-                        Please provide the Bible verse for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse} in the $translation translation.
-
-                        Return ONLY a JSON array in the following format:
-                        [
-                            {
-                                "verse_num": ${verseRef.startVerse},
-                                "verse_string": "verse_text"
-                            }
-                        ]
-
-                        Do not include any other text or explanations.
-                        """.trimIndent()
-                    } else {
-                        """
-                        Please provide the Bible verses for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse} in the $translation translation.
-
-                        Return ONLY a JSON array in the following format:
-                        [
-                            {
-                                "verse_num": verse_number,
-                                "verse_string": "verse_text"
-                            }
-                        ]
-
-                        Do not include any other text or explanations.
-                        """.trimIndent()
-                    }
-                }
-
-                Log.d("OpenAIService", "Using prompt: $prompt")
-
-                val response = callOpenAI(prompt, maxTokens = 500, systemInstruction = systemInstruction)
+                val response = callOpenAI(userPrompt, maxTokens = 500, systemInstruction = systemInstruction)
                 
                 when (response) {
                     is AiServiceResult.Success -> {
@@ -220,7 +184,20 @@ object OpenAIService {
                             parseResponse.DirectQuoteExplanation = ""
                             
                             // Get application feedback separately
-                            val applicationFeedback = getApplicationFeedback(verseRef, userApplicationComment)
+                            val feedbackSystemInstruction = "You are an expert in theology. You provide insightful and encouraging feedback on how users apply Bible verses to their lives."
+                            val feedbackUserPrompt = """
+                                Please provide feedback on how a user is applying the Bible verse $verseRef to their life.
+                                
+                                User's application: "$userApplicationComment"
+                                
+                                Provide constructive feedback that is:
+                                1. Insightful: Offer a deeper understanding of the verse and its implications.
+                                2. Encouraging: Affirm the user's efforts and provide motivation.
+                                
+                                Keep the response to 10 - 12 sentences maximum.
+
+                                """.trimIndent()
+                            val applicationFeedback = getApplicationFeedback(verseRef, feedbackSystemInstruction, feedbackUserPrompt)
                             parseResponse.ApplicationFeedback = applicationFeedback
 
                             Log.d("OpenAIService", "OpenAI response processed with hardcoded DirectQuote values (token optimization)")

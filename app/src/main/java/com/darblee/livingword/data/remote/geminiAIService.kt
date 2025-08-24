@@ -290,8 +290,20 @@ object GeminiAIService {
             var applicationFeedback: String? = null
             var attempts = 0
             while (attempts < 3) {
+                val feedbackSystemInstruction = "You are an expert in theology. You provide insightful and encouraging feedback on how users apply Bible verses to their lives."
+                val feedbackUserPrompt = """
+                    Please provide feedback on how a user is applying the Bible verse $verseRef to their life.
+                    
+                    User's application: "$userApplicationComment"
+                    
+                    Provide constructive feedback that is:
+                    1. Insightful: Offer a deeper understanding of the verse and its implications.
+                    2. Encouraging: Affirm the user's efforts and provide motivation.
+                    
+                    Keep the response to 10 - 12 sentences maximum.
+                    """.trimIndent()
                 val applicationFeedbackResponseText =
-                    getApplicationFeedback(verseRef, userApplicationComment)
+                    getApplicationFeedback(verseRef, feedbackSystemInstruction, feedbackUserPrompt)
                 applicationFeedback = applicationFeedbackResponseText.trimIndent()
                 if (applicationFeedback.isNotEmpty()) {
                     break
@@ -329,7 +341,6 @@ object GeminiAIService {
                         parseResponse.ApplicationFeedback = applicationFeedback
                     }
 
-                    Log.d("GeminiAIService", "AI response processed with hardcoded DirectQuote values (token optimization)")
                     AiServiceResult.Success(parseResponse)
                 } catch (serializationException: Exception) {
                     Log.e("GeminiAIService", "Failed to parse AI response JSON: $cleanedJson", serializationException)
@@ -562,4 +573,9 @@ object GeminiAIService {
             false
         }
     }
+    
+    /**
+     * Gets the initialization error message, if any.
+     */
+    fun getInitializationError(): String? = initializationErrorMessage
 }

@@ -8,8 +8,9 @@ import com.darblee.livingword.ui.viewmodels.ScoreData
 
 /**
  * Centralized AI Service that manages multiple AI providers with fallback mechanisms.
+ * Now uses a modular provider registry system for better extensibility and future MCP migration.
  * Provides centralized prompts to ensure consistency across AI services.
- * Priority order: ESV → Gemini → OpenAI
+ * Priority order determined by provider registry: ESV → Gemini → OpenAI
  */
 object AIService {
     
@@ -67,6 +68,9 @@ object AIService {
             Provide constructive feedback that is:
             1. Insightful: Offer a deeper understanding of the verse and its implications.
             2. Encouraging: Affirm the user's efforts and provide motivation.
+                                            
+            Keep the response to 10 - 12 sentences maximum.
+
             """.trimIndent()
             
         fun getTakeawayValidationPrompt(verseRef: String, takeawayToEvaluate: String): String = """
@@ -126,28 +130,42 @@ object AIService {
     private var initializationErrorMessage: String? = null
     private var currentSettings: AISettings? = null
     
+    init {
+        // Initialize the provider registry on first use
+        try {
+            AIServiceRegistry.initialize()
+            Log.d("AIService", "Provider registry initialized")
+        } catch (e: Exception) {
+            Log.e("AIService", "Failed to initialize provider registry", e)
+        }
+    }
+    
     /**
-     * Configures both services with the provided settings.
+     * Configures all registered providers with the provided settings.
+     * Uses the modular provider registry for better extensibility.
      */
     fun configure(settings: AISettings) {
         try {
             currentSettings = settings
             
-            // Configure both services
-            GeminiAIService.configure(settings)
-            OpenAIService.configure(settings)
+            // Configure providers through the registry
+            val configResult = AIServiceRegistry.configureProviders(settings)
             
-            val geminiReady = GeminiAIService.isInitialized()
-            val openAiReady = OpenAIService.isInitialized()
-            
-            if (geminiReady || openAiReady) {
+            if (configResult.hasSuccessfulConfigurations) {
                 isConfigured = true
                 initializationErrorMessage = null
-                Log.i("AIService", "AI service configured - Gemini: $geminiReady, OpenAI: $openAiReady")
+                
+                val stats = AIServiceRegistry.getStatistics()
+                Log.i("AIService", "AI service configured - Available providers: ${stats.availableProviders}/${stats.totalProviders}")
+                
+                // Log configuration errors if any
+                if (configResult.errors.isNotEmpty()) {
+                    Log.w("AIService", "Some providers failed to configure: ${configResult.errors.joinToString("; ")}")
+                }
             } else {
-                initializationErrorMessage = "Both Gemini and OpenAI services failed to initialize"
+                initializationErrorMessage = "All AI services failed to initialize: ${configResult.errors.joinToString("; ")}"
                 isConfigured = false
-                Log.e("AIService", "Configuration failed: Neither service is available")
+                Log.e("AIService", "Configuration failed: No providers available")
             }
             
         } catch (e: Exception) {
@@ -160,7 +178,7 @@ object AIService {
     /**
      * Checks if at least one service is properly initialized.
      */
-    fun isInitialized(): Boolean = isConfigured && (GeminiAIService.isInitialized() || OpenAIService.isInitialized())
+    fun isInitialized(): Boolean = isConfigured && AIServiceRegistry.getAvailableProviders().isNotEmpty()
     
     /**
      * Gets the initialization error message, if any.
@@ -168,66 +186,58 @@ object AIService {
     fun getInitializationError(): String? = initializationErrorMessage
     
     /**
-     * Fetches scripture with priority order: ESV → Gemini → OpenAI
+     * Fetches scripture with priority order determined by provider registry.
+     * Tries scripture providers first (ESV), then falls back to AI providers.
      */
     suspend fun fetchScripture(verseRef: BibleVerseRef, translation: String): AiServiceResult<List<Verse>> {
         if (!isConfigured) {
             return AiServiceResult.Error("AI service not configured: ${getInitializationError()}")
         }
         
-        // Priority 1: Try ESV service first if translation is ESV
-        if (translation.equals("ESV", ignoreCase = true)) {
-            Log.d("AIService", "ESV translation requested. Attempting ESV service...")
-            val esvService = ESVBibleLookupService()
-            val esvResult = esvService.fetchScripture(verseRef)
-            
-            when (esvResult) {
-                is AiServiceResult.Success -> {
-                    Log.d("AIService", "Scripture fetch successful with ESV service")
-                    return esvResult
-                }
-                is AiServiceResult.Error -> {
-                    Log.w("AIService", "ESV service failed: ${esvResult.message}. Falling back to AI services.")
+        // Priority 1: Try scripture providers first if translation matches
+        val availableScriptureProviders = AIServiceRegistry.getAvailableScriptureProviders()
+        for (provider in availableScriptureProviders) {
+            if (provider.supportedTranslations.any { it.equals(translation, ignoreCase = true) }) {
+                Log.d("AIService", "Attempting scripture fetch with ${provider.displayName}")
+                val result = provider.fetchScripture(verseRef)
+                
+                when (result) {
+                    is AiServiceResult.Success -> {
+                        Log.d("AIService", "Scripture fetch successful with ${provider.displayName}")
+                        return result
+                    }
+                    is AiServiceResult.Error -> {
+                        Log.w("AIService", "${provider.displayName} failed: ${result.message}")
+                    }
                 }
             }
         }
         
-        // Get centralized prompts
+        // Priority 2: Fallback to AI providers
         val systemInstruction = SystemInstructions.SCRIPTURE_SCHOLAR
         val userPrompt = UserPrompts.getScripturePrompt(verseRef, translation)
         
-        // Priority 2: Try Gemini AI
-        if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting scripture fetch with Gemini using centralized prompts...")
-            val geminiResult = GeminiAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
+        val availableAIProviders = AIServiceRegistry.getAvailableProviders()
+        for (provider in availableAIProviders) {
+            Log.d("AIService", "Attempting scripture fetch with ${provider.displayName} using centralized prompts...")
+            val result = provider.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
             
-            if (geminiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Scripture fetch successful with Gemini")
-                return geminiResult
-            } else {
-                Log.w("AIService", "Gemini failed for scripture fetch: ${(geminiResult as AiServiceResult.Error).message}")
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("AIService", "Scripture fetch successful with ${provider.displayName}")
+                    return result
+                }
+                is AiServiceResult.Error -> {
+                    Log.w("AIService", "${provider.displayName} failed for scripture fetch: ${result.message}")
+                }
             }
         }
         
-        // Priority 3: Fallback to OpenAI
-        if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for scripture fetch using centralized prompts...")
-            val openAiResult = OpenAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
-            
-            if (openAiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Scripture fetch successful with OpenAI fallback")
-            } else {
-                Log.w("AIService", "OpenAI also failed for scripture fetch: ${(openAiResult as AiServiceResult.Error).message}")
-            }
-            
-            return openAiResult
-        }
-        
-        return AiServiceResult.Error("All scripture services (ESV, Gemini, OpenAI) are unavailable")
+        return AiServiceResult.Error("All available providers (${availableScriptureProviders.size + availableAIProviders.size}) failed for scripture fetch")
     }
     
     /**
-     * Gets key takeaway with fallback mechanism.
+     * Gets key takeaway with fallback mechanism using provider registry.
      */
     suspend fun getKeyTakeaway(verseRef: String): AiServiceResult<String> {
         if (!isConfigured) {
@@ -238,38 +248,28 @@ object AIService {
         val systemInstruction = SystemInstructions.TAKEAWAY_EXPERT
         val userPrompt = UserPrompts.getKeyTakeawayPrompt(verseRef)
         
-        // Try Gemini first with centralized prompts
-        if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting key takeaway with Gemini using centralized prompts...")
-            val geminiResult = GeminiAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
+        // Try all available AI providers in priority order
+        val availableProviders = AIServiceRegistry.getAvailableProviders()
+        for (provider in availableProviders) {
+            Log.d("AIService", "Attempting key takeaway with ${provider.displayName} using centralized prompts...")
+            val result = provider.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
             
-            if (geminiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Key takeaway successful with Gemini")
-                return geminiResult
-            } else {
-                Log.w("AIService", "Gemini failed for key takeaway: ${(geminiResult as AiServiceResult.Error).message}")
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("AIService", "Key takeaway successful with ${provider.displayName}")
+                    return result
+                }
+                is AiServiceResult.Error -> {
+                    Log.w("AIService", "${provider.displayName} failed for key takeaway: ${result.message}")
+                }
             }
         }
         
-        // Fallback to OpenAI
-        if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for key takeaway using centralized prompts...")
-            val openAiResult = OpenAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
-            
-            if (openAiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Key takeaway successful with OpenAI fallback")
-            } else {
-                Log.w("AIService", "OpenAI also failed for key takeaway: ${(openAiResult as AiServiceResult.Error).message}")
-            }
-            
-            return openAiResult
-        }
-        
-        return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
+        return AiServiceResult.Error("All available AI providers (${availableProviders.size}) failed for key takeaway")
     }
     
     /**
-     * Gets AI score with fallback mechanism.
+     * Gets AI score with fallback mechanism using provider registry.
      * This is the most important method for the engagement feature.
      */
     suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, userApplicationComment: String): AiServiceResult<ScoreData> {
@@ -281,46 +281,36 @@ object AIService {
         val systemInstruction = SystemInstructions.SCORING_EXPERT
         val userPrompt = UserPrompts.getScorePrompt(verseRef, directQuoteToEvaluate)
         
-        // Try Gemini first
-        if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting AI score with Gemini using centralized prompts...")
-            val geminiResult = GeminiAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
+        // Try all available AI providers in priority order
+        val availableProviders = AIServiceRegistry.getAvailableProviders()
+        for (provider in availableProviders) {
+            Log.d("AIService", "Attempting AI score with ${provider.displayName} using centralized prompts...")
+            val result = provider.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
             
-            if (geminiResult is AiServiceResult.Success) {
-                Log.d("AIService", "AI score successful with Gemini")
-                return geminiResult
-            } else {
-                val errorMessage = (geminiResult as AiServiceResult.Error).message
-                Log.w("AIService", "Gemini failed for AI score: $errorMessage")
-                
-                // Check if it's a quota exceeded error specifically
-                if (errorMessage.contains("quota", ignoreCase = true) || 
-                    errorMessage.contains("exceeded", ignoreCase = true) ||
-                    errorMessage.contains("rate limit", ignoreCase = true)) {
-                    Log.i("AIService", "Detected quota/rate limit issue with Gemini, switching to OpenAI")
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("AIService", "AI score successful with ${provider.displayName}")
+                    return result
+                }
+                is AiServiceResult.Error -> {
+                    val errorMessage = result.message
+                    Log.w("AIService", "${provider.displayName} failed for AI score: $errorMessage")
+                    
+                    // Check if it's a quota exceeded error for better logging
+                    if (errorMessage.contains("quota", ignoreCase = true) || 
+                        errorMessage.contains("exceeded", ignoreCase = true) ||
+                        errorMessage.contains("rate limit", ignoreCase = true)) {
+                        Log.i("AIService", "Detected quota/rate limit issue with ${provider.displayName}, trying next provider")
+                    }
                 }
             }
         }
         
-        // Fallback to OpenAI
-        if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for AI score using centralized prompts...")
-            val openAiResult = OpenAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
-            
-            if (openAiResult is AiServiceResult.Success) {
-                Log.i("AIService", "AI score successful with OpenAI fallback")
-            } else {
-                Log.w("AIService", "OpenAI also failed for AI score: ${(openAiResult as AiServiceResult.Error).message}")
-            }
-            
-            return openAiResult
-        }
-        
-        return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
+        return AiServiceResult.Error("All available AI providers (${availableProviders.size}) failed for AI score")
     }
 
     /**
-     * Validates key takeaway response with fallback mechanism.
+     * Validates key takeaway response with fallback mechanism using provider registry.
      */
     suspend fun validateKeyTakeawayResponse(verseRef: String, takeawayToEvaluate: String): AiServiceResult<Boolean> {
         if (!isConfigured) {
@@ -331,38 +321,28 @@ object AIService {
         val systemInstruction = SystemInstructions.TAKEAWAY_VALIDATOR
         val userPrompt = UserPrompts.getTakeawayValidationPrompt(verseRef, takeawayToEvaluate)
         
-        // Try Gemini first
-        if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting takeaway validation with Gemini using centralized prompts...")
-            val geminiResult = GeminiAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
+        // Try all available AI providers in priority order
+        val availableProviders = AIServiceRegistry.getAvailableProviders()
+        for (provider in availableProviders) {
+            Log.d("AIService", "Attempting takeaway validation with ${provider.displayName} using centralized prompts...")
+            val result = provider.validateKeyTakeawayResponse(systemInstruction, userPrompt)
             
-            if (geminiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Takeaway validation successful with Gemini")
-                return geminiResult
-            } else {
-                Log.w("AIService", "Gemini failed for takeaway validation: ${(geminiResult as AiServiceResult.Error).message}")
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("AIService", "Takeaway validation successful with ${provider.displayName}")
+                    return result
+                }
+                is AiServiceResult.Error -> {
+                    Log.w("AIService", "${provider.displayName} failed for takeaway validation: ${result.message}")
+                }
             }
         }
         
-        // Fallback to OpenAI
-        if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for takeaway validation using centralized prompts...")
-            val openAiResult = OpenAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
-            
-            if (openAiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Takeaway validation successful with OpenAI fallback")
-            } else {
-                Log.w("AIService", "OpenAI also failed for takeaway validation: ${(openAiResult as AiServiceResult.Error).message}")
-            }
-            
-            return openAiResult
-        }
-        
-        return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
+        return AiServiceResult.Error("All available AI providers (${availableProviders.size}) failed for takeaway validation")
     }
     
     /**
-     * Gets new verses based on description with fallback mechanism.
+     * Gets new verses based on description with fallback mechanism using provider registry.
      */
     suspend fun getNewVersesBasedOnDescription(description: String): AiServiceResult<List<BibleVerseRef>> {
         if (!isConfigured) {
@@ -373,34 +353,24 @@ object AIService {
         val systemInstruction = SystemInstructions.VERSE_FINDER
         val userPrompt = UserPrompts.getVerseSearchPrompt(description)
         
-        // Try Gemini first
-        if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting verse search with Gemini using centralized prompts...")
-            val geminiResult = GeminiAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
+        // Try all available AI providers in priority order
+        val availableProviders = AIServiceRegistry.getAvailableProviders()
+        for (provider in availableProviders) {
+            Log.d("AIService", "Attempting verse search with ${provider.displayName} using centralized prompts...")
+            val result = provider.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
             
-            if (geminiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Verse search successful with Gemini")
-                return geminiResult
-            } else {
-                Log.w("AIService", "Gemini failed for verse search: ${(geminiResult as AiServiceResult.Error).message}")
+            when (result) {
+                is AiServiceResult.Success -> {
+                    Log.d("AIService", "Verse search successful with ${provider.displayName}")
+                    return result
+                }
+                is AiServiceResult.Error -> {
+                    Log.w("AIService", "${provider.displayName} failed for verse search: ${result.message}")
+                }
             }
         }
         
-        // Fallback to OpenAI
-        if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for verse search using centralized prompts...")
-            val openAiResult = OpenAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
-            
-            if (openAiResult is AiServiceResult.Success) {
-                Log.d("AIService", "Verse search successful with OpenAI fallback")
-            } else {
-                Log.w("AIService", "OpenAI also failed for verse search: ${(openAiResult as AiServiceResult.Error).message}")
-            }
-            
-            return openAiResult
-        }
-        
-        return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
+        return AiServiceResult.Error("All available AI providers (${availableProviders.size}) failed for verse search")
     }
     
     /**
