@@ -7,7 +7,6 @@ import com.darblee.livingword.data.Verse
 import com.darblee.livingword.ui.viewmodels.ScoreData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import java.io.OutputStreamWriter
@@ -71,30 +70,57 @@ object OpenAIService {
     /**
      * Fetches scripture verses for a given reference and translation.
      */
-    suspend fun fetchScripture(verseRef: BibleVerseRef, translation: String): AiServiceResult<List<Verse>> {
+    suspend fun fetchScripture(
+        verseRef: BibleVerseRef, 
+        translation: String,
+        systemInstruction: String,
+        userPrompt: String = ""
+    ): AiServiceResult<List<Verse>> {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
                     return@withContext AiServiceResult.Error("OpenAI service not initialized: ${getInitializationError()}")
                 }
 
-                Log.d("OpenAIService", "Fetching scripture for $verseRef in $translation")
+                Log.d("OpenAIService", "Fetching scripture for $verseRef in $translation using centralized prompts")
 
-                val prompt = """
-                Please provide the Bible verses for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse} in the $translation translation.
+                // Use external user prompt if provided, otherwise use default
+                val prompt = if (userPrompt.isNotBlank()) {
+                    userPrompt
+                } else {
+                    if (verseRef.startVerse == verseRef.endVerse) {
+                        """
+                        Please provide the Bible verse for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse} in the $translation translation.
 
-                Return ONLY a JSON array in the following format:
-                [
-                    {
-                        "verse_num": verse_number,
-                        "verse_string": "verse_text"
+                        Return ONLY a JSON array in the following format:
+                        [
+                            {
+                                "verse_num": ${verseRef.startVerse},
+                                "verse_string": "verse_text"
+                            }
+                        ]
+
+                        Do not include any other text or explanations.
+                        """.trimIndent()
+                    } else {
+                        """
+                        Please provide the Bible verses for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse} in the $translation translation.
+
+                        Return ONLY a JSON array in the following format:
+                        [
+                            {
+                                "verse_num": verse_number,
+                                "verse_string": "verse_text"
+                            }
+                        ]
+
+                        Do not include any other text or explanations.
+                        """.trimIndent()
                     }
-                ]
+                }
 
-                Do not include any other text or explanations.
-                """.trimIndent()
+                Log.d("OpenAIService", "Using prompt: $prompt")
 
-                val systemInstruction = "You are a Biblical scholar with deep knowledge of scripture. Your task is to provide accurate Bible verses in the requested translation format."
                 val response = callOpenAI(prompt, maxTokens = 500, systemInstruction = systemInstruction)
                 
                 when (response) {
@@ -119,25 +145,20 @@ object OpenAIService {
     /**
      * Gets a key takeaway from a Bible verse.
      */
-    suspend fun getKeyTakeaway(verseRef: String): AiServiceResult<String> {
+    suspend fun getKeyTakeaway(
+        verseRef: String,
+        systemInstruction: String,
+        userPrompt: String = ""
+    ): AiServiceResult<String> {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
                     return@withContext AiServiceResult.Error("OpenAI service not initialized: ${getInitializationError()}")
                 }
 
-                Log.d("OpenAIService", "Getting key takeaway for $verseRef")
+                Log.d("OpenAIService", "Getting key takeaway for $verseRef using centralized prompts")
 
-                val prompt = """
-                Please provide a key takeaway or main message from the Bible verse $verseRef.
-                
-                Provide a concise, meaningful explanation of the verse's core message or teaching.
-                Keep the response to 2-3 sentences maximum.
-                Focus on practical application and spiritual significance.
-                """.trimIndent()
-
-                val systemInstruction = "You are a scripture expert, skilled at extracting key takeaways from religious texts. Your task is to analyze a given verse reference and provide the key takeaway."
-                val response = callOpenAI(prompt, maxTokens = 300, systemInstruction = systemInstruction)
+                val response = callOpenAI(userPrompt, maxTokens = 300, systemInstruction = systemInstruction)
                 
                 when (response) {
                     is AiServiceResult.Success -> AiServiceResult.Success(response.data.trim())
@@ -154,7 +175,12 @@ object OpenAIService {
      * Gets AI score and feedback for user's memorized verse.
      * This is the main function that needs to match GeminiAIService behavior.
      */
-    suspend fun getAIScore(verseRef: String, directQuoteToEvaluate: String, userApplicationComment: String): AiServiceResult<ScoreData> {
+    suspend fun getAIScore(
+        verseRef: String, 
+        userApplicationComment: String,
+        systemInstruction: String,
+        userPrompt: String = ""
+    ): AiServiceResult<ScoreData> {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
@@ -162,38 +188,9 @@ object OpenAIService {
                 }
 
                 Log.d("OpenAIService", "Getting AI score for $verseRef")
-
-                val prompt = """
-                You will be provided with a Bible verse reference and a direct quote to evaluate.
-
-                Bible verse reference: $verseRef
-                Direct quote to evaluate: $directQuoteToEvaluate
-                
-                Follow these steps:
-                
-                1. Calculate the `ContextScore`: Evaluate the contextual accuracy of the direct quote. Consider whether the quote is used in a way that aligns with the original meaning and intent of the verse. Provide a score between 0 and 100.
-                2. Provide `ContextExplanation`: Explain how you derived the `ContextScore`. Discuss the context of the verse and whether the provided quote aligns with that context.
-                
-                Respond ONLY in the following JSON format:
-                
-                {
-                "DirectQuoteScore": 0,
-                "ContextScore": integer between 0 to 100,
-                "DirectQuoteExplanation": "",
-                "ContextExplanation": "Explanation of the ContextScore",
-                "ApplicationFeedback": ""
-                }
-                
-                Note: DirectQuoteScore and DirectQuoteExplanation are hardcoded values and not used in evaluation.
-                ApplicationFeedback will be populated separately.
-                
-                Ensure that your response is ONLY in JSON format with no other text or explanations outside of the JSON structure.
-                """.trimIndent()
-
                 Log.d("OpenAIService", "Sending optimized prompt to OpenAI (DirectQuote fields removed for token reduction)")
 
-                val systemInstruction = "You are an expert in theology. You are an expert in analyzing Bible verses and determining the accuracy of direct quotes and their context."
-                val response = callOpenAI(prompt, maxTokens = 800, systemInstruction = systemInstruction)
+                val response = callOpenAI(userPrompt, maxTokens = 800, systemInstruction = systemInstruction)
                 
                 when (response) {
                     is AiServiceResult.Success -> {
@@ -246,7 +243,11 @@ object OpenAIService {
     /**
      * Gets application feedback for user's verse application.
      */
-    suspend fun getApplicationFeedback(verseRef: String, userApplicationComment: String): String {
+    suspend fun getApplicationFeedback(
+        verseRef: String, 
+        systemInstruction: String,
+        userPrompt: String = ""
+    ): String {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
@@ -256,19 +257,7 @@ object OpenAIService {
 
                 Log.d("OpenAIService", "Getting application feedback for $verseRef")
 
-                val prompt = """
-                Please provide feedback on how a user is applying the Bible verse $verseRef to their life.
-                
-                User's application: "$userApplicationComment"
-                
-                Provide constructive feedback that is:
-                1. Insightful: Offer a deeper understanding of the verse and its implications.
-                2. Encouraging: Affirm the user's efforts and provide motivation.
-                
-                """.trimIndent()
-
-                val systemInstruction = "You are a knowledgeable theologian and biblical scholar, skilled in providing constructive feedback on the application of Bible verses in daily life. Your feedback should be insightful, encouraging, and theologically sound."
-                val response = callOpenAI(prompt, maxTokens = 300, systemInstruction = systemInstruction)
+                val response = callOpenAI(userPrompt, maxTokens = 300, systemInstruction = systemInstruction)
                 
                 when (response) {
                     is AiServiceResult.Success -> response.data.trim()
@@ -278,7 +267,7 @@ object OpenAIService {
                     }
                 }
             } catch (e: Exception) {
-                Log.e("OpenAIService", "Error getting application feedback", e)
+                Log.e("OpenAIService", "Error getting application feedback when calling OpenAI API: ${e.message}", e)
                 ""
             }
         }
@@ -287,25 +276,19 @@ object OpenAIService {
     /**
      * Validates a key takeaway response.
      */
-    suspend fun validateKeyTakeawayResponse(verseRef: String, takeawayToEvaluate: String): AiServiceResult<Boolean> {
+    suspend fun validateKeyTakeawayResponse(
+        systemInstruction: String,
+        userPrompt: String = ""
+    ): AiServiceResult<Boolean> {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
                     return@withContext AiServiceResult.Error("OpenAI service not initialized: ${getInitializationError()}")
                 }
 
-                Log.d("OpenAIService", "Validating takeaway for $verseRef")
+                Log.d("OpenAIService", "Validating takeaway using centralized prompts")
 
-                val prompt = """
-                Please evaluate whether the following takeaway accurately represents the Bible verse $verseRef:
-                
-                Takeaway to evaluate: "$takeawayToEvaluate"
-                
-                Respond with only "true" if the takeaway is accurate and appropriate, or "false" if it misrepresents the verse.
-                """.trimIndent()
-
-                val systemInstruction = "You are a theological text evaluator. You will be given a verse reference and a take-away text. Your task is to evaluate the take-away text in the context of the verse and respond accurately."
-                val response = callOpenAI(prompt, maxTokens = 50, systemInstruction = systemInstruction)
+                val response = callOpenAI(userPrompt, maxTokens = 50, systemInstruction = systemInstruction)
                 
                 when (response) {
                     is AiServiceResult.Success -> {
@@ -324,28 +307,20 @@ object OpenAIService {
     /**
      * Gets new verses based on a description.
      */
-    suspend fun getNewVersesBasedOnDescription(description: String): AiServiceResult<List<BibleVerseRef>> {
+    suspend fun getNewVersesBasedOnDescription(
+        description: String,
+        systemInstruction: String,
+        userPrompt: String = ""
+    ): AiServiceResult<List<BibleVerseRef>> {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
                     return@withContext AiServiceResult.Error("OpenAI service not initialized: ${getInitializationError()}")
                 }
 
-                Log.d("OpenAIService", "Finding verses for description: $description")
+                Log.d("OpenAIService", "Finding verses for description: $description using centralized prompts")
 
-                val prompt = """
-                Please suggest Bible verses that relate to the following description or topic: "$description"
-                
-                Return ONLY a JSON array of verse references in this exact format:
-                [
-                    {"book": "BookName", "chapter": number, "startVerse": number, "endVerse": number}
-                ]
-                
-                Suggest 3-5 relevant verses. Do not include any other text or explanations.
-                """.trimIndent()
-
-                val systemInstruction = "You are a Biblical scholar with comprehensive knowledge of scripture. Your task is to suggest relevant Bible verses based on topics or descriptions provided."
-                val response = callOpenAI(prompt, maxTokens = 400, systemInstruction = systemInstruction)
+                val response = callOpenAI(userPrompt, maxTokens = 400, systemInstruction = systemInstruction)
                 
                 when (response) {
                     is AiServiceResult.Success -> {
@@ -371,7 +346,7 @@ object OpenAIService {
     /**
      * Makes a call to the OpenAI API with optional system instruction.
      */
-    private suspend fun callOpenAI(prompt: String, maxTokens: Int = 500, systemInstruction: String? = null): AiServiceResult<String> {
+    private fun callOpenAI(prompt: String, maxTokens: Int = 500, systemInstruction: String? = null): AiServiceResult<String> {
         return try {
             val url = URL("https://api.openai.com/v1/chat/completions")
             val connection = url.openConnection() as HttpURLConnection
@@ -382,7 +357,7 @@ object OpenAIService {
             connection.doOutput = true
             
             val jsonBody = JSONObject().apply {
-                put("model", "gpt-3.5-turbo")
+                put("model", "gpt-4o-mini") // Using GPT-4o Mini as GPT-5 Mini might not be available yet
                 put("messages", org.json.JSONArray().apply {
                     // Add system instruction if provided
                     systemInstruction?.let { sysInst ->
@@ -397,9 +372,11 @@ object OpenAIService {
                         put("content", prompt)
                     })
                 })
-                put("max_tokens", maxTokens)
+                put("max_tokens", maxTokens) // GPT-4o Mini uses max_tokens
                 put("temperature", 0.7)
             }
+            
+            Log.d("OpenAIService", "Sending request to OpenAI: ${jsonBody.toString()}")
             
             OutputStreamWriter(connection.outputStream).use { writer ->
                 writer.write(jsonBody.toString())
@@ -416,16 +393,28 @@ object OpenAIService {
             }
             
             Log.d("OpenAIService", "OpenAI response code: $responseCode")
+            Log.d("OpenAIService", "Full OpenAI response: $responseText")
             
             // Parse the OpenAI response to extract the content
             val jsonResponse = JSONObject(responseText)
+            Log.d("OpenAIService", "Parsed JSON response: $jsonResponse")
+            
             val choices = jsonResponse.getJSONArray("choices")
+            Log.d("OpenAIService", "Choices array length: ${choices.length()}")
+            
             if (choices.length() > 0) {
-                val message = choices.getJSONObject(0).getJSONObject("message")
+                val choice = choices.getJSONObject(0)
+                Log.d("OpenAIService", "First choice: $choice")
+                
+                val message = choice.getJSONObject("message")
+                Log.d("OpenAIService", "Message object: $message")
+                
                 val content = message.getString("content")
+                Log.d("OpenAIService", "Extracted content: '$content'")
+                
                 AiServiceResult.Success(content)
             } else {
-                AiServiceResult.Error("No response from OpenAI")
+                AiServiceResult.Error("No choices returned from OpenAI")
             }
             
         } catch (e: Exception) {
@@ -439,11 +428,25 @@ object OpenAIService {
      */
     private fun parseScriptureResponse(jsonResponse: String): List<Verse> {
         return try {
-            // Clean the response first
-            val cleanedJson = jsonResponse.trim()
-                .removePrefix("```json")
-                .removeSuffix("```")
+            Log.d("OpenAIService", "Raw OpenAI Response: $jsonResponse")
+            
+            // Check for empty response first
+            if (jsonResponse.isBlank()) {
+                throw Exception("Received empty response from OpenAI")
+            }
+            
+            // Clean the response using same logic as GeminiAIService
+            val cleanedJson = jsonResponse
+                .replace("```json", "")
+                .replace("```", "")
                 .trim()
+            
+            Log.d("OpenAIService", "Cleaned JSON for parsing: $cleanedJson")
+            
+            // Check if cleaned JSON is empty
+            if (cleanedJson.isBlank()) {
+                throw Exception("Response became empty after cleaning")
+            }
             
             jsonParser.decodeFromString<List<Verse>>(cleanedJson)
         } catch (e: Exception) {
@@ -457,11 +460,25 @@ object OpenAIService {
      */
     private fun parseVerseReferences(jsonResponse: String): List<BibleVerseRef> {
         return try {
-            // Clean the response first
-            val cleanedJson = jsonResponse.trim()
-                .removePrefix("```json")
-                .removeSuffix("```")
+            Log.d("OpenAIService", "Raw OpenAI Response: $jsonResponse")
+            
+            // Check for empty response first
+            if (jsonResponse.isBlank()) {
+                throw Exception("Received empty response from OpenAI")
+            }
+            
+            // Clean the response using same logic as GeminiAIService
+            val cleanedJson = jsonResponse
+                .replace("```json", "")
+                .replace("```", "")
                 .trim()
+            
+            Log.d("OpenAIService", "Cleaned JSON for parsing: $cleanedJson")
+            
+            // Check if cleaned JSON is empty
+            if (cleanedJson.isBlank()) {
+                throw Exception("Response became empty after cleaning")
+            }
             
             jsonParser.decodeFromString<List<BibleVerseRef>>(cleanedJson)
         } catch (e: Exception) {

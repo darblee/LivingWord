@@ -50,7 +50,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var fetchDataJob: Job? = null
 
     private val preferenceStore = PreferenceStore(application)
-    private val hybridService = AIService // Singleton instance
+    private val aIService = AIService // Singleton instance
 
     init {
         updateAiServiceStatus()
@@ -110,7 +110,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             delay(100)
 
 
-            when (val scriptureResult = hybridService.fetchScripture(verse, translation)) {
+            when (val scriptureResult = aIService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
                     Log.i("HomeViewModel", "Fetched scripture for $verse")
                     _state.update { it.copy(
@@ -135,7 +135,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             delay(100)
 
-            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = aIService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     val takeawayResponseText = takeAwayResult.data
 
@@ -187,8 +187,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
     private fun updateAiServiceStatus() {
-        val isReady = hybridService.isInitialized()
-        val initError = if (!isReady) hybridService.getInitializationError() else null
+        val isReady = aIService.isInitialized()
+        val initError = if (!isReady) aIService.getInitializationError() else null
         _state.update {
             it.copy(
                 isAiServiceReady = isReady,
@@ -205,7 +205,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _state.update {
                 it.copy(
                     loadingStage = LoadingStage.NONE,
-                    aiResponseError = it.aiResponseError ?: hybridService.getInitializationError() ?: "AI Service not ready."
+                    aiResponseError = it.aiResponseError ?: aIService.getInitializationError() ?: "AI Service not ready."
                 )
             }
             return
@@ -218,7 +218,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val verseRef = verseReferenceBibleVerseRef(verse)
 
         viewModelScope.launch {
-            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = aIService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     Log.d("HomeViewModel", "Before updating to NONE (fetchKeyTakeAwayOnly success). Current loadingStage: ${_state.value.loadingStage}")
                     _state.update {

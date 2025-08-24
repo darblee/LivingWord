@@ -7,10 +7,120 @@ import com.darblee.livingword.data.Verse
 import com.darblee.livingword.ui.viewmodels.ScoreData
 
 /**
- * Hybrid AI Service that uses Gemini as primary and OpenAI as fallback.
- * Automatically switches to OpenAI when Gemini fails due to quota or other issues.
+ * Centralized AI Service that manages multiple AI providers with fallback mechanisms.
+ * Provides centralized prompts to ensure consistency across AI services.
+ * Priority order: ESV → Gemini → OpenAI
  */
 object AIService {
+    
+    // Centralized AI System Instructions
+    object SystemInstructions {
+        const val SCRIPTURE_SCHOLAR = "You are a Biblical scholar with deep knowledge of scripture. Your task is to provide accurate Bible verses in the requested translation format."
+        const val TAKEAWAY_EXPERT = "You are a scripture expert, skilled at extracting key takeaways from religious texts. Your task is to analyze a given verse reference and provide the key takeaway."
+        const val SCORING_EXPERT = "You are an expert in theology. You are an expert in analyzing Bible verses and determining the accuracy of direct quotes and their context."
+        const val TAKEAWAY_VALIDATOR = "You are a theological text evaluator. You will be given a verse reference and a take-away text. Your task is to evaluate the take-away text in the context of the verse and respond accurately."
+        const val VERSE_FINDER = "You are a Biblical scholar with comprehensive knowledge of scripture. Your task is to suggest relevant Bible verses based on topics or descriptions provided."
+    }
+    
+    // Centralized AI User Prompts
+    object UserPrompts {
+        fun getScorePrompt(verseRef: String, directQuoteToEvaluate: String): String = """
+            You will be provided with a Bible verse reference and a direct quote to evaluate.
+
+            Bible verse reference: $verseRef
+            Direct quote to evaluate: $directQuoteToEvaluate
+            
+            Follow these steps:
+            
+            1. Calculate the `ContextScore`: Evaluate the contextual accuracy of the direct quote. Consider whether the quote is used in a way that aligns with the original meaning and intent of the verse. Provide a score between 0 and 100.
+            2. Provide `ContextExplanation`: Explain how you derived the `ContextScore`. Discuss the context of the verse and whether the provided quote aligns with that context.
+            
+            Respond ONLY in the following JSON format:
+            
+            {
+            "DirectQuoteScore": 0,
+            "ContextScore": integer between 0 to 100,
+            "DirectQuoteExplanation": "",
+            "ContextExplanation": "Explanation of the ContextScore",
+            "ApplicationFeedback": ""
+            }
+            
+            Note: DirectQuoteScore and DirectQuoteExplanation are hardcoded values and not used in evaluation.
+            ApplicationFeedback will be populated separately.
+            
+            Ensure that your response is ONLY in JSON format with no other text or explanations outside of the JSON structure.
+            """.trimIndent()
+            
+        fun getKeyTakeawayPrompt(verseRef: String): String = """
+            Please provide a key takeaway or main message from the Bible verse $verseRef.
+            
+            Provide a concise, meaningful explanation of the verse's core message or teaching.
+            Keep the response to 2-3 sentences maximum.
+            Focus on practical application and spiritual significance.
+            """.trimIndent()
+            
+        fun getApplicationFeedbackPrompt(verseRef: String, userApplicationComment: String): String = """
+            Please provide feedback on how a user is applying the Bible verse $verseRef to their life.
+            
+            User's application: "$userApplicationComment"
+            
+            Provide constructive feedback that is:
+            1. Insightful: Offer a deeper understanding of the verse and its implications.
+            2. Encouraging: Affirm the user's efforts and provide motivation.
+            """.trimIndent()
+            
+        fun getTakeawayValidationPrompt(verseRef: String, takeawayToEvaluate: String): String = """
+            Please evaluate whether the following takeaway accurately represents the Bible verse $verseRef:
+            
+            Takeaway to evaluate: "$takeawayToEvaluate"
+            
+            Respond with only "true" if the takeaway is accurate and appropriate, or "false" if it misrepresents the verse.
+            """.trimIndent()
+            
+        fun getVerseSearchPrompt(description: String): String = """
+            Please suggest Bible verses that relate to the following description or topic: "$description"
+            
+            Return ONLY a JSON array of verse references in this exact format:
+            [
+                {"book": "BookName", "chapter": number, "startVerse": number, "endVerse": number}
+            ]
+            
+            Suggest 3-5 relevant verses. Do not include any other text or explanations.
+            """.trimIndent()
+            
+        fun getScripturePrompt(verseRef: BibleVerseRef, translation: String): String {
+            return if (verseRef.startVerse == verseRef.endVerse) {
+                """
+                Please provide the Bible verse for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse} in the $translation translation.
+
+                Return ONLY a JSON array in the following format:
+                [
+                    {
+                        "verse_num": ${verseRef.startVerse},
+                        "verse_string": "verse_text"
+                    }
+                ]
+
+                Do not include any other text or explanations.
+                """.trimIndent()
+            } else {
+                """
+                Please provide the Bible verses for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}-${verseRef.endVerse} in the $translation translation.
+
+                Return ONLY a JSON array in the following format:
+                [
+                    {
+                        "verse_num": verse_number,
+                        "verse_string": "verse_text"
+                    }
+                ]
+
+                Do not include any other text or explanations.
+                """.trimIndent()
+            }
+        }
+    }
+    
     
     private var isConfigured = false
     private var initializationErrorMessage: String? = null
@@ -82,10 +192,14 @@ object AIService {
             }
         }
         
+        // Get centralized prompts
+        val systemInstruction = SystemInstructions.SCRIPTURE_SCHOLAR
+        val userPrompt = UserPrompts.getScripturePrompt(verseRef, translation)
+        
         // Priority 2: Try Gemini AI
         if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting scripture fetch with Gemini...")
-            val geminiResult = GeminiAIService.fetchScripture(verseRef, translation)
+            Log.d("AIService", "Attempting scripture fetch with Gemini using centralized prompts...")
+            val geminiResult = GeminiAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
             
             if (geminiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Scripture fetch successful with Gemini")
@@ -97,8 +211,8 @@ object AIService {
         
         // Priority 3: Fallback to OpenAI
         if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for scripture fetch...")
-            val openAiResult = OpenAIService.fetchScripture(verseRef, translation)
+            Log.d("AIService", "Falling back to OpenAI for scripture fetch using centralized prompts...")
+            val openAiResult = OpenAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
             
             if (openAiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Scripture fetch successful with OpenAI fallback")
@@ -120,10 +234,14 @@ object AIService {
             return AiServiceResult.Error("AI service not configured: ${getInitializationError()}")
         }
         
-        // Try Gemini first
+        // Get centralized prompts
+        val systemInstruction = SystemInstructions.TAKEAWAY_EXPERT
+        val userPrompt = UserPrompts.getKeyTakeawayPrompt(verseRef)
+        
+        // Try Gemini first with centralized prompts
         if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting key takeaway with Gemini...")
-            val geminiResult = GeminiAIService.getKeyTakeaway(verseRef)
+            Log.d("AIService", "Attempting key takeaway with Gemini using centralized prompts...")
+            val geminiResult = GeminiAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
             
             if (geminiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Key takeaway successful with Gemini")
@@ -135,8 +253,8 @@ object AIService {
         
         // Fallback to OpenAI
         if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for key takeaway...")
-            val openAiResult = OpenAIService.getKeyTakeaway(verseRef)
+            Log.d("AIService", "Falling back to OpenAI for key takeaway using centralized prompts...")
+            val openAiResult = OpenAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
             
             if (openAiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Key takeaway successful with OpenAI fallback")
@@ -159,10 +277,14 @@ object AIService {
             return AiServiceResult.Error("AI service not configured: ${getInitializationError()}")
         }
         
+        // Get centralized prompts
+        val systemInstruction = SystemInstructions.SCORING_EXPERT
+        val userPrompt = UserPrompts.getScorePrompt(verseRef, directQuoteToEvaluate)
+        
         // Try Gemini first
         if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting AI score with Gemini...")
-            val geminiResult = GeminiAIService.getAIScore(verseRef, directQuoteToEvaluate, userApplicationComment)
+            Log.d("AIService", "Attempting AI score with Gemini using centralized prompts...")
+            val geminiResult = GeminiAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
             
             if (geminiResult is AiServiceResult.Success) {
                 Log.d("AIService", "AI score successful with Gemini")
@@ -182,8 +304,8 @@ object AIService {
         
         // Fallback to OpenAI
         if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for AI score...")
-            val openAiResult = OpenAIService.getAIScore(verseRef, directQuoteToEvaluate, userApplicationComment)
+            Log.d("AIService", "Falling back to OpenAI for AI score using centralized prompts...")
+            val openAiResult = OpenAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
             
             if (openAiResult is AiServiceResult.Success) {
                 Log.i("AIService", "AI score successful with OpenAI fallback")
@@ -196,48 +318,7 @@ object AIService {
         
         return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
     }
-    
-    /**
-     * Gets application feedback with fallback mechanism.
-     */
-    suspend fun getApplicationFeedback(verseRef: String, userApplicationComment: String): String {
-        if (!isConfigured) {
-            Log.w("AIService", "Service not configured, returning empty feedback")
-            return ""
-        }
-        
-        // Try Gemini first
-        if (GeminiAIService.isInitialized()) {
-            try {
-                val geminiResult = GeminiAIService.getApplicationFeedback(verseRef, userApplicationComment)
-                if (geminiResult.isNotBlank()) {
-                    Log.d("AIService", "Application feedback successful with Gemini")
-                    return geminiResult
-                }
-            } catch (e: Exception) {
-                Log.w("AIService", "Gemini failed for application feedback: ${e.message}")
-            }
-        }
-        
-        // Fallback to OpenAI
-        if (OpenAIService.isInitialized()) {
-            try {
-                val openAiResult = OpenAIService.getApplicationFeedback(verseRef, userApplicationComment)
-                if (openAiResult.isNotBlank()) {
-                    Log.d("AIService", "Application feedback successful with OpenAI fallback")
-                    return openAiResult
-                } else {
-                    Log.w("AIService", "OpenAI returned empty feedback")
-                }
-            } catch (e: Exception) {
-                Log.w("AIService", "OpenAI also failed for application feedback: ${e.message}")
-            }
-        }
-        
-        Log.w("AIService", "Both services failed for application feedback")
-        return ""
-    }
-    
+
     /**
      * Validates key takeaway response with fallback mechanism.
      */
@@ -246,10 +327,14 @@ object AIService {
             return AiServiceResult.Error("AI service not configured: ${getInitializationError()}")
         }
         
+        // Get centralized prompts
+        val systemInstruction = SystemInstructions.TAKEAWAY_VALIDATOR
+        val userPrompt = UserPrompts.getTakeawayValidationPrompt(verseRef, takeawayToEvaluate)
+        
         // Try Gemini first
         if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting takeaway validation with Gemini...")
-            val geminiResult = GeminiAIService.validateKeyTakeawayResponse(verseRef, takeawayToEvaluate)
+            Log.d("AIService", "Attempting takeaway validation with Gemini using centralized prompts...")
+            val geminiResult = GeminiAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
             
             if (geminiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Takeaway validation successful with Gemini")
@@ -261,8 +346,8 @@ object AIService {
         
         // Fallback to OpenAI
         if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for takeaway validation...")
-            val openAiResult = OpenAIService.validateKeyTakeawayResponse(verseRef, takeawayToEvaluate)
+            Log.d("AIService", "Falling back to OpenAI for takeaway validation using centralized prompts...")
+            val openAiResult = OpenAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
             
             if (openAiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Takeaway validation successful with OpenAI fallback")
@@ -284,10 +369,14 @@ object AIService {
             return AiServiceResult.Error("AI service not configured: ${getInitializationError()}")
         }
         
+        // Get centralized prompts
+        val systemInstruction = SystemInstructions.VERSE_FINDER
+        val userPrompt = UserPrompts.getVerseSearchPrompt(description)
+        
         // Try Gemini first
         if (GeminiAIService.isInitialized()) {
-            Log.d("AIService", "Attempting verse search with Gemini...")
-            val geminiResult = GeminiAIService.getNewVersesBasedOnDescription(description)
+            Log.d("AIService", "Attempting verse search with Gemini using centralized prompts...")
+            val geminiResult = GeminiAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
             
             if (geminiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Verse search successful with Gemini")
@@ -299,8 +388,8 @@ object AIService {
         
         // Fallback to OpenAI
         if (OpenAIService.isInitialized()) {
-            Log.d("AIService", "Falling back to OpenAI for verse search...")
-            val openAiResult = OpenAIService.getNewVersesBasedOnDescription(description)
+            Log.d("AIService", "Falling back to OpenAI for verse search using centralized prompts...")
+            val openAiResult = OpenAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
             
             if (openAiResult is AiServiceResult.Success) {
                 Log.d("AIService", "Verse search successful with OpenAI fallback")
@@ -312,14 +401,5 @@ object AIService {
         }
         
         return AiServiceResult.Error("Both Gemini and OpenAI services are unavailable")
-    }
-    
-    /**
-     * Gets the currently active service name for debugging/logging.
-     */
-    fun getActiveServiceStatus(): String {
-        val geminiStatus = if (GeminiAIService.isInitialized()) "✓" else "✗"
-        val openAiStatus = if (OpenAIService.isInitialized()) "✓" else "✗"
-        return "Gemini: $geminiStatus, OpenAI: $openAiStatus"
     }
 }

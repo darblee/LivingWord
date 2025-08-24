@@ -267,29 +267,29 @@ fun AllVersesScreen(
     }
     // --- End Handle Navigation Results ---
 
-    var showNetworkErrorDialog by remember { mutableStateOf(false) }
-    var networkErrorMessage by remember { mutableStateOf<String?>(null) }
+    var showAIErrorDialog by remember { mutableStateOf(false) }
+    var aiErrorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(newVerseState.scriptureError, newVerseState.aiResponseError) {
         val error = newVerseState.scriptureError ?: newVerseState.aiResponseError
         if (error != null) {
-            networkErrorMessage = error
-            showNetworkErrorDialog = true
+            aiErrorMessage = error
+            showAIErrorDialog = true
             showRetrievingDataDialog = false
         }
     }
 
-    if (showNetworkErrorDialog) {
+    if (showAIErrorDialog) {
         AlertDialog(
             onDismissRequest = {
-                showNetworkErrorDialog = false
+                showAIErrorDialog = false
                 newVerseViewModel.clearVerseData()
             },
-            title = { Text("Network Error") },
-            text = { Text(networkErrorMessage ?: "An unknown error occurred.") },
+            title = { Text("AI Error") },
+            text = { Text(aiErrorMessage ?: "An unknown error occurred.") },
             confirmButton = {
                 TextButton(onClick = {
-                    showNetworkErrorDialog = false
+                    showAIErrorDialog = false
                     newVerseViewModel.clearVerseData()
                 }) {
                     Text("OK")

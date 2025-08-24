@@ -58,32 +58,20 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
     private var fetchDataJob: Job? = null
 
     private val preferenceStore = PreferenceStore(application)
-    private val hybridService = AIService // Singleton instance
+    private val aiService = AIService // Singleton instance
 
     init {
         updateAiServiceStatus()
     }
 
     private fun updateAiServiceStatus() {
-        val isReady = hybridService.isInitialized()
-        val initError = if (!isReady) hybridService.getInitializationError() else null
+        val isReady = aiService.isInitialized()
+        val initError = if (!isReady) aiService.getInitializationError() else null
         _state.update {
             it.copy(
                 isAiServiceReady = isReady,
                 aiResponseError = if (it.aiResponseError == null && initError != null) initError else it.aiResponseError, // Preserve existing errors unless this is the first check
                 generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || initError?.contains("API Key missing", ignoreCase = true) == true) initError else null
-            )
-        }
-    }
-
-    fun updateSelectedTopics(selectedTopics: List<String>) {
-        selectedTopics.forEach {
-            Log.i("NewVerseViewModel", "Topic: $it")
-        }
-        _state.update { currentState ->
-            currentState.copy(
-                selectedTopics = selectedTopics,
-                isContentSaved = false,
             )
         }
     }
@@ -173,7 +161,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
 
             // STAGE 1: Fetch Scripture
             _state.update { it.copy(loadingStage = LoadingStage.FETCHING_SCRIPTURE) }
-            when (val scriptureResult = hybridService.fetchScripture(verse, translation)) {
+            when (val scriptureResult = aiService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
                     _state.update { it.copy(
                         scriptureVerses = scriptureResult.data,
@@ -190,7 +178,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             // STAGE 2: Get Key Takeaway
             _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY) }
             val verseRef = verseReferenceBibleVerseRef(verse)
-            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = aiService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     val takeawayResponseText = takeAwayResult.data
 
@@ -237,7 +225,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             _state.update {
                 it.copy(
                     loadingStage = LoadingStage.NONE,
-                    aiResponseError = it.aiResponseError ?: hybridService.getInitializationError() ?: "AI Service not ready."
+                    aiResponseError = it.aiResponseError ?: aiService.getInitializationError() ?: "AI Service not ready."
                 )
             }
             return
@@ -248,7 +236,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         val verseRef = verseReferenceBibleVerseRef(verse)
 
         viewModelScope.launch {
-            when (val takeAwayResult = hybridService.getKeyTakeaway(verseRef)) {
+            when (val takeAwayResult = aiService.getKeyTakeaway(verseRef)) {
                 is AiServiceResult.Success -> {
                     _state.update {
                         it.copy(
@@ -270,19 +258,6 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
-
-    // Call this method if AI settings might have changed externally (e.g. from settings screen)
-    // to re-evaluate the AI service status.
-    fun refreshAiServiceStatus() {
-        updateAiServiceStatus()
-        // If a verse is selected and AI was previously not ready, but now is, consider re-fetching AI data.
-        val currentSt = _state.value
-        if (currentSt.selectedVerse != null && currentSt.isAiServiceReady && currentSt.aiResponseText.isBlank() && currentSt.aiResponseError != null) {
-            Log.d("NewVerseViewModel", "AI service is now ready. Attempting to fetch AI data for ${currentSt.selectedVerse.book} ${currentSt.selectedVerse.chapter}:${currentSt.selectedVerse.startVerse}")
-            fetchKeyTakeAwayOnly(currentSt.selectedVerse)
-        }
-    }
-
 
     fun resetNavigationState() {
         _state.update {
