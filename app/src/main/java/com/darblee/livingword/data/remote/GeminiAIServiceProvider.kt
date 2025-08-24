@@ -105,13 +105,14 @@ class GeminiAIServiceProvider : AIServiceProvider {
         verseRef: String,
         userApplicationComment: String,
         systemInstruction: String,
-        userPrompt: String
+        userPrompt: String,
+        applicationFeedbackPrompt: String
     ): AiServiceResult<ScoreData> {
         return try {
             if (!isInitialized()) {
                 AiServiceResult.Error("Gemini AI provider not initialized")
             } else {
-                GeminiAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
+                GeminiAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
             }
         } catch (e: Exception) {
             Log.e("GeminiAIServiceProvider", "getAIScore failed", e)

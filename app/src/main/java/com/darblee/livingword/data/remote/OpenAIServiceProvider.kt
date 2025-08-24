@@ -105,13 +105,14 @@ class OpenAIServiceProvider : AIServiceProvider {
         verseRef: String,
         userApplicationComment: String,
         systemInstruction: String,
-        userPrompt: String
+        userPrompt: String,
+        applicationFeedbackPrompt: String
     ): AiServiceResult<ScoreData> {
         return try {
             if (!isInitialized()) {
                 AiServiceResult.Error("OpenAI provider not initialized")
             } else {
-                OpenAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
+                OpenAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
             }
         } catch (e: Exception) {
             Log.e("OpenAIServiceProvider", "getAIScore failed", e)

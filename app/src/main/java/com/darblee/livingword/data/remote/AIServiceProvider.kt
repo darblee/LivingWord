@@ -77,7 +77,8 @@ interface AIServiceProvider {
         verseRef: String, 
         userApplicationComment: String,
         systemInstruction: String,
-        userPrompt: String
+        userPrompt: String,
+        applicationFeedbackPrompt: String
     ): AiServiceResult<ScoreData>
     
     /**

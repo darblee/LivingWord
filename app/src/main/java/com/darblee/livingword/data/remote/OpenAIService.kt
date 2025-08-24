@@ -143,7 +143,8 @@ object OpenAIService {
         verseRef: String, 
         userApplicationComment: String,
         systemInstruction: String,
-        userPrompt: String = ""
+        userPrompt: String,
+        applicationFeedbackPrompt: String
     ): AiServiceResult<ScoreData> {
         return withContext(Dispatchers.IO) {
             try {
@@ -183,21 +184,9 @@ object OpenAIService {
                             parseResponse.DirectQuoteScore = 0
                             parseResponse.DirectQuoteExplanation = ""
                             
-                            // Get application feedback separately
+                            // Get application feedback separately using centralized prompt
                             val feedbackSystemInstruction = "You are an expert in theology. You provide insightful and encouraging feedback on how users apply Bible verses to their lives."
-                            val feedbackUserPrompt = """
-                                Please provide feedback on how a user is applying the Bible verse $verseRef to their life.
-                                
-                                User's application: "$userApplicationComment"
-                                
-                                Provide constructive feedback that is:
-                                1. Insightful: Offer a deeper understanding of the verse and its implications.
-                                2. Encouraging: Affirm the user's efforts and provide motivation.
-                                
-                                Keep the response to 10 - 12 sentences maximum.
-
-                                """.trimIndent()
-                            val applicationFeedback = getApplicationFeedback(verseRef, feedbackSystemInstruction, feedbackUserPrompt)
+                            val applicationFeedback = getApplicationFeedback(verseRef, feedbackSystemInstruction, applicationFeedbackPrompt)
                             parseResponse.ApplicationFeedback = applicationFeedback
 
                             Log.d("OpenAIService", "OpenAI response processed with hardcoded DirectQuote values (token optimization)")

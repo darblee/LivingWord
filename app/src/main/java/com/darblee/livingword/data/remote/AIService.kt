@@ -280,12 +280,13 @@ object AIService {
         // Get centralized prompts
         val systemInstruction = SystemInstructions.SCORING_EXPERT
         val userPrompt = UserPrompts.getScorePrompt(verseRef, directQuoteToEvaluate)
+        val applicationFeedbackPrompt = UserPrompts.getApplicationFeedbackPrompt(verseRef, userApplicationComment)
         
         // Try all available AI providers in priority order
         val availableProviders = AIServiceRegistry.getAvailableProviders()
         for (provider in availableProviders) {
             Log.d("AIService", "Attempting AI score with ${provider.displayName} using centralized prompts...")
-            val result = provider.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt)
+            val result = provider.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
             
             when (result) {
                 is AiServiceResult.Success -> {
