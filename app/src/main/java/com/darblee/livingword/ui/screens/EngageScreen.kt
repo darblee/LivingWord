@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -309,6 +310,7 @@ fun EngageScreen(
     // State for the dropdown menu
     var showScriptureDropdownMenu by remember { mutableStateOf(false) }
     var scriptureDropdownMenuOffset by remember { mutableStateOf(Offset.Zero) }
+    var showMemorizedContentDropdownMenu by remember { mutableStateOf(false) }
 
     val localDensity = LocalDensity.current
 
@@ -847,20 +849,68 @@ fun EngageScreen(
                                 )
 
                                 // Overlapping label positioned at top-left corner on the border
-                                Text(
-                                    text = if (state.directQuoteScore >= 0) "Memorization Score (Direct Quote:${state.directQuoteScore} Context:${state.contextScore})" else "Memorized Content",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (isDirectQuoteTextFieldFocused)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                Row(
                                     modifier = Modifier
                                         .offset(x = 12.dp, y = (-8).dp) // Position on top-left border
                                         .background(
                                             color = MaterialTheme.colorScheme.surface, // Background to "cut" the border line
                                             shape = RoundedCornerShape(2.dp)
                                         )
-                                        .padding(horizontal = 4.dp, vertical = 2.dp) // Padding around the text
+                                        .padding(horizontal = 4.dp, vertical = 2.dp), // Padding around the content
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (state.directQuoteScore >= 0) "Memorization Score (Direct Quote:${state.directQuoteScore} Context:${state.contextScore})" else "Memorized Content",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (isDirectQuoteTextFieldFocused)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    // Only show menu button when not in scoring mode and text is not empty
+                                    if (state.directQuoteScore < 0 && directQuoteTextFieldValue.text.isNotBlank()) {
+                                        IconButton(
+                                            onClick = { showMemorizedContentDropdownMenu = true },
+                                            modifier = Modifier.size(16.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.MoreVert,
+                                                contentDescription = "Memorized Content Options",
+                                                modifier = Modifier.size(12.dp),
+                                                tint = if (isDirectQuoteTextFieldFocused)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Dropdown menu for memorized content actions
+                            DropdownMenu(
+                                expanded = showMemorizedContentDropdownMenu,
+                                onDismissRequest = { showMemorizedContentDropdownMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Read text") },
+                                    enabled = isTtsInitialized && directQuoteTextFieldValue.text.isNotBlank(),
+                                    onClick = {
+                                        showMemorizedContentDropdownMenu = false
+                                        if (isTtsInitialized && directQuoteTextFieldValue.text.isNotBlank()) {
+                                            if (isSpeaking || isPaused) {
+                                                ttsViewModel.stopAllSpeaking()
+                                            }
+                                            ttsViewModel.restartSingleText(directQuoteTextFieldValue.text)
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Edit") },
+                                    onClick = {
+                                        showMemorizedContentDropdownMenu = false
+                                        focusRequester.requestFocus()
+                                    }
                                 )
                             }
 
