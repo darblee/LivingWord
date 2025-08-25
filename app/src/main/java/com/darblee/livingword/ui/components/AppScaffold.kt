@@ -61,6 +61,7 @@ import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen // Your sealed class for routes
 import com.darblee.livingword.click
+import com.darblee.livingword.data.remote.AIServiceRegistry
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.data.remote.AIService
@@ -601,11 +602,30 @@ private fun AIModelSetting(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.animateContentSize()
             ) {
-                AIServiceType.values().forEach { serviceType ->
+                // Dynamically build dropdown from registered providers
+                val availableProviders = remember { 
+                    // Ensure registry is initialized
+                    AIServiceRegistry.initialize()
+                    AIServiceRegistry.getAllProviders() 
+                }
+                availableProviders.forEach { provider ->
                     DropdownMenuItem(
-                        text = { Text(serviceType.displayName) },
+                        text = { 
+                            Row {
+                                Text(provider.displayName)
+                                if (!provider.isInitialized()) {
+                                    Text(
+                                        " (Not Available)", 
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        },
                         onClick = {
-                            onAISettingsChange(aiSettings.copy(selectedService = serviceType))
+                            onAISettingsChange(aiSettings.copy(selectedService = provider.serviceType))
+                            testResult = null
+                            testSuccess = null
                             expanded = false
                         }
                     )
@@ -638,7 +658,13 @@ private fun AIModelSetting(
                 onAISettingsChange(updatedSettings)
             },
             label = { Text("Model Name") },
-            placeholder = { Text(aiSettings.selectedService.defaultModel) },
+            placeholder = { 
+                val defaultModel = remember(aiSettings.selectedService) {
+                    AIServiceRegistry.getProvidersByType(aiSettings.selectedService)
+                        .firstOrNull()?.defaultModel ?: aiSettings.selectedService.defaultModel
+                }
+                Text(defaultModel) 
+            },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
