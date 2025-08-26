@@ -38,6 +38,9 @@
       <SelectionState runConfigName="fetchScripture_Romans12_12_14_ESV_returnsCorrectVerses()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
+      <SelectionState runConfigName="fetchScripture_John3_16_AMP_returnsCorrectVerse()">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
     </selectionStates>
   </component>
 </project>

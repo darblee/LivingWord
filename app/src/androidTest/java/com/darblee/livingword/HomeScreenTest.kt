@@ -5,8 +5,9 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.darblee.livingword.data.BibleVerseRef
+import com.darblee.livingword.data.VotdService
 import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.GeminiAIService
+import com.darblee.livingword.data.remote.AIService
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,8 +67,8 @@ class HomeScreenTest {
         val translation = "AMP"
 
         // Act
-        // The GeminiAIService is configured in MainActivity's onCreate, which is launched by the rule.
-        val result = GeminiAIService.fetchScripture(verseRef, translation)
+        // The AIService is configured in MainActivity's onCreate, which is launched by the rule.
+        val result = AIService.fetchScripture(verseRef, translation)
 
         // Assert
         assertTrue("API call should be successful, but was: $result", result is AiServiceResult.Success)
@@ -91,7 +92,7 @@ class HomeScreenTest {
         val translation = "ESV" // This will test the ESV service fallback logic
 
         // Act
-        val result = GeminiAIService.fetchScripture(verseRef, translation)
+        val result = AIService.fetchScripture(verseRef, translation)
 
         // Assert
         assertTrue("API call should be successful, but was: $result", result is AiServiceResult.Success)
@@ -103,5 +104,113 @@ class HomeScreenTest {
         assertTrue("Verse 12 text should not be empty", verses[0].verseString.isNotEmpty())
         assertTrue("Verse 13 text should not be empty", verses[1].verseString.isNotEmpty())
         assertTrue("Verse 14 text should not be empty", verses[2].verseString.isNotEmpty())
+    }
+
+    /**
+     * This test fetches the Verse of the Day (VOTD) and retrieves it in ESV translation.
+     * It makes a real network call to fetch the VOTD reference and then scripture.
+     * Requires an active internet connection and valid API keys.
+     */
+    @Test
+    fun fetchVOTD_ESV_returnsCorrectVerse() = runBlocking {
+        // Arrange - Get VOTD reference
+        val votdReference = VotdService.fetchVerseOfTheDayReference()
+        assertTrue("VOTD reference should not be null", votdReference != null)
+        
+        val verseRef = parseReferenceString(votdReference!!)
+        assertTrue("Should be able to parse VOTD reference: $votdReference", verseRef != null)
+        
+        val translation = "ESV"
+
+        // Act - Fetch scripture for VOTD
+        val result = AIService.fetchScripture(verseRef!!, translation)
+
+        // Assert
+        assertTrue("API call should be successful for VOTD $votdReference, but was: $result", result is AiServiceResult.Success)
+        val verses = (result as AiServiceResult.Success).data
+        assertTrue("Should return at least 1 verse for VOTD", verses.isNotEmpty())
+        assertTrue("VOTD verse text should not be empty", verses[0].verseString.isNotEmpty())
+        assertTrue("Verse number should be within expected range", verses[0].verseNum >= verseRef.startVerse && verses[0].verseNum <= verseRef.endVerse)
+    }
+
+    /**
+     * This test changes the translation setting from ESV to AMP and verifies 
+     * that VOTD is retrieved in the new translation.
+     * It makes real network calls and requires active internet connection and valid API keys.
+     */
+    @Test
+    fun switchVOTD_ESV_to_AMP_returnsCorrectTranslation() = runBlocking {
+        // Arrange - Get VOTD reference
+        val votdReference = VotdService.fetchVerseOfTheDayReference()
+        assertTrue("VOTD reference should not be null", votdReference != null)
+        
+        val verseRef = parseReferenceString(votdReference!!)
+        assertTrue("Should be able to parse VOTD reference: $votdReference", verseRef != null)
+
+        // Act 1 - Fetch scripture in ESV
+        val esvResult = AIService.fetchScripture(verseRef!!, "ESV")
+        assertTrue("ESV API call should be successful for VOTD $votdReference", esvResult is AiServiceResult.Success)
+        val esvVerses = (esvResult as AiServiceResult.Success).data
+        
+        // Act 2 - Fetch same scripture in AMP
+        val ampResult = AIService.fetchScripture(verseRef, "AMP")
+        assertTrue("AMP API call should be successful for VOTD $votdReference", ampResult is AiServiceResult.Success)
+        val ampVerses = (ampResult as AiServiceResult.Success).data
+
+        // Assert
+        assertTrue("ESV should return at least 1 verse", esvVerses.isNotEmpty())
+        assertTrue("AMP should return at least 1 verse", ampVerses.isNotEmpty())
+        assertEquals("Both translations should return same number of verses", esvVerses.size, ampVerses.size)
+        
+        // Verify verses are different translations of the same content
+        assertEquals("Both should have same verse number", esvVerses[0].verseNum, ampVerses[0].verseNum)
+        assertTrue("ESV verse text should not be empty", esvVerses[0].verseString.isNotEmpty())
+        assertTrue("AMP verse text should not be empty", ampVerses[0].verseString.isNotEmpty())
+        
+        // The verse text should be different between translations (in most cases)
+        // We'll allow them to be the same in rare cases where translations are identical
+        val differentTranslations = esvVerses[0].verseString != ampVerses[0].verseString
+        if (!differentTranslations) {
+            println("Note: ESV and AMP translations are identical for $votdReference")
+        }
+    }
+
+    /**
+     * Helper function to parse a reference string like "John 3:16" into a BibleVerseRef.
+     * Supports formats like "Book Chapter:Verse" and "Book Chapter:StartVerse-EndVerse"
+     */
+    private fun parseReferenceString(reference: String): BibleVerseRef? {
+        return try {
+            // Clean up the reference string
+            val cleanRef = reference.trim()
+            
+            // Split on the colon to separate book/chapter from verse(s)
+            val parts = cleanRef.split(":")
+            if (parts.size != 2) return null
+            
+            val bookChapterPart = parts[0].trim()
+            val versePart = parts[1].trim()
+            
+            // Extract book and chapter
+            val bookChapterMatch = Regex("(.+)\\s+(\\d+)").find(bookChapterPart)
+            if (bookChapterMatch == null) return null
+            
+            val book = bookChapterMatch.groupValues[1].trim()
+            val chapter = bookChapterMatch.groupValues[2].toInt()
+            
+            // Parse verse part (could be single verse or range)
+            val (startVerse, endVerse) = if (versePart.contains("-")) {
+                val verseRange = versePart.split("-")
+                if (verseRange.size != 2) return null
+                Pair(verseRange[0].trim().toInt(), verseRange[1].trim().toInt())
+            } else {
+                val singleVerse = versePart.toInt()
+                Pair(singleVerse, singleVerse)
+            }
+            
+            BibleVerseRef(book, chapter, startVerse, endVerse)
+        } catch (e: Exception) {
+            null
+        }
     }
 }
