@@ -16,6 +16,7 @@ import com.darblee.livingword.data.TopicWithCount
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.AIService
+import com.darblee.livingword.data.verseReferenceBibleVerseRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -206,7 +207,8 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         translation: String,
         favorite: Boolean = false,
         newVerseViewModel: NewVerseViewModel? = null,
-        scriptureVerses: List<Verse>
+        scriptureVerses: List<Verse>,
+        isEarlySave: Boolean = false
     ) {
         viewModelScope.launch {
             try {
@@ -221,11 +223,87 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                     translation = translation,
                     verses = scriptureVerses
                 )
-                newVerseViewModel?.contentSavedSuccessfully(newVerseID)
+                if (isEarlySave) {
+                    newVerseViewModel?.scriptureSavedSuccessfully(newVerseID)
+                } else {
+                    newVerseViewModel?.contentSavedSuccessfully(newVerseID)
+                }
             } catch (e: Exception) {
                 Log.e("BibleVerseViewModel", "Error saving verse with topics: ${e.message}", e)
                 newVerseViewModel?.updateGeneralError("Failed to save content: ${e.localizedMessage}")
             }
+        }
+    }
+
+    fun updateVerseAIContent(
+        verseId: Long,
+        aiTakeAwayResponse: String,
+        newVerseViewModel: NewVerseViewModel? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                Log.d("BibleVerseViewModel", "Updating verse $verseId with AI content: ${aiTakeAwayResponse.take(50)}...")
+                val existingVerse = repository.getVerseById(verseId)
+                val updatedVerse = existingVerse.copy(aiTakeAwayResponse = aiTakeAwayResponse)
+                repository.updateVerse(updatedVerse)
+                Log.d("BibleVerseViewModel", "Successfully updated verse $verseId with AI content")
+                newVerseViewModel?.contentSavedSuccessfully(verseId)
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error updating verse AI content: ${e.message}", e)
+                newVerseViewModel?.updateGeneralError("Failed to update AI content: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    suspend fun fetchAITakeawayForVerse(verseId: Long): Pair<Boolean, String> {
+        return try {
+            Log.d("BibleVerseViewModel", "Fetching AI takeaway for verse $verseId...")
+            val existingVerse = repository.getVerseById(verseId)
+            
+            // Convert to BibleVerseRef for AI service
+            val verseRef = BibleVerseRef(
+                book = existingVerse.book,
+                chapter = existingVerse.chapter,
+                startVerse = existingVerse.startVerse,
+                endVerse = existingVerse.endVerse
+            )
+            
+            // Get AI takeaway
+            when (val takeAwayResult = AIService.getKeyTakeaway(verseReferenceBibleVerseRef(verseRef))) {
+                is AiServiceResult.Success -> {
+                    val takeawayResponseText = takeAwayResult.data
+
+                    // Validate the takeaway
+                    when (val validationResult = AIService.validateKeyTakeawayResponse(verseReferenceBibleVerseRef(verseRef), takeawayResponseText)) {
+                        is AiServiceResult.Success -> {
+                            if (validationResult.data) {
+                                Log.i("BibleVerseViewModel", "Takeaway for verse $verseId is acceptable: ${takeawayResponseText.take(50)}...")
+                                
+                                // Update the verse with AI content
+                                val updatedVerse = existingVerse.copy(aiTakeAwayResponse = takeawayResponseText)
+                                repository.updateVerse(updatedVerse)
+                                Log.d("BibleVerseViewModel", "Successfully updated verse $verseId with AI takeaway")
+                                
+                                Pair(true, takeawayResponseText)
+                            } else {
+                                Log.w("BibleVerseViewModel", "Takeaway for verse $verseId was rejected by validator")
+                                Pair(false, "The AI-generated insight was rejected by the validator. Please try again.")
+                            }
+                        }
+                        is AiServiceResult.Error -> {
+                            Log.e("BibleVerseViewModel", "Validation failed for verse $verseId: ${validationResult.message}")
+                            Pair(false, "Validation failed: ${validationResult.message}")
+                        }
+                    }
+                }
+                is AiServiceResult.Error -> {
+                    Log.e("BibleVerseViewModel", "Failed to get AI takeaway for verse $verseId: ${takeAwayResult.message}")
+                    Pair(false, takeAwayResult.message)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("BibleVerseViewModel", "Error fetching AI takeaway for verse $verseId: ${e.message}", e)
+            Pair(false, "Error fetching AI takeaway: ${e.localizedMessage}")
         }
     }
 

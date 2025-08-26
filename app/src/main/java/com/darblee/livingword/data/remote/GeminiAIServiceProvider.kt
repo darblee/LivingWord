@@ -24,6 +24,7 @@ class GeminiAIServiceProvider : AIServiceProvider {
     
     override fun configure(config: AIServiceConfig): Boolean {
         return try {
+            Log.d("GeminiAIServiceProvider", "Received config - ServiceType: ${config.serviceType}, Model: ${config.modelName}, ApiKey length: ${config.apiKey.length}")
             currentConfig = config
             
             // Create AISettings for backward compatibility with existing GeminiAIService

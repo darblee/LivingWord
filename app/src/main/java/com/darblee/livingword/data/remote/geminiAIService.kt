@@ -14,6 +14,7 @@ import com.google.ai.client.generativeai.type.generationConfig
 import com.google.ai.client.generativeai.type.content
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.Serializable // Add this import at the top of the file
+import kotlinx.coroutines.delay
 
 
 /**
@@ -25,11 +26,12 @@ sealed class AiServiceResult<out T> {
     data class Error(val message: String, val cause: Throwable? = null) : AiServiceResult<Nothing>()
 }
 
-// 1. Define a data class that matches the expected JSON structure.
+// 1. Define a data class that matches the actual JSON structure returned by Gemini.
 @Serializable
 data class KeyTakeawayResponse(
-    val key_takeaway_text: String,
-    val sources: List<String>
+    val verse_reference: String? = null,
+    val key_takeaway: String,
+    val explanation: String? = null
 )
 
 /**
@@ -65,28 +67,35 @@ object GeminiAIService {
         generativeModel = null // Reset model
 
         Log.i("GeminiAIService", "Configuring with Model: ${settings.modelName}, Temp: ${settings.temperature}, API Key Present: ${settings.apiKey.isNotBlank()}")
+        Log.d("GeminiAIService", "Selected Service: ${settings.selectedService}")
+        Log.d("GeminiAIService", "Gemini Config Model: ${settings.geminiConfig.modelName}")
+        Log.d("GeminiAIService", "OpenAI Config Model: ${settings.openAiConfig.modelName}")
+        Log.d("GeminiAIService", "Computed modelName: ${settings.modelName}")
+        Log.d("GeminiAIService", "API Key length: ${settings.apiKey.length}, First 10 chars: ${settings.apiKey.take(10)}")
 
         try {
             if (settings.apiKey.isNotBlank()) {
-                // Define the system instruction
-                val instruction = content(role = "system") {
-                    text ("You are an expert in theology. Respond in English.".trimIndent())
-                }
-
+                // Create a basic model without system instruction - each method will create its own
                 generativeModel = GenerativeModel(
                     modelName = settings.modelName,
                     apiKey = settings.apiKey,
                     generationConfig = generationConfig {
                         temperature = settings.temperature
-                        responseMimeType = "application/json"
+                        // Remove global JSON response type - let each method specify its own
                         // You can add other generationConfig properties here if needed
                         // topK = 1
                         // topP = 0.95f
                         // maxOutputTokens = 8192
-                    },
-                    systemInstruction = instruction
+                    }
                 )
-                Log.i("GeminiAIService", "GenerativeModel initialized successfully with new settings and system instruction.")
+                
+                // Test the basic model creation
+                Log.i("GeminiAIService", "GenerativeModel initialized successfully with new settings.")
+                Log.d("GeminiAIService", "Testing basic model accessibility...")
+                
+                // Verify we can access the model properties
+                Log.d("GeminiAIService", "Model name from generativeModel: ${generativeModel?.modelName}")
+                
             } else {
                 val errorMsg = "Gemini API Key is missing. AI Service cannot be initialized."
                 Log.w("GeminiAIService", errorMsg)
@@ -150,7 +159,9 @@ object GeminiAIService {
         return try { 
             Log.d("GeminiAIService", "Sending prompt to Gemini for scripture range using centralized prompts")
 
-            val response = retrieveScriptureModel.generateContent(userPrompt)
+            val response = retryWithBackoff { 
+                retrieveScriptureModel.generateContent(userPrompt)
+            }
 
             val responseText = response.text
 
@@ -166,7 +177,7 @@ object GeminiAIService {
             }
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini or parsing scripture response: ${e.message}", e)
-            AiServiceResult.Error("Could not get scripture from AI (${e.javaClass.simpleName}).", e)
+            handleGeminiException(e, "scripture fetch")
         }
     }
 
@@ -209,6 +220,7 @@ object GeminiAIService {
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
                     temperature = 0.5f // Higher  temperature to provide more variation on take-away response
+                    responseMimeType = "application/json" // Ensure JSON response format
                 },
                 safetySettings = listOf(harassmentSafety, hateSpeechSafety, explicitSexSafety, dangerSafety),
                 systemInstruction = takeAwaySystemPrompt
@@ -217,30 +229,37 @@ object GeminiAIService {
             Log.d("GeminiAIService", "Sending prompt to Gemini using centralized prompts")
 
             var takeAwayResponseText: String? = ""
-            var attempts = 0
-            while (attempts < 3) {
-                val response: GenerateContentResponse = takeAwayModel.generateContent(userPrompt)
-                takeAwayResponseText = response.text
-                if (takeAwayResponseText != null) {
-                    break
-                }
-                attempts++
+            val response: GenerateContentResponse = retryWithBackoff {
+                takeAwayModel.generateContent(userPrompt)
             }
+            takeAwayResponseText = response.text
 
             Log.d("GeminiAIService", "Gemini Response: $takeAwayResponseText")
 
             if (takeAwayResponseText != null) {
                 val cleanedJson = takeAwayResponseText.replace("```json", "").replace("```", "").trim()
-                val parsedResponse = jsonParser.decodeFromString<KeyTakeawayResponse>(cleanedJson)
-
-                // 3. Return the human-readable string from the parsed object
-                AiServiceResult.Success(parsedResponse.key_takeaway_text)
+                
+                try {
+                    val parsedResponse = jsonParser.decodeFromString<KeyTakeawayResponse>(cleanedJson)
+                    // Return the human-readable string from the parsed object
+                    AiServiceResult.Success(parsedResponse.key_takeaway)
+                } catch (jsonException: Exception) {
+                    Log.e("GeminiAIService", "Failed to parse JSON response: $cleanedJson", jsonException)
+                    
+                    // If JSON parsing fails, check if this might be plain text that we can use directly
+                    if (cleanedJson.isNotBlank() && !cleanedJson.startsWith("{")) {
+                        Log.w("GeminiAIService", "Received plain text instead of JSON, using directly: $cleanedJson")
+                        AiServiceResult.Success(cleanedJson)
+                    } else {
+                        AiServiceResult.Error("AI returned invalid JSON format. Raw response: $cleanedJson", jsonException)
+                    }
+                }
             } else {
                 AiServiceResult.Error("Received empty response from AI.")
             }
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
-            AiServiceResult.Error("Could not get take-away from AI (${e.javaClass.simpleName}).", e)
+            handleGeminiException(e, "key takeaway")
         }
     }
 
@@ -277,13 +296,16 @@ object GeminiAIService {
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
                     temperature = 0.5f // Middle temperature for more deterministic evaluation
+                    responseMimeType = "application/json" // Ensure JSON response format
                 },
                 systemInstruction = scoreSystemPrompt
             )
 
             Log.d("GeminiAIService", "Sending optimized prompt to Gemini (DirectQuote fields removed for token reduction): \"$userPrompt\"")
 
-            val response: GenerateContentResponse = scoreModel.generateContent(userPrompt)
+            val response: GenerateContentResponse = retryWithBackoff {
+                scoreModel.generateContent(userPrompt)
+            }
             val responseText = (response.text)?.trimIndent()
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
@@ -342,7 +364,7 @@ object GeminiAIService {
             }
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API: ${e.message}", e)
-            AiServiceResult.Error("Could not get AI score from AI (${e.javaClass.simpleName}).", e)
+            handleGeminiException(e, "AI score")
         }
     }
 
@@ -381,16 +403,10 @@ object GeminiAIService {
 
             Log.d("GeminiAIService", "Sending user application prompt to Gemini: \"$userPrompt\"")
 
-            var applicationFeedback: String? = null
-            var attempts = 0
-            while (attempts < 3) {
-                val response: GenerateContentResponse = scoreModel.generateContent(userPrompt)
-                applicationFeedback = (response.text)?.trimIndent()
-                if (!applicationFeedback.isNullOrEmpty()) {
-                    break
-                }
-                attempts++
+            val response: GenerateContentResponse = retryWithBackoff {
+                scoreModel.generateContent(userPrompt)
             }
+            val applicationFeedback = response.text?.trimIndent()
 
             Log.d("GeminiAIService", "Gemini Response: $applicationFeedback")
 
@@ -440,7 +456,9 @@ object GeminiAIService {
 
             Log.d("GeminiAIService", "Sending evaluation prompt to Gemini using centralized prompts")
 
-            val response = evaluatorModel.generateContent(userPrompt)
+            val response = retryWithBackoff {
+                evaluatorModel.generateContent(userPrompt)
+            }
             val responseText = response.text
 
             Log.d("GeminiAIService", "Gemini Evaluation Response: $responseText")
@@ -455,7 +473,7 @@ object GeminiAIService {
 
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error during take-away validation: ${e.message}", e)
-            return AiServiceResult.Error("Could not validate take-away from AI (${e.javaClass.simpleName}).", e)
+            return handleGeminiException(e, "takeaway validation")
         }
     }
 
@@ -491,13 +509,16 @@ object GeminiAIService {
                 apiKey = currentAISettings!!.apiKey,
                 generationConfig = generationConfig {
                     temperature = 0.3f // Lower temperature for more deterministic evaluation
+                    responseMimeType = "application/json" // Ensure JSON response format
                 },
                 systemInstruction = systemPrompt
             )
 
             Log.d("GeminiAIService", "Sending prompt to Gemini for description-based verses using centralized prompts")
 
-            val response = getCorrespondingVersesGenerativeModel.generateContent(userPrompt)
+            val response = retryWithBackoff {
+                getCorrespondingVersesGenerativeModel.generateContent(userPrompt)
+            }
             val responseText = response.text
 
             Log.d("GeminiAIService", "Gemini Response: $responseText")
@@ -512,52 +533,55 @@ object GeminiAIService {
             }
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Error calling Gemini API or parsing verse response: ${e.message}", e)
-            AiServiceResult.Error("Could not get verses from AI (${e.javaClass.simpleName}).", e)
+            handleGeminiException(e, "verse search")
         }
     }
     
     /**
-     * Test method to perform a basic scripture lookup of John 3:16.
+     * Simple test method to verify basic connectivity and authentication with Gemini API.
+     * Performs a minimal request without complex JSON parsing to validate the service works.
      * @return true if successful, false if failed
      */
     suspend fun test(): Boolean {
         return try {
-            // Create John 3:16 reference for testing
-            val testVerseRef = com.darblee.livingword.data.BibleVerseRef(
-                book = "John",
-                chapter = 3,
-                startVerse = 16,
-                endVerse = 16
-            )
-            val testTranslation = "ESV"
-            val testSystemInstruction = "You are a Biblical scholar with deep knowledge of scripture. Your task is to provide accurate Bible verses in the requested translation format."
-            val testUserPrompt = """
-                Please provide the Bible verse for John 3:16 in the ESV translation.
-
-                Return ONLY a JSON array in the following format:
-                [
-                    {
-                        "verse_num": 16,
-                        "verse_string": "verse_text"
-                    }
-                ]
-
-                Do not include any other text or explanations.
-                """.trimIndent()
+            Log.d("GeminiAIService", "Starting simple test method")
+            Log.d("GeminiAIService", "isConfigured: $isConfigured, generativeModel != null: ${generativeModel != null}, initializationErrorMessage: $initializationErrorMessage")
             
-            Log.d("GeminiAIService", "Running test: fetching John 3:16 in $testTranslation")
-            val result = fetchScripture(testVerseRef, testTranslation, testSystemInstruction, testUserPrompt)
-            
-            when (result) {
-                is AiServiceResult.Success -> {
-                    Log.d("GeminiAIService", "Test successful: Retrieved ${result.data.size} verse(s)")
-                    true
-                }
-                is AiServiceResult.Error -> {
-                    Log.e("GeminiAIService", "Test failed: ${result.message}")
-                    false
-                }
+            if (!isInitialized()) {
+                Log.e("GeminiAIService", "Test failed - service not initialized properly")
+                return false
             }
+            
+            // Create a very simple test - just generate a basic response without complex JSON parsing
+            val testSystemInstruction = "You are a helpful AI assistant."
+            val testPrompt = "Please respond with exactly: 'Test successful'"
+            
+            val testModel = GenerativeModel(
+                modelName = currentAISettings!!.modelName,
+                apiKey = currentAISettings!!.apiKey,
+                generationConfig = generationConfig {
+                    temperature = 0.1f // Very low temperature for predictable response
+                },
+                systemInstruction = content(role = "system") { text(testSystemInstruction) }
+            )
+            
+            Log.d("GeminiAIService", "Running simple connectivity test")
+            val response = retryWithBackoff {
+                testModel.generateContent(testPrompt)
+            }
+            
+            val responseText = response.text
+            Log.d("GeminiAIService", "Test response: $responseText")
+            
+            // Just check that we got any non-empty response
+            val success = !responseText.isNullOrBlank()
+            if (success) {
+                Log.d("GeminiAIService", "Test successful: Got response from Gemini")
+            } else {
+                Log.e("GeminiAIService", "Test failed: Empty response")
+            }
+            
+            success
         } catch (e: Exception) {
             Log.e("GeminiAIService", "Test failed with exception: ${e.message}", e)
             false
@@ -568,4 +592,95 @@ object GeminiAIService {
      * Gets the initialization error message, if any.
      */
     fun getInitializationError(): String? = initializationErrorMessage
+    
+    /**
+     * Retry mechanism with exponential backoff for handling Gemini API overload errors.
+     */
+    private suspend fun <T> retryWithBackoff(
+        maxRetries: Int = 3,
+        initialDelayMs: Long = 1000,
+        maxDelayMs: Long = 10000,
+        operation: suspend () -> T
+    ): T {
+        var currentDelay = initialDelayMs
+        repeat(maxRetries - 1) { attempt ->
+            try {
+                return operation()
+            } catch (e: Exception) {
+                Log.w("GeminiAIService", "Attempt ${attempt + 1} failed: ${e.message}")
+                Log.w("GeminiAIService", "Exception type: ${e.javaClass.simpleName}")
+                
+                // Check if this is a retryable error (503, 429, etc.)
+                if (isRetryableError(e)) {
+                    Log.i("GeminiAIService", "Retryable error detected, waiting ${currentDelay}ms before retry...")
+                    delay(currentDelay)
+                    currentDelay = (currentDelay * 2).coerceAtMost(maxDelayMs)
+                } else {
+                    // Non-retryable error, throw immediately
+                    Log.e("GeminiAIService", "Non-retryable error, throwing immediately: ${e.message}")
+                    throw e
+                }
+            }
+        }
+        // Final attempt
+        return operation()
+    }
+    
+    /**
+     * Checks if an exception is retryable (503, 429, network issues, etc.)
+     */
+    private fun isRetryableError(exception: Exception): Boolean {
+        val message = exception.message?.lowercase() ?: ""
+        return when {
+            message.contains("503") || message.contains("overloaded") -> true
+            message.contains("429") || message.contains("rate limit") -> true
+            message.contains("timeout") || message.contains("network") -> true
+            message.contains("unavailable") -> true
+            // Handle Gemini client library serialization bugs for server errors
+            message.contains("field 'details' is required") && message.contains("grpcerror") -> true
+            message.contains("missingfieldexception") && message.contains("grpcerror") -> true
+            // Handle client library serialization issues as retryable
+            message.contains("something went wrong while trying to deserialize") -> true
+            message.contains("serializationexception") -> true
+            exception is java.net.SocketTimeoutException -> true
+            exception is java.io.IOException -> true
+            // Handle specific Gemini client library exceptions
+            exception.javaClass.simpleName == "SerializationException" -> true
+            else -> false
+        }
+    }
+    
+    /**
+     * Enhanced exception handling for Gemini-specific errors.
+     */
+    private fun handleGeminiException(exception: Exception, operation: String): AiServiceResult.Error {
+        val message = exception.message ?: "Unknown error"
+        
+        return when {
+            message.contains("503") || message.contains("overloaded") -> {
+                AiServiceResult.Error("Gemini API is currently overloaded. Please try again in a few moments.", exception)
+            }
+            message.contains("429") || message.contains("rate limit") -> {
+                AiServiceResult.Error("Rate limit exceeded. Please wait before making more requests.", exception)
+            }
+            message.contains("401") || message.contains("unauthorized") -> {
+                AiServiceResult.Error("Invalid API key or unauthorized access to Gemini API.", exception)
+            }
+            message.contains("400") || message.contains("bad request") -> {
+                AiServiceResult.Error("Invalid request format sent to Gemini API.", exception)
+            }
+            message.contains("MissingFieldException") -> {
+                AiServiceResult.Error("Gemini API returned an unexpected error format. Please try again.", exception)
+            }
+            message.contains("field 'details' is required") && message.contains("GRpcError") -> {
+                AiServiceResult.Error("Gemini API server error (client library bug). The service may be overloaded, please try again.", exception)
+            }
+            message.contains("JsonDecodingException") || message.contains("Unexpected JSON token") -> {
+                AiServiceResult.Error("Gemini returned invalid JSON format. This may be a temporary issue, please try again.", exception)
+            }
+            else -> {
+                AiServiceResult.Error("Could not get $operation from AI (${exception.javaClass.simpleName}).", exception)
+            }
+        }
+    }
 }

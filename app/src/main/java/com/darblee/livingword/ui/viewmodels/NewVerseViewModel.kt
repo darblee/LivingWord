@@ -12,6 +12,7 @@ import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.data.verseReferenceBibleVerseRef
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,7 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
     enum class LoadingStage {
         NONE,
         FETCHING_SCRIPTURE,
+        SCRIPTURE_READY,
         FETCHING_TAKEAWAY,
         VALIDATING_TAKEAWAY
     }
@@ -90,6 +92,15 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         }
         viewModelScope.launch {
             SnackBarController.showMessage("Verse is saved")
+        }
+    }
+
+    fun scriptureSavedSuccessfully(newVerseId: Long) {
+        _state.update {
+            it.copy(
+                newlySavedVerseId = newVerseId,
+                isContentSaved = false // Still processing AI
+            )
         }
     }
 
@@ -165,54 +176,21 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                 is AiServiceResult.Success -> {
                     _state.update { it.copy(
                         scriptureVerses = scriptureResult.data,
-                        translation = translation
+                        translation = translation,
+                        loadingStage = LoadingStage.SCRIPTURE_READY
                         )
                     }
+                    
+                    // Give UI time to process SCRIPTURE_READY state and trigger early save
+                    delay(100) // Small delay to allow LaunchedEffect to trigger
+                    
+                    // Stop here - AI takeaway will be handled in VerseDetailScreen
+                    _state.update { it.copy(loadingStage = LoadingStage.NONE) }
+                    return@launch
                 }
                 is AiServiceResult.Error -> {
                     _state.update { it.copy(loadingStage = LoadingStage.NONE, scriptureError = scriptureResult.message) }
                     return@launch // Stop the process on error
-                }
-            }
-
-            // STAGE 2: Get Key Takeaway
-            _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY) }
-            val verseRef = verseReferenceBibleVerseRef(verse)
-            when (val takeAwayResult = aiService.getKeyTakeaway(verseRef)) {
-                is AiServiceResult.Success -> {
-                    val takeawayResponseText = takeAwayResult.data
-
-                    // STAGE 3: Validate Takeaway
-                    _state.update { it.copy(loadingStage = LoadingStage.VALIDATING_TAKEAWAY) }
-                    when (val validationResult = AIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
-                        is AiServiceResult.Success -> {
-                            if (validationResult.data) {
-                                Log.i("NewVerse", "Takeaway for $verseRef is acceptable: $takeawayResponseText")
-                                _state.update {
-                                    it.copy(
-                                        loadingStage = LoadingStage.NONE,
-                                        aiResponseText = takeawayResponseText,
-                                        aiResponseError = null
-                                    )
-                                }
-                            } else {
-                                Log.w("NewVerse", "Takeaway for $verseRef was rejected.")
-                                _state.update {
-                                    it.copy(
-                                        loadingStage = LoadingStage.NONE,
-                                        aiResponseError = "The AI-generated insight was rejected by the validator. Please try again."
-                                    )
-                                }
-                            }
-                        }
-                        is AiServiceResult.Error -> {
-                            Log.e("MyApp", "Validation failed: ${validationResult.message}")
-                            _state.update { it.copy(loadingStage = LoadingStage.NONE, aiResponseError = "Validation failed: ${validationResult.message}") }
-                        }
-                    }
-                }
-                is AiServiceResult.Error -> {
-                    _state.update { it.copy(loadingStage = LoadingStage.NONE, aiResponseError = takeAwayResult.message) }
                 }
             }
         }
@@ -244,6 +222,72 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
                             aiResponseText = takeAwayResult.data,
                             aiResponseError = null
                         )
+                    }
+                }
+                is AiServiceResult.Error -> {
+                    _state.update {
+                        it.copy(
+                            loadingStage = LoadingStage.NONE,
+                            aiResponseText = "",
+                            aiResponseError = takeAwayResult.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun fetchAITakeawayForVerseDetail(verse: BibleVerseRef) {
+        updateAiServiceStatus() // Refresh AI status
+        if (!_state.value.isAiServiceReady) {
+            Log.w("NewVerseViewModel", "Skipping AI takeaway fetch as AIService is not initialized/configured.")
+            _state.update {
+                it.copy(
+                    loadingStage = LoadingStage.NONE,
+                    aiResponseError = it.aiResponseError ?: aiService.getInitializationError() ?: "AI Service not ready."
+                )
+            }
+            return
+        }
+
+        _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY, aiResponseError = null, aiResponseText = "Getting key take-away...") }
+
+        val verseRef = verseReferenceBibleVerseRef(verse)
+
+        viewModelScope.launch {
+            when (val takeAwayResult = aiService.getKeyTakeaway(verseRef)) {
+                is AiServiceResult.Success -> {
+                    val takeawayResponseText = takeAwayResult.data
+
+                    // STAGE 3: Validate Takeaway
+                    _state.update { it.copy(loadingStage = LoadingStage.VALIDATING_TAKEAWAY) }
+                    when (val validationResult = AIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
+                        is AiServiceResult.Success -> {
+                            if (validationResult.data) {
+                                Log.i("NewVerse", "Takeaway for $verseRef is acceptable: $takeawayResponseText")
+                                Log.d("NewVerseViewModel", "Setting loadingStage to NONE after successful validation")
+                                _state.update {
+                                    it.copy(
+                                        loadingStage = LoadingStage.NONE,
+                                        aiResponseText = takeawayResponseText,
+                                        aiResponseError = null
+                                    )
+                                }
+                                Log.d("NewVerseViewModel", "AI takeaway completed successfully for VerseDetailScreen")
+                            } else {
+                                Log.w("NewVerse", "Takeaway for $verseRef was rejected.")
+                                _state.update {
+                                    it.copy(
+                                        loadingStage = LoadingStage.NONE,
+                                        aiResponseError = "The AI-generated insight was rejected by the validator. Please try again."
+                                    )
+                                }
+                            }
+                        }
+                        is AiServiceResult.Error -> {
+                            Log.e("MyApp", "Validation failed: ${validationResult.message}")
+                            _state.update { it.copy(loadingStage = LoadingStage.NONE, aiResponseError = "Validation failed: ${validationResult.message}") }
+                        }
                     }
                 }
                 is AiServiceResult.Error -> {

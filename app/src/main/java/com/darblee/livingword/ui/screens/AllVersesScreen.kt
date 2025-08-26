@@ -2,6 +2,7 @@ package com.darblee.livingword.ui.screens
 
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -118,7 +119,10 @@ fun AllVersesScreen(
     }
 
     var showRetrievingDataDialog by remember { mutableStateOf(false) }
-    val newVerseViewModel: NewVerseViewModel = viewModel()
+    val newVerseViewModel: NewVerseViewModel = viewModel(
+        // Scope to the navigation host instead of this composable so it survives navigation
+        viewModelStoreOwner = LocalContext.current as ComponentActivity
+    )
 
     var showFilterDialog by remember { mutableStateOf(false) }
 
@@ -298,37 +302,57 @@ fun AllVersesScreen(
         )
     }
 
-    LaunchedEffect(newVerseState) {
-        if (readyToSave(newVerseState) && !newVerseState.isContentSaved) {
+    // Early save when scripture is ready
+    LaunchedEffect(newVerseState.loadingStage, newVerseState.selectedVerse, newVerseState.scriptureVerses.size) {
+        Log.d("AllVersesScreen", "LaunchedEffect(Early save) triggered - loadingStage: ${newVerseState.loadingStage}")
+        Log.d("AllVersesScreen", "Early save check - readyForEarlySave: ${readyForEarlySave(newVerseState)}, selectedVerse: ${newVerseState.selectedVerse}, scriptureVerses: ${newVerseState.scriptureVerses.size}, scriptureError: ${newVerseState.scriptureError}")
+        if (readyForEarlySave(newVerseState)) {
+            Log.d("AllVersesScreen", "Triggering early save for verse: ${newVerseState.selectedVerse}")
             bibleViewModel.saveNewVerse(
                 verse = (newVerseState.selectedVerse!!),
-                aiTakeAwayResponse = newVerseState.aiResponseText,
+                aiTakeAwayResponse = "", // Empty for now, will be updated later
                 topics = newVerseState.selectedTopics,
                 newVerseViewModel = newVerseViewModel,
                 translation = newVerseState.translation,
                 scriptureVerses = newVerseState.scriptureVerses,
+                isEarlySave = true
             )
         }
     }
 
-    // New verse is saved. Now navigate to edit verse screen
-    LaunchedEffect(newVerseState.newlySavedVerseId) {
-        if (newVerseState.newlySavedVerseId != null) {
+
+    // Track if we've already navigated to prevent multiple navigations
+    var hasNavigated by remember { mutableStateOf(false) }
+
+    // New verse is saved. Now navigate to edit verse screen  
+    LaunchedEffect(newVerseState.newlySavedVerseId, hasNavigated) {
+        Log.d("AllVersesScreen", "LaunchedEffect(Navigation) triggered - newlySavedVerseId: ${newVerseState.newlySavedVerseId}, hasNavigated: $hasNavigated")
+        if (newVerseState.newlySavedVerseId != null && !hasNavigated) {
             showRetrievingDataDialog = false // Hide dialog before navigating
             navController.navigate(Screen.VerseDetailScreen(verseID = newVerseState.newlySavedVerseId!!, editMode = true)) {
                 popUpTo(Screen.Home)
             }
+            hasNavigated = true // Mark as navigated to prevent re-navigation
+        }
+    }
+
+    // Reset navigation state after final save completes
+    LaunchedEffect(newVerseState.isContentSaved) {
+        if (newVerseState.isContentSaved && newVerseState.newlySavedVerseId != null) {
             newVerseViewModel.resetNavigationState()
+            hasNavigated = false // Reset for next verse
         }
     }
 
     // Show the transient dialog
     if (showRetrievingDataDialog) {
         // Derive the message from the ViewModel's state
-        val loadingMessage = when (newVerseState.loadingStage) {
-            NewVerseViewModel.LoadingStage.FETCHING_SCRIPTURE -> "Fetching scripture..."
-            NewVerseViewModel.LoadingStage.FETCHING_TAKEAWAY -> "Fetching insights from AI..."
-            NewVerseViewModel.LoadingStage.VALIDATING_TAKEAWAY -> "Validating insights..."
+        val loadingMessage = when {
+            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.FETCHING_SCRIPTURE -> "Fetching scripture..."
+            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.SCRIPTURE_READY -> "Scripture ready, navigating..."
+            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.FETCHING_TAKEAWAY -> "Fetching insights from AI..."
+            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.VALIDATING_TAKEAWAY -> "Validating insights..."
+            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.NONE && newVerseState.newlySavedVerseId != null && !newVerseState.isContentSaved -> "Saving AI content..."
             else -> "Finalizing..." // Fallback message
         }
         TransientRetrievingDataDialog(loadingMessage = loadingMessage)
@@ -657,12 +681,13 @@ fun FilterDialog(
 
 
 // Helper function to determine if content is ready to be saved
-private fun readyToSave(state: NewVerseViewModel.NewVerseScreenState): Boolean {
+// Helper function to determine if scripture is ready for early save
+private fun readyForEarlySave(state: NewVerseViewModel.NewVerseScreenState): Boolean {
     return (state.selectedVerse != null &&
-            state.loadingStage == NewVerseViewModel.LoadingStage.NONE &&
-            !state.isContentSaved &&
-            state.scriptureError == null &&
-            state.aiResponseError == null)
+            state.loadingStage == NewVerseViewModel.LoadingStage.SCRIPTURE_READY &&
+            state.newlySavedVerseId == null &&
+            state.scriptureVerses.isNotEmpty() &&
+            state.scriptureError == null)
 }
 
 @Composable

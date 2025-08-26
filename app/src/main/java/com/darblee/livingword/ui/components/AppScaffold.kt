@@ -232,7 +232,8 @@ fun AppScaffold(
             onDismissRequest = { showSettingDialogBox = false },
             onConfirmation = { newSettings ->
                 // This lambda is called when settings are confirmed and saved
-                GeminiAIService.configure(newSettings) // Reconfigure the service
+                // Configure all AI services through the modular registry instead of direct configuration
+                AIService.configure(newSettings)
                 showSettingDialogBox = false
             },
             onColorThemeUpdated = onColorThemeUpdated,
@@ -735,21 +736,40 @@ private fun AIModelSetting(
                         testSuccess = null
 
                         try {
-                            // Configure the service with current settings
-                            AIService.configure(aiSettings)
-
-                            // Test the connection with a simple prompt
-                            val result = AIService.getKeyTakeaway("John 3:16")
-
-                            when (result) {
-                                is AiServiceResult.Success -> {
-                                    testSuccess = true
-                                    testResult = "Connection successful! ${aiSettings.selectedService.displayName} is working properly."
-                                }
-                                is AiServiceResult.Error -> {
-                                    testSuccess = false
-                                    testResult = "Connection failed: ${result.message}"
-                                }
+                            // Get the specific provider for the selected service type
+                            val providers = AIServiceRegistry.getProvidersByType(aiSettings.selectedService)
+                            if (providers.isEmpty()) {
+                                testSuccess = false
+                                testResult = "No provider available for ${aiSettings.selectedService.displayName}"
+                                return@launch
+                            }
+                            
+                            val provider = providers.first() // Get the first (highest priority) provider
+                            
+                            // Configure the specific provider with current settings
+                            val currentConfig = when (aiSettings.selectedService) {
+                                AIServiceType.GEMINI -> aiSettings.geminiConfig
+                                AIServiceType.OPENAI -> aiSettings.openAiConfig
+                            }
+                            
+                            val configSuccess = provider.configure(currentConfig)
+                            if (!configSuccess) {
+                                testSuccess = false
+                                val error = provider.getInitializationError() ?: "Configuration failed"
+                                testResult = "Configuration failed: $error"
+                                return@launch
+                            }
+                            
+                            // Test the specific provider directly (no fallback)
+                            val testResult_inner = provider.test()
+                            
+                            if (testResult_inner) {
+                                testSuccess = true
+                                testResult = "Connection successful! ${aiSettings.selectedService.displayName} is working properly."
+                            } else {
+                                testSuccess = false
+                                val error = provider.getInitializationError() ?: "Test failed"
+                                testResult = "Test failed: $error"
                             }
                         } catch (e: Exception) {
                             testSuccess = false

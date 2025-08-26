@@ -296,8 +296,14 @@ fun HomeScreen(
             Log.i("HomeScreen", "HomeViewModel state collected. LoadingStage: ${state.loadingStage}, GeneralError: ${state.generalError}, AiResponseError: ${state.aiResponseError}")
 
             showRetrievingDataDialog = when (state.loadingStage) {
-                HomeViewModel.LoadingStage.NONE -> false
-                else -> true
+                HomeViewModel.LoadingStage.NONE -> {
+                    Log.d("HomeScreen", "LoadingStage is NONE, hiding dialog")
+                    false
+                }
+                else -> {
+                    Log.d("HomeScreen", "LoadingStage is ${state.loadingStage}, showing dialog")
+                    true
+                }
             }
 
             loadingMessage = when (state.loadingStage) {
@@ -309,6 +315,7 @@ fun HomeScreen(
 
             Log.i("HomeScreen", "Loading message: $loadingMessage, aiResponseText.isNotEmpty(): ${state.aiTakeAwayText.isNotEmpty()}, scriptureVerses.isNotEmpty(): ${state.scriptureVerses.isNotEmpty()} state.isContentSaved: ${state.isContentSaved}")
 
+            Log.d("HomeScreen", "Save check - aiTakeAwayText.isNotEmpty(): ${state.aiTakeAwayText.isNotEmpty()}, scriptureVerses.isNotEmpty(): ${state.scriptureVerses.isNotEmpty()}, isContentSaved: ${state.isContentSaved}, selectedVOTD != null: ${state.selectedVOTD != null}, loadingStage: ${state.loadingStage}")
             if (state.aiTakeAwayText.isNotEmpty() && state.scriptureVerses.isNotEmpty() && !state.isContentSaved && state.selectedVOTD != null && state.loadingStage == HomeViewModel.LoadingStage.NONE) {
                 Log.i("HomeScreen", "Adding new verse to database")
                 bibleVerseViewModel.saveNewVerseHome(

@@ -231,10 +231,28 @@ fun VerseDetailScreen(
     // LaunchedEffect to update editedAiResponse and editedTopics when verseItem is loaded
     LaunchedEffect(verseItem) {
         verseItem?.let {
+            Log.d("VerseDetailScreen", "Verse loaded - ID: ${it.id}, aiTakeAwayResponse: ${it.aiTakeAwayResponse.take(50)}...")
             editedAiResponse = it.aiTakeAwayResponse
 
             // Only reset topics if not returning from topic selection
             if (!processEditTopics) editedTopics = it.topics
+            
+            // Check if this is a new verse that needs AI takeaway (edit mode + empty takeaway + has scripture)
+            val needsAITakeaway = inEditMode && it.aiTakeAwayResponse.isBlank() && it.scriptureVerses.isNotEmpty()
+            if (needsAITakeaway) {
+                Log.d("VerseDetailScreen", "Detected new verse without AI takeaway, fetching for verse ID: ${it.id}")
+                try {
+                    val (success, result) = bibleViewModel.fetchAITakeawayForVerse(it.id)
+                    if (success) {
+                        Log.d("VerseDetailScreen", "AI takeaway fetch successful: ${result.take(50)}...")
+                        // The database update will trigger a recomposition and update editedAiResponse
+                    } else {
+                        Log.w("VerseDetailScreen", "AI takeaway fetch failed: $result")
+                    }
+                } catch (e: Exception) {
+                    Log.e("VerseDetailScreen", "Exception during AI takeaway fetch: ${e.message}", e)
+                }
+            }
         }
     }
 
@@ -514,19 +532,43 @@ fun VerseDetailScreen(
                     modifier = Modifier.fillMaxWidth().weight(0.4f).heightIn(min = 50.dp)
                 ) {
                     if (inEditMode) {
-                        BasicTextField(
-                            value = editedAiResponse,
-                            onValueChange = {
-                                editedAiResponse = it
-                                newContentNeedToBeSaved = true
-                            },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(aiResponseScrollState),
-                            readOnly = false, // Editable in edit mode
-                            textStyle = LocalTextStyle.current.copy(color = editModeColor),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        )
+                        // Show loading message if AI takeaway is empty (being fetched)
+                        if (editedAiResponse.isBlank() && verseItem?.scriptureVerses?.isNotEmpty() == true) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    androidx.compose.material3.CircularProgressIndicator(
+                                        modifier = Modifier.width(24.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Getting key take-away...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            BasicTextField(
+                                value = editedAiResponse,
+                                onValueChange = {
+                                    editedAiResponse = it
+                                    newContentNeedToBeSaved = true
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(aiResponseScrollState),
+                                readOnly = false, // Editable in edit mode
+                                textStyle = LocalTextStyle.current.copy(color = editModeColor),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            )
+                        }
                     } else {
                         val baseTextColor =
                             MaterialTheme.typography.bodyLarge.color.takeOrElse { LocalContentColor.current }
@@ -615,7 +657,7 @@ fun VerseDetailScreen(
                                 .heightIn(max = (48 * 2).dp) // Set maximum height
                                 .verticalScroll(topicScrollState), // Enable vertical scrolling
                         ) {
-                            if ((editedTopics.count() == 1) && (editedTopics[0] == "")) {
+                            if (editedTopics.count() == 0) {
                                 Text(text = "Click here to add topic(s)", modifier = Modifier.clickable { // Serialize editedTopics to JSON string
                                     val editedTopicsJson = try {
                                         Json.encodeToString(

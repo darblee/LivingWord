@@ -5,7 +5,8 @@
       "Bash(grep:*)",
       "Bash(.gradlew assembleDebug)",
       "WebSearch",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
