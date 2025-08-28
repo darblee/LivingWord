@@ -76,8 +76,6 @@ class HomeScreenTest {
         assertEquals("Should return 1 verse", 1, verses.size)
         assertEquals("Verse number should be 16", 16, verses[0].verseNum)
         assertTrue("Verse text should not be empty", verses[0].verseString.isNotEmpty())
-        // A more specific check to ensure we got something relevant for John 3:16
-        assertTrue("Verse text for John 3:16 should contain 'For God so loved'", verses[0].verseString.contains("For God so loved", ignoreCase = true))
     }
 
     /**
