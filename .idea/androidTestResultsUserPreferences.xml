@@ -89,9 +89,22 @@
             <AndroidTestResultsTableState>
               <option name="preferredColumnWidths">
                 <map>
-                  <entry key="Duration" value="90" />
-                  <entry key="OnePlus CPH2611" value="120" />
-                  <entry key="Tests" value="360" />
+                  <entry key="Duration" value="225" />
+                  <entry key="OnePlus CPH2611" value="254" />
+                  <entry key="Tests" value="494" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="876643633">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="225" />
+                  <entry key="OnePlus CPH2611" value="254" />
+                  <entry key="Tests" value="494" />
                 </map>
               </option>
             </AndroidTestResultsTableState>

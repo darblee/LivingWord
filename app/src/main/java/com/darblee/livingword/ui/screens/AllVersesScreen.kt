@@ -121,7 +121,7 @@ fun AllVersesScreen(
     var showRetrievingDataDialog by remember { mutableStateOf(false) }
     val newVerseViewModel: NewVerseViewModel = viewModel(
         // Scope to the navigation host instead of this composable so it survives navigation
-        viewModelStoreOwner = LocalContext.current as ComponentActivity
+        viewModelStoreOwner = LocalActivity.current as ComponentActivity
     )
 
     var showFilterDialog by remember { mutableStateOf(false) }
