@@ -130,7 +130,7 @@ private fun AnnotatedString.Builder.appendFormattedSentence(sentence: String, bo
 
 // Helper function to build annotated string for TTS highlighting
 private fun buildAnnotatedStringForScoreDialog(
-    aiContextExplanation: String,
+    aiScoreExplanation: String,
     applicationFeedback: String,
     currentlySpeakingIndex: Int,
     isSpeaking: Boolean,
@@ -143,7 +143,7 @@ private fun buildAnnotatedStringForScoreDialog(
     val locale = Locale.getDefault()
 
     // Split into sections based on content
-    val contextFeedbackText = "Context Feedback: $aiContextExplanation"
+    val contextFeedbackText = "Context Feedback: $aiScoreExplanation"
     val applicationFeedbackText = "Application Feedback: ${applicationFeedback.replace("###", "")}"
     val contextSentences = splitIntoSentences(contextFeedbackText, locale)
     val applicationSentences = splitIntoSentences(applicationFeedbackText, locale)
@@ -1193,8 +1193,7 @@ fun EngageScreen(
                             // Check if current content differs from saved content
                             val directQuoteChanged = currentDirectQuote != currentVerse.userDirectQuote
                             val applicationChanged = currentApplication != currentVerse.userContext
-                            val aiContentChanged = (state.aiContextExplanationText ?: "") != currentVerse.aiContextExplanationText ||
-                                                  (state.applicationFeedback ?: "") != currentVerse.applicationFeedback
+                            val aiContentChanged = (state.aiScoreExplanationText ?: "") != currentVerse.aiContextExplanationText
                             
                             val hasContentChanged = directQuoteChanged || applicationChanged || aiContentChanged
                             
@@ -1272,7 +1271,7 @@ fun EngageScreen(
                                             val contextScoreToSave = if (state.contextScore >= 0) state.contextScore else -1
 
                                             Log.d("EngageScreen", "Saving user data - DirectQuoteScore: $directQuoteScoreToSave, ContextScore: $contextScoreToSave")
-                                            Log.d("EngageScreen", "AI Explanations - Direct: '${(state.aiDirectQuoteExplanationText ?: "").take(30)}...', Context: '${(state.aiContextExplanationText ?: "").take(30)}...', App: '${(state.applicationFeedback ?: "").take(30)}...'")
+                                            Log.d("EngageScreen", "AI Explanations - Direct: '${(state.aiDirectQuoteExplanationText ?: "").take(30)}...', Context: '${(state.aiScoreExplanationText ?: "").take(30)}...', App: '${(state.applicationFeedback ?: "").take(30)}...'")
 
                                             bibleViewModel.updateUserData(
                                                 verseId = currentVerse.id,
@@ -1281,7 +1280,7 @@ fun EngageScreen(
                                                 userContext = contextToSave,
                                                 userContextScore = contextScoreToSave,
                                                 aiDirectQuoteExplanationText = state.aiDirectQuoteExplanationText ?: "",
-                                                aiContextExplanationText = state.aiContextExplanationText ?: "",
+                                                aiContextExplanationText = state.aiScoreExplanationText ?: "",
                                                 applicationFeedback = state.applicationFeedback ?: ""
                                             )
 
@@ -1716,7 +1715,7 @@ fun EngageScreen(
                                 directQuoteScore = state.directQuoteScore,
                                 contextScore = state.contextScore,
                                 aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText,
-                                aiContextExplanation = state.aiContextExplanationText,
+                                aiContextExplanation = state.aiScoreExplanationText,
                                 applicationFeedback = state.applicationFeedback
                             )
                             val clip = ClipData.newPlainText("Memorized Content Clipboard", textToCopy)
@@ -1731,7 +1730,7 @@ fun EngageScreen(
                                 directQuoteScore = state.directQuoteScore,
                                 contextScore = state.contextScore,
                                 aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText,
-                                aiContextExplanation = state.aiContextExplanationText,
+                                aiContextExplanation = state.aiScoreExplanationText,
                                 applicationFeedback = state.applicationFeedback
                             )
                             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -1760,13 +1759,13 @@ fun EngageScreen(
                     // Build the combined text for TTS
                     val combinedScoreDialogText = buildString {
                         append("Context Score: ${state.contextScore}. ")
-                        append("Context Feedback: ${state.aiContextExplanationText ?: ""} ")
+                        append("Context Feedback: ${state.aiScoreExplanationText ?: ""} ")
                         append("Application Feedback: ${state.applicationFeedback ?: ""}")
                     }
 
                     // Build annotated strings for highlighting (now only 2 sections: Context + Application)
                     val annotatedStrings = buildAnnotatedStringForScoreDialog(
-                        aiContextExplanation = state.aiContextExplanationText ?: "",
+                        aiScoreExplanation = state.aiScoreExplanationText ?: "",
                         applicationFeedback = state.applicationFeedback ?: "",
                         currentlySpeakingIndex = currentlySpeakingIndex,
                         isSpeaking = isSpeaking,
@@ -1803,7 +1802,7 @@ fun EngageScreen(
                                     )
                                     // TTS Play/Pause button - only show when not loading and content is available
                                     if (!state.aiResponseLoading &&
-                                        !state.aiContextExplanationText.isNullOrEmpty() &&
+                                        !state.aiScoreExplanationText.isNullOrEmpty() &&
                                         !state.applicationFeedback.isNullOrEmpty()
                                     ) {
                                         IconButton(
