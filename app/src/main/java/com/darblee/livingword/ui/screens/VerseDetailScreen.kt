@@ -206,6 +206,7 @@ fun VerseDetailScreen(
     var showAiResponseDropdownMenu by remember { mutableStateOf(false) }
     var aiResponseDropdownMenuOffset by remember { mutableStateOf(Offset.Zero) }
     var expandedTranslation by remember { mutableStateOf(false) }
+    var isScriptureReadOnlyEditMode by remember { mutableStateOf(false) }
 
     val localDensity = LocalDensity.current
 
@@ -474,24 +475,49 @@ fun VerseDetailScreen(
                         }
 
                         Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown
-                            Text(
-                                text = scriptureAnnotatedText,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
-                                                if (isTtsInitialized && verseItem != null) {
-                                                    scriptureDropdownMenuOffset =
-                                                        touchOffset // Store the touch position
+                            if (isScriptureReadOnlyEditMode) {
+                                // Read-only edit mode - shows BasicTextField for copy/select operations
+                                BasicTextField(
+                                    value = verseItem?.scriptureVerses?.joinToString(" ") { "${it.verseNum} ${it.verseString}" } ?: "",
+                                    onValueChange = { /* Read-only, no changes allowed */ },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onLongPress = { touchOffset ->
+                                                    scriptureDropdownMenuOffset = touchOffset
                                                     showScriptureDropdownMenu = true
                                                 }
-                                            }
-                                        )
-                                    }
-                            )
+                                            )
+                                        },
+                                    readOnly = true,
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        color = baseTextColor
+                                    ),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                                )
+                            } else {
+                                // Normal mode - shows formatted AnnotatedString
+                                Text(
+                                    text = scriptureAnnotatedText,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onLongPress = { touchOffset -> // touchOffset is the raw pixel offset
+                                                    if (isTtsInitialized && verseItem != null) {
+                                                        scriptureDropdownMenuOffset =
+                                                            touchOffset // Store the touch position
+                                                        showScriptureDropdownMenu = true
+                                                    }
+                                                }
+                                            )
+                                        }
+                                )
+                            }
 
                             // Approximate height of a single menu item plus some padding
                             val menuItemVerticalShift = 300.dp
@@ -517,6 +543,13 @@ fun VerseDetailScreen(
                                             val fullScriptureTextForTTS = verseItem!!.scriptureVerses.joinToString(" ") { it.verseString }
                                             ttsViewModel.restartSingleText(fullScriptureTextForTTS)
                                         }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (isScriptureReadOnlyEditMode) "Exit read-only edit mode" else "Read-only edit mode") },
+                                    onClick = {
+                                        showScriptureDropdownMenu = false
+                                        isScriptureReadOnlyEditMode = !isScriptureReadOnlyEditMode
                                     }
                                 )
                             }
@@ -756,7 +789,7 @@ fun VerseDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 )
                 {
-                    // Save Button
+                    // Save/Edit Button
                     Button(
                         onClick = {
                             if (inEditMode) {
