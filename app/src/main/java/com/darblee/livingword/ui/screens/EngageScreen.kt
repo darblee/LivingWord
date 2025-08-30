@@ -1176,27 +1176,21 @@ fun EngageScreen(
                         val isCompareMode = verse?.let { ((directQuoteTextFieldValue.text != verse!!.userDirectQuote) ||
                                 (userApplicationTextFieldValue.text != verse!!.userContext)) } ?: false
 
-                        // "Evaluate" button enabled logic
-                        val evaluateButtonEnabled =
-                            verse?.let { ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
-                                    ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty())
-                                     } ?: false
 
                         val saveButtonEnabled = verse?.let { currentVerse ->
                             val hasDirectQuote = ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty())
                             val hasApplicationContent = ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty())
-                            
+
                             // Get current content including partial text
                             val currentDirectQuote = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
                             val currentApplication = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
-                            
+
                             // Check if current content differs from saved content
                             val directQuoteChanged = currentDirectQuote != currentVerse.userDirectQuote
                             val applicationChanged = currentApplication != currentVerse.userContext
-                            val aiContentChanged = (state.aiScoreExplanationText ?: "") != currentVerse.aiContextExplanationText
-                            
-                            val hasContentChanged = directQuoteChanged || applicationChanged || aiContentChanged
-                            
+
+                            val hasContentChanged = directQuoteChanged || applicationChanged
+
                             val enabled = hasDirectQuote && hasApplicationContent && hasContentChanged
                             if (enabled && state.directQuoteScore < 0 && state.contextScore < 0) {
                                 Log.d("EngageScreen", "Save button enabled without AI scores - user can override/save content")
@@ -1207,8 +1201,13 @@ fun EngageScreen(
                             enabled
                         } ?: false
 
+                        val feedbackButtonEnabled =
+                            verse?.let { (((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) &&
+                                    ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) && (!saveButtonEnabled))
+                            } ?: false
+
                         // Second button ("Save"/"Show"/"Compare") text logic
-                        val secondButtonText = if (isShowDataMode) "Show Saved" else "Compare w/ saved"
+                        val secondButtonText = if (isShowDataMode) "Show Saved" else "Compare"
 
                         // Second button enabled logic
                         val secondButtonEnabled = isShowDataMode || isCompareMode
@@ -1219,7 +1218,7 @@ fun EngageScreen(
                         ) {
                             FloatingActionButton(
                                 onClick = {
-                                    if (evaluateButtonEnabled) {
+                                    if (feedbackButtonEnabled) {
                                         val directQuoteToEvaluate = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
                                         val userApplicationComment = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
                                         if (verse != null) {
@@ -1243,7 +1242,7 @@ fun EngageScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(30.dp),
-                                containerColor = if (evaluateButtonEnabled) {
+                                containerColor = if (feedbackButtonEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
@@ -1251,7 +1250,7 @@ fun EngageScreen(
                             ) {
                                 Text(
                                     text = "Feedback",
-                                    color = if (evaluateButtonEnabled) {
+                                    color = if (feedbackButtonEnabled) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -1266,22 +1265,13 @@ fun EngageScreen(
                                         verse?.let { currentVerse ->
                                             val directQuoteToSave = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
                                             val contextToSave = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
-                                            // Save actual scores or -1 if no AI evaluation was performed
-                                            val directQuoteScoreToSave = if (state.directQuoteScore >= 0) state.directQuoteScore else -1
-                                            val contextScoreToSave = if (state.contextScore >= 0) state.contextScore else -1
 
-                                            Log.d("EngageScreen", "Saving user data - DirectQuoteScore: $directQuoteScoreToSave, ContextScore: $contextScoreToSave")
-                                            Log.d("EngageScreen", "AI Explanations - Direct: '${(state.aiDirectQuoteExplanationText ?: "").take(30)}...', Context: '${(state.aiScoreExplanationText ?: "").take(30)}...', App: '${(state.applicationFeedback ?: "").take(30)}...'")
+                                            Log.d("EngageScreen", "Saving user input only (no AI feedback)")
 
-                                            bibleViewModel.updateUserData(
+                                            bibleViewModel.updateUserInputOnly(
                                                 verseId = currentVerse.id,
                                                 userDirectQuote = directQuoteToSave,
-                                                userDirectQuoteScore = directQuoteScoreToSave,
-                                                userContext = contextToSave,
-                                                userContextScore = contextScoreToSave,
-                                                aiDirectQuoteExplanationText = state.aiDirectQuoteExplanationText ?: "",
-                                                aiContextExplanationText = state.aiScoreExplanationText ?: "",
-                                                applicationFeedback = state.applicationFeedback ?: ""
+                                                userContext = contextToSave
                                             )
 
                                             // Optimistically update all relevant local state.
@@ -1300,9 +1290,7 @@ fun EngageScreen(
                                             // Update the local verse object to match the saved data.
                                             verse = currentVerse.copy(
                                                 userDirectQuote = directQuoteToSave,
-                                                userContext = contextToSave,
-                                                userDirectQuoteScore = directQuoteScoreToSave,
-                                                userContextScore = contextScoreToSave
+                                                userContext = contextToSave
                                             )
 
                                             // Reset the change tracking flags
@@ -1397,7 +1385,7 @@ fun EngageScreen(
                             AlertDialog(
                                 properties = DialogProperties(usePlatformDefaultWidth = false),
                                 onDismissRequest = { showCompareDialog = false },
-                                title = { Text("Compare With Saved") },
+                                title = { Text("Compare With Previously Saved") },
                                 text = {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -1880,12 +1868,63 @@ fun EngageScreen(
                             }
                         },
                         confirmButton = {
-                            if (!state.aiResponseLoading) { // Show OK button only when not loading
-                                TextButton(onClick = {
-                                    showScoreDialog = false
-                                    ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
-                                }) {
-                                    Text("OK")
+                            if (!state.aiResponseLoading) { // Show buttons only when not loading
+                                // Check if feedback content has changed from saved content
+                                val saveFeedbackEnabled = verse?.let { currentVerse ->
+                                    val currentAiContextExplanation = state.aiScoreExplanationText ?: ""
+                                    val currentApplicationFeedback = state.applicationFeedback ?: ""
+                                    
+                                    // Check if AI feedback content differs from saved content
+                                    val aiContextChanged = currentAiContextExplanation != currentVerse.aiContextExplanationText
+                                    val applicationFeedbackChanged = currentApplicationFeedback != currentVerse.applicationFeedback
+                                    val scoresChanged = (state.contextScore != currentVerse.userContextScore)
+                                    
+                                    // Enable if any AI feedback content has changed and we have valid AI data
+                                    val hasValidAiData = currentAiContextExplanation.isNotEmpty() || 
+                                                        currentApplicationFeedback.isNotEmpty() ||
+                                                        state.contextScore >= 0
+                                    
+                                    hasValidAiData && (aiContextChanged || applicationFeedbackChanged || scoresChanged)
+                                } ?: false
+
+                                Row {
+                                    TextButton(
+                                        enabled = saveFeedbackEnabled,
+                                        onClick = {
+                                            // Save feedback to database
+                                            verse?.let { currentVerse ->
+                                                val directQuoteToSave = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
+                                                val contextToSave = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
+                                                val directQuoteScoreToSave = if (state.directQuoteScore >= 0) state.directQuoteScore else -1
+                                                val contextScoreToSave = if (state.contextScore >= 0) state.contextScore else -1
+
+                                                bibleViewModel.updateUserData(
+                                                    verseId = currentVerse.id,
+                                                    userDirectQuote = directQuoteToSave,
+                                                    userDirectQuoteScore = directQuoteScoreToSave,
+                                                    userContext = contextToSave,
+                                                    userContextScore = contextScoreToSave,
+                                                    aiDirectQuoteExplanationText = state.aiDirectQuoteExplanationText ?: "",
+                                                    aiContextExplanationText = state.aiScoreExplanationText ?: "",
+                                                    applicationFeedback = state.applicationFeedback ?: ""
+                                                )
+                                                
+                                                // Refresh verse data to trigger recomposition of saveFeedbackEnabled
+                                                coroutineScope.launch {
+                                                    delay(200) // Allow DB write to complete
+                                                    verse = bibleViewModel.getVerseById(currentVerse.id)
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Text("Save Feedback")
+                                    }
+                                    TextButton(onClick = {
+                                        showScoreDialog = false
+                                        ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
+                                    }) {
+                                        Text("OK")
+                                    }
                                 }
                             }
                         },

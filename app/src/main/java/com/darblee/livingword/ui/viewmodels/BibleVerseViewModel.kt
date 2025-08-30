@@ -455,6 +455,35 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     }
 
     /**
+     * Updates only user input data (direct quote and context) without AI feedback.
+     * Used when user wants to save their input without overriding AI feedback.
+     */
+    fun updateUserInputOnly(
+        verseId: Long,
+        userDirectQuote: String,
+        userContext: String
+    ) {
+        viewModelScope.launch {
+            try {
+                val verseToUpdate = repository.getVerseById(verseId)
+                val updatedVerse = verseToUpdate.copy(
+                    userDirectQuote = userDirectQuote,
+                    userContext = userContext,
+                    lastModified = System.currentTimeMillis()
+                )
+
+                repository.updateVerse(updatedVerse)
+                SnackBarController.showMessage("User input saved")
+                Log.i("BibleVerseViewModel", "Successfully updated user input for verse ID: $verseId")
+                _errorMessage.value = "User input saved!"
+            } catch (e: Exception) {
+                Log.e("BibleVerseViewModel", "Error updating user input for verse ID: $verseId", e)
+                _errorMessage.value = "Error saving user input: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    /**
      * Checks if a BibleVerse has any user memorization data saved.
      * Updated to use safe accessor methods for the new fields.
      *
