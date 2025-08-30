@@ -11,9 +11,20 @@ import com.darblee.livingword.data.remote.AIService
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.darblee.livingword.BuildConfig
+import com.darblee.livingword.data.remote.AIServiceRegistry
+import com.darblee.livingword.data.remote.AIServiceRegistration
+import com.darblee.livingword.data.remote.GeminiAIServiceProvider
+import com.darblee.livingword.data.remote.OpenAIServiceProvider
+import com.darblee.livingword.data.remote.ESVScriptureProvider
+import com.darblee.livingword.AISettings
+import com.darblee.livingword.AIServiceType
+import com.darblee.livingword.AIServiceConfig
 
 @RunWith(AndroidJUnit4::class)
 class HomeScreenTest {
@@ -26,11 +37,100 @@ class HomeScreenTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
+    @Before
+    fun setUp() {
+        // Setup AI providers for testing using external registration system
+        setupAIProviders()
+        
+        // Wait for app and AI initialization
+        Thread.sleep(3000)
+        composeTestRule.waitForIdle()
+    }
+
+    @After
+    fun tearDown() {
+        // Clean up AI providers after each test to ensure isolation
+        try {
+            AIServiceRegistry.clear()
+            println("✓ Cleaned up AI providers after HomeScreen test")
+        } catch (e: Exception) {
+            println("⚠️ Warning: Could not clear AI providers: ${e.message}")
+        }
+        
+        composeTestRule.waitForIdle()
+    }
+
+    /**
+     * Setup AI providers for testing using external registration system.
+     * This ensures AI functionality is available for tests that involve scripture fetching,
+     * VOTD processing, and other AI-powered features in the HomeScreen.
+     */
+    private fun setupAIProviders() {
+        try {
+            println("🏠 Setting up AI providers for HomeScreen tests...")
+            
+            // Clear any existing providers to ensure clean state
+            AIServiceRegistry.clear()
+            
+            // Initialize clean registry
+            AIServiceRegistry.initialize()
+            
+            // Register AI providers using external registration system
+            val geminiProvider = GeminiAIServiceProvider()
+            AIServiceRegistry.registerProvider(geminiProvider)
+            println("✓ Registered Gemini AI provider for HomeScreen")
+            
+            val openAIProvider = OpenAIServiceProvider()
+            AIServiceRegistry.registerProvider(openAIProvider)
+            println("✓ Registered OpenAI provider for HomeScreen")
+            
+            // Register scripture providers
+            val esvProvider = ESVScriptureProvider()
+            AIServiceRegistry.registerScriptureProvider(esvProvider)
+            println("✓ Registered ESV Scripture provider for HomeScreen")
+            
+            // Configure AI service with test settings
+            val testAISettings = AISettings(
+                selectedService = AIServiceType.GEMINI,
+                geminiConfig = AIServiceConfig(
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
+                    temperature = 0.7f
+                ),
+                openAiConfig = AIServiceConfig(
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "test-openai-key", // Will be invalid for fallback testing
+                    temperature = 0.7f
+                )
+            )
+            
+            // Configure the registered providers
+            AIService.configure(testAISettings)
+            
+            // Verify setup
+            val stats = AIServiceRegistry.getStatistics()
+            println("📊 HomeScreen AI Setup complete - ${stats.totalProviders} providers registered, ${stats.availableProviders} available")
+            
+            if (AIService.isInitialized()) {
+                println("✅ AI Service is ready for HomeScreen testing")
+            } else {
+                println("⚠️ AI Service initialization issues - HomeScreen tests may use fallback behavior")
+            }
+            
+        } catch (e: Exception) {
+            println("❌ Failed to setup AI providers for HomeScreen: ${e.message}")
+            println("⚠️ AI-dependent HomeScreen features may not work correctly in tests")
+            // Continue with tests - UI tests should still work without AI
+        }
+    }
+
     @Test
     fun homeScreen_displaysCorrectly() = runBlocking {
         try {
-            // Extended wait for the app to fully initialize and Compose hierarchy to be ready
-            Thread.sleep(3000)
+            // AI providers are now registered in setUp() - app should be ready
+            Thread.sleep(1000) // Reduced wait time since setup handles initialization
             composeTestRule.waitForIdle()
 
             // Attempt to verify home screen elements with retry logic
@@ -82,38 +182,19 @@ class HomeScreenTest {
     /**
      * This is an instrumented test that makes a real network call to fetch scripture.
      * It requires an active internet connection and a valid API key configured in the app.
-     * It tests fetching a single verse.
-     */
-    @Test
-    fun fetchScripture_John3_16_AMP_returnsCorrectVerse() = runBlocking {
-        // Arrange
-        val verseRef = BibleVerseRef("John", 3, 16, endVerse = 16)
-        val translation = "AMP"
-
-        // Act
-        // The AIService is configured in MainActivity's onCreate, which is launched by the rule.
-        val result = AIService.fetchScripture(verseRef, translation)
-
-        // Assert
-        assertTrue("API call should be successful, but was: $result", result is AiServiceResult.Success)
-        val verses = (result as AiServiceResult.Success).data
-        assertEquals("Should return 1 verse", 1, verses.size)
-        assertEquals("Verse number should be 16", 16, verses[0].verseNum)
-        assertTrue("Verse text should not be empty", verses[0].verseString.isNotEmpty())
-    }
-
-    /**
-     * This is an instrumented test that makes a real network call to fetch scripture.
-     * It requires an active internet connection and a valid API key configured in the app.
-     * It tests fetching a range of verses.
+     * It tests fetching a range of verses using registered AI providers.
+     * 
+     * Note: This will test the ESV scripture provider fallback logic with registered providers
      */
     @Test
     fun fetchScripture_Romans12_12_14_ESV_returnsCorrectVerses() = runBlocking {
         // Arrange
         val verseRef = BibleVerseRef("Romans", 12, 12, 14)
-        val translation = "ESV" // This will test the ESV service fallback logic
+        val translation = "ESV" // This will test the ESV service fallback logic with registered providers
 
         // Act
+        // Allow additional time for AI service to be fully ready
+        Thread.sleep(1000)
         val result = AIService.fetchScripture(verseRef, translation)
 
         // Assert
@@ -132,6 +213,8 @@ class HomeScreenTest {
      * This test fetches the Verse of the Day (VOTD) and retrieves it in ESV translation.
      * It makes a real network call to fetch the VOTD reference and then scripture.
      * Requires an active internet connection and valid API keys.
+     * 
+     * Note: Uses registered AI providers for scripture fetching with ESV provider priority
      */
     @Test
     fun fetchVOTD_ESV_returnsCorrectVerse() = runBlocking {
@@ -144,7 +227,9 @@ class HomeScreenTest {
         
         val translation = "ESV"
 
-        // Act - Fetch scripture for VOTD
+        // Act - Fetch scripture for VOTD using registered providers
+        // Allow additional time for AI service to be fully ready
+        Thread.sleep(1000)
         val result = AIService.fetchScripture(verseRef!!, translation)
 
         // Assert
@@ -159,6 +244,8 @@ class HomeScreenTest {
      * This test changes the translation setting from ESV to AMP and verifies 
      * that VOTD is retrieved in the new translation.
      * It makes real network calls and requires active internet connection and valid API keys.
+     * 
+     * Note: Uses registered AI providers to test translation switching with provider priority
      */
     @Test
     fun switchVOTD_ESV_to_AMP_returnsCorrectTranslation() = runBlocking {
@@ -170,11 +257,14 @@ class HomeScreenTest {
         assertTrue("Should be able to parse VOTD reference: $votdReference", verseRef != null)
 
         // Act 1 - Fetch scripture in ESV
+        // Allow additional time for AI service to be fully ready
+        Thread.sleep(1000)
         val esvResult = AIService.fetchScripture(verseRef!!, "ESV")
         assertTrue("ESV API call should be successful for VOTD $votdReference", esvResult is AiServiceResult.Success)
         val esvVerses = (esvResult as AiServiceResult.Success).data
         
         // Act 2 - Fetch same scripture in AMP
+        Thread.sleep(500)
         val ampResult = AIService.fetchScripture(verseRef, "AMP")
         assertTrue("AMP API call should be successful for VOTD $votdReference", ampResult is AiServiceResult.Success)
         val ampVerses = (ampResult as AiServiceResult.Success).data

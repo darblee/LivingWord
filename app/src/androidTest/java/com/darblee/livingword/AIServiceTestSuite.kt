@@ -8,10 +8,15 @@ import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.data.remote.AIServiceProvider
 import com.darblee.livingword.data.remote.AIServiceRegistry
+import com.darblee.livingword.data.remote.AIServiceRegistration
+import com.darblee.livingword.data.remote.GeminiAIServiceProvider
+import com.darblee.livingword.data.remote.OpenAIServiceProvider
+import com.darblee.livingword.data.remote.ESVScriptureProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -38,7 +43,16 @@ class AIServiceTestSuite {
 
     @Before
     fun setup() {
-        // Create test AI settings with both Gemini and OpenAI configurations
+        // Clear any existing providers to ensure clean test state
+        AIServiceRegistry.clear()
+        
+        // Initialize clean registry
+        AIServiceRegistry.initialize()
+        
+        // Register providers using external registration system
+        registerTestProviders()
+        
+        // Create test AI settings for configuration
         testAISettings = AISettings(
             selectedService = AIServiceType.GEMINI,
             geminiConfig = AIServiceConfig(
@@ -54,6 +68,44 @@ class AIServiceTestSuite {
                 temperature = 0.7f
             )
         )
+        
+        // Configure the registered providers
+        AIService.configure(testAISettings)
+    }
+
+    @After
+    fun tearDown() {
+        // Clean up providers after each test
+        AIServiceRegistry.clear()
+    }
+
+    /**
+     * Register test providers using the external registration system
+     */
+    private fun registerTestProviders() {
+        try {
+            // Register AI providers
+            val geminiProvider = GeminiAIServiceProvider()
+            AIServiceRegistry.registerProvider(geminiProvider)
+            println("✓ Registered Gemini provider for testing")
+            
+            val openAIProvider = OpenAIServiceProvider()
+            AIServiceRegistry.registerProvider(openAIProvider)
+            println("✓ Registered OpenAI provider for testing")
+            
+            // Register scripture providers
+            val esvProvider = ESVScriptureProvider()
+            AIServiceRegistry.registerScriptureProvider(esvProvider)
+            println("✓ Registered ESV Scripture provider for testing")
+            
+            // Verify registration
+            val stats = AIServiceRegistry.getStatistics()
+            println("📊 Test setup: ${stats.totalProviders} providers registered")
+            
+        } catch (e: Exception) {
+            println("⚠️ Failed to register test providers: ${e.message}")
+            throw e
+        }
     }
 
     // ==========================================
@@ -62,16 +114,21 @@ class AIServiceTestSuite {
 
     /**
      * Test AIService configuration with valid settings
+     * Note: Configuration happens in setup(), so we just verify the state
      */
     @Test
     fun configure_withValidSettings_shouldSucceed() = runBlocking {
-        // Act
-        AIService.configure(testAISettings)
-        delay(1000) // Wait for configuration to complete
+        // Configuration already happened in setup() using external registration
+        delay(1000) // Wait for any async operations
 
         // Assert
-        assertTrue("AIService should be initialized after configuration", AIService.isInitialized())
+        assertTrue("AIService should be initialized after registration and configuration", AIService.isInitialized())
         assertNull("Initialization error should be null when successful", AIService.getInitializationError())
+        
+        // Verify providers are registered
+        val stats = AIServiceRegistry.getStatistics()
+        assertTrue("Should have registered providers", stats.totalProviders > 0)
+        println("✓ Configuration test passed - ${stats.totalProviders} providers available")
     }
 
     /**
@@ -125,19 +182,130 @@ class AIServiceTestSuite {
             error == null || error is String)
     }
 
+    // ==========================================
+    // 1b. EXTERNAL REGISTRATION TESTS
+    // ==========================================
+
+    /**
+     * Test that external registration system properly registers providers
+     */
+    @Test
+    fun externalRegistration_shouldRegisterProvidersCorrectly() = runBlocking {
+        // Verify providers were registered in setup
+        val stats = AIServiceRegistry.getStatistics()
+        
+        assertTrue("Should have registered AI providers", stats.totalProviders > 0)
+        assertTrue("Should have available providers", stats.availableProviders >= 0) // Some might not be configured
+        
+        // Verify specific providers are registered
+        val geminiProvider = AIServiceRegistry.getProvider("gemini_ai")
+        assertNotNull("Gemini provider should be registered", geminiProvider)
+        
+        val openAIProvider = AIServiceRegistry.getProvider("openai")
+        assertNotNull("OpenAI provider should be registered", openAIProvider)
+        
+        // Verify scripture provider
+        val esvProvider = AIServiceRegistry.getScriptureProvider("esv_bible")
+        assertNotNull("ESV Scripture provider should be registered", esvProvider)
+        
+        println("✓ External registration test passed - all providers registered correctly")
+    }
+
+    /**
+     * Test dynamic provider registration at runtime
+     */
+    @Test
+    fun dynamicRegistration_shouldAllowRuntimeProviderAddition() = runBlocking {
+        // Get initial provider count
+        val initialStats = AIServiceRegistry.getStatistics()
+        val initialCount = initialStats.totalProviders
+        
+        // Register a new provider dynamically (re-register Gemini to test dynamic registration)
+        val newProvider = GeminiAIServiceProvider()
+        val success = AIServiceRegistration.registerAIProvider(newProvider)
+        
+        // Verify registration succeeded  
+        assertTrue("Dynamic registration should succeed", success)
+        
+        // Note: Re-registering same provider might not increase count due to ID conflicts
+        // But the registration mechanism should work
+        val finalStats = AIServiceRegistry.getStatistics()
+        assertTrue("Total providers should be >= initial count", finalStats.totalProviders >= initialCount)
+        
+        println("✓ Dynamic registration test passed - runtime registration works")
+    }
+
+    /**
+     * Test registration status reporting
+     */
+    @Test
+    fun registrationStatus_shouldProvideAccurateInformation() = runBlocking {
+        // Act
+        val status = AIServiceRegistration.getRegistrationStatus()
+        
+        // Assert
+        assertTrue("Total providers should be > 0", status.totalProviders > 0)
+        assertTrue("Available providers should be >= 0", status.availableProviders >= 0)
+        assertTrue("AI providers should be > 0", status.aiProviders > 0)
+        assertTrue("Scripture providers should be > 0", status.scriptureProviders > 0)
+        
+        // System should be ready if we have any available providers
+        // (Note: might be false if API keys not configured, which is acceptable)
+        assertTrue("Status object should exist", status != null)
+        
+        println("📊 Registration status test passed:")
+        println("   Total providers: ${status.totalProviders}")
+        println("   Available providers: ${status.availableProviders}")
+        println("   AI providers: ${status.aiProviders}")
+        println("   Scripture providers: ${status.scriptureProviders}")
+        println("   System ready: ${status.isReady}")
+    }
+
+    /**
+     * Test provider priority ordering through external registration
+     */
+    @Test
+    fun providerPriority_shouldRespectRegistrationOrder() = runBlocking {
+        // Get all registered providers
+        val allProviders = AIServiceRegistry.getAllProviders()
+        val scriptureProviders = AIServiceRegistry.getAllScriptureProviders()
+        
+        assertTrue("Should have AI providers", allProviders.isNotEmpty())
+        assertTrue("Should have scripture providers", scriptureProviders.isNotEmpty())
+        
+        // Verify providers are sorted by priority (lower number = higher priority)
+        if (allProviders.size > 1) {
+            for (i in 0 until allProviders.size - 1) {
+                assertTrue(
+                    "Providers should be sorted by priority", 
+                    allProviders[i].priority <= allProviders[i + 1].priority
+                )
+            }
+        }
+        
+        if (scriptureProviders.size > 1) {
+            for (i in 0 until scriptureProviders.size - 1) {
+                assertTrue(
+                    "Scripture providers should be sorted by priority", 
+                    scriptureProviders[i].priority <= scriptureProviders[i + 1].priority
+                )
+            }
+        }
+        
+        println("✓ Provider priority test passed - providers correctly ordered by priority")
+    }
+
     // =====================================
     // 2. SCRIPTURE FETCHING TESTS
     // =====================================
 
     /**
      * Test fetchScripture with valid verse reference (John 3:16)
+     * Uses external registration system - providers already registered in setup()
      */
     @Test
     fun fetchScripture_withValidReference_shouldReturnVerse() = runBlocking {
-        // Arrange
-        AIService.configure(testAISettings)
-        delay(1000)
-        
+        // Arrange - providers already registered and configured in setup()
         val testVerseRef = BibleVerseRef(
             book = "John",
             chapter = 3,
@@ -156,11 +324,12 @@ class AIServiceTestSuite {
                 assertEquals("Should return exactly one verse for John 3:16", 1, result.data.size)
                 assertTrue("Verse text should not be empty", result.data[0].verseString.isNotBlank())
                 assertEquals("Verse number should be 16", 16, result.data[0].verseNum)
+                println("✓ fetchScripture test passed - retrieved John 3:16")
             }
             is AiServiceResult.Error -> {
                 // If API keys are not configured, this might fail - that's acceptable for testing
                 assertTrue("Error message should not be empty", result.message.isNotBlank())
-                println("fetchScripture failed (expected if API keys not configured): ${result.message}")
+                println("⚠️ fetchScripture failed (expected if API keys not configured): ${result.message}")
             }
         }
     }

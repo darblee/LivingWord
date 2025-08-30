@@ -134,7 +134,9 @@ object AIService {
         // Initialize the provider registry on first use
         try {
             AIServiceRegistry.initialize()
-            Log.d("AIService", "Provider registry initialized")
+            // Register providers externally
+            AIServiceRegistration.registerAllProviders()
+            Log.d("AIService", "Provider registry initialized and providers registered")
         } catch (e: Exception) {
             Log.e("AIService", "Failed to initialize provider registry", e)
         }

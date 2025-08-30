@@ -16,6 +16,11 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.darblee.livingword.data.remote.AIService
+import com.darblee.livingword.data.remote.AIServiceRegistry
+import com.darblee.livingword.data.remote.GeminiAIServiceProvider
+import com.darblee.livingword.data.remote.OpenAIServiceProvider
+import com.darblee.livingword.data.remote.ESVScriptureProvider
 
 @RunWith(AndroidJUnit4::class)
 class AllVersesScreenTest {
@@ -54,14 +59,24 @@ class AllVersesScreenTest {
         // Clear app state after initialization to ensure test isolation
         clearAppData()
         
-        // Give the app a moment to settle after clearing data
+        // Setup AI providers for testing
+        setupAIProviders()
+        
+        // Give the app a moment to settle after setup
         Thread.sleep(1000)
         composeTestRule.waitForIdle()
     }
 
     @After
     fun tearDown() {
-        // Clean up after each test
+        // Clean up AI providers after each test to ensure isolation
+        try {
+            AIServiceRegistry.clear()
+            println("✓ Cleaned up AI providers after test")
+        } catch (e: Exception) {
+            println("⚠️ Warning: Could not clear AI providers: ${e.message}")
+        }
+        
         composeTestRule.waitForIdle()
     }
 
@@ -107,11 +122,79 @@ class AllVersesScreenTest {
     }
 
     /**
+     * Setup AI providers for testing using external registration system.
+     * This ensures AI functionality is available for tests that involve verse searching,
+     * takeaway generation, or other AI-powered features.
+     */
+    private fun setupAIProviders() {
+        try {
+            println("🤖 Setting up AI providers for AllVersesScreen tests...")
+            
+            // Clear any existing providers to ensure clean state
+            AIServiceRegistry.clear()
+            
+            // Initialize clean registry
+            AIServiceRegistry.initialize()
+            
+            // Register AI providers using external registration system
+            val geminiProvider = GeminiAIServiceProvider()
+            AIServiceRegistry.registerProvider(geminiProvider)
+            println("✓ Registered Gemini AI provider")
+            
+            val openAIProvider = OpenAIServiceProvider()
+            AIServiceRegistry.registerProvider(openAIProvider)
+            println("✓ Registered OpenAI provider")
+            
+            // Register scripture providers
+            val esvProvider = ESVScriptureProvider()
+            AIServiceRegistry.registerScriptureProvider(esvProvider)
+            println("✓ Registered ESV Scripture provider")
+            
+            // Configure AI service with test settings
+            val testAISettings = AISettings(
+                selectedService = AIServiceType.GEMINI,
+                geminiConfig = AIServiceConfig(
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
+                    temperature = 0.7f
+                ),
+                openAiConfig = AIServiceConfig(
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "test-openai-key", // Will be invalid for fallback testing
+                    temperature = 0.7f
+                )
+            )
+            
+            // Configure the registered providers
+            AIService.configure(testAISettings)
+            
+            // Verify setup
+            val stats = AIServiceRegistry.getStatistics()
+            println("📊 AI Setup complete - ${stats.totalProviders} providers registered, ${stats.availableProviders} available")
+            
+            if (AIService.isInitialized()) {
+                println("✅ AI Service is ready for testing")
+            } else {
+                println("⚠️ AI Service initialization issues - tests may use fallback behavior")
+            }
+            
+        } catch (e: Exception) {
+            println("❌ Failed to setup AI providers: ${e.message}")
+            println("⚠️ AI-dependent features in tests may not work correctly")
+            // Continue with tests - UI tests should still work without AI
+        }
+    }
+
+    /**
      * Test adding a new specific scripture with single verse - John 3:16.
      * This test validates:
      * 1. Navigation to AllVersesScreen
      * 2. Adding specific scripture by manual entry
-     * 3. Validating response and key take-away response
+     * 3. Validating response and key take-away response (using registered AI providers)
+     * 
+     * Note: AI providers (Gemini, OpenAI, ESV) are registered in setUp() using external registration system
      */
     @Test
     fun test1_addSingleVerse_John316_validatesResponseAndTakeaway() = runBlocking {
@@ -308,8 +391,10 @@ class AllVersesScreenTest {
      * Test adding a new specific scripture with verse range - Psalm 37:3-5.
      * This test validates:
      * 1. Navigation to AllVersesScreen
-     * 2. Adding scripture range by manual entry
+     * 2. Adding scripture range by manual entry (using registered AI providers)
      * 3. Validating response for multiple verses
+     * 
+     * Note: AI providers are registered in setUp() for verse search and content generation
      */
     @Test
     fun test2_addVerseRange_Psalm37_3to5_validatesResponse() = runBlocking {
@@ -478,10 +563,12 @@ class AllVersesScreenTest {
      * Test adding by description with "forgiveness" keyword.
      * This test validates:
      * 1. Navigation to AllVersesScreen
-     * 2. Searching with "forgiveness" description
+     * 2. Searching with "forgiveness" description (using registered AI providers)
      * 3. Validating multiple verse results (more than 1)
      * 4. Testing preview functionality on a random verse
      * 5. Selecting final verse and validating scripture and take-away response
+     * 
+     * Note: AI providers are registered in setUp() for description-based verse search and takeaway generation
      */
     @Test
     fun test3_addByDescription_forgiveness_validatesMultipleResults() = runBlocking {

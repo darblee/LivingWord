@@ -35,13 +35,13 @@
       <SelectionState runConfigName="AllVersesScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="test3_addByDescription_forgiveness_validatesMultipleResults()">
+      <SelectionState runConfigName="AIServiceTestSuite">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="test1_addSingleVerse_John316_validatesResponseAndTakeaway()">
+      <SelectionState runConfigName="HomeScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="EngageScreenTest">
+      <SelectionState runConfigName="switchVOTD_ESV_to_AMP_returnsCorrectTranslation()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

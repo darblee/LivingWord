@@ -17,7 +17,8 @@ object AIServiceRegistry {
     private var isInitialized = false
     
     /**
-     * Initializes the registry with built-in providers
+     * Initializes the registry without any built-in providers.
+     * Providers must be registered externally after initialization.
      */
     fun initialize() {
         if (isInitialized) {
@@ -26,26 +27,12 @@ object AIServiceRegistry {
         }
         
         try {
-            // Register built-in providers
-            registerBuiltInProviders()
             isInitialized = true
-            Log.i("AIServiceRegistry", "AI Service Registry initialized with ${providers.size} AI providers and ${scriptureProviders.size} scripture providers")
+            Log.i("AIServiceRegistry", "AI Service Registry initialized - ready for external provider registration")
         } catch (e: Exception) {
             Log.e("AIServiceRegistry", "Failed to initialize registry", e)
             throw e
         }
-    }
-    
-    /**
-     * Registers built-in service providers
-     */
-    private fun registerBuiltInProviders() {
-        // Register AI providers
-        registerProvider(GeminiAIServiceProvider())
-        registerProvider(OpenAIServiceProvider())
-        
-        // Register scripture providers
-        registerScriptureProvider(ESVScriptureProvider())
     }
     
     /**

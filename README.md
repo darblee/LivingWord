@@ -71,7 +71,7 @@ This will create an APK file in the `app/build/outputs/apk/debug` directory.
 
 ## AI Provider Architecture
 
-LivingWord uses a modular AI provider system that supports multiple AI services with automatic fallback mechanisms. Currently supported providers:
+LivingWord uses a modular AI provider system with **external registration** that supports multiple AI services with automatic fallback mechanisms. Currently supported providers:
 
 - **Gemini AI** (Primary) - Google's Generative AI SDK
 - **OpenAI** (Secondary) - OpenAI's GPT models
@@ -79,10 +79,53 @@ LivingWord uses a modular AI provider system that supports multiple AI services 
 
 ### Multi-Provider Features
 
+- **External Registration:** Clean separation between registry and provider implementations
 - **Automatic Fallback:** If one provider fails, the system automatically tries the next available provider
 - **Priority-Based Routing:** Providers are prioritized (ESV → Gemini → OpenAI)
 - **Centralized Prompts:** Consistent AI prompts across all providers
-- **Provider Registry:** Dynamic provider discovery and management
+- **Dynamic Provider Management:** Runtime provider registration and discovery
+- **Plugin-Ready Architecture:** Prepared for future MCP (Model Context Protocol) integration
+
+### Architecture Components
+
+- **`AIServiceRegistry`** - Clean provider registry without hardcoded dependencies
+- **`AIServiceRegistration`** - External registration system for provider management
+- **`AIService`** - Central service with business logic and fallback mechanisms
+- **Provider Interfaces** - `AIServiceProvider`, `ScriptureProvider` for different provider types
+
+### External Registration System
+
+The AI provider architecture uses an external registration pattern for better modularity:
+
+```kotlin
+// 1. Clean Registry (no hardcoded providers)
+AIServiceRegistry.initialize()  // Empty registry ready for providers
+
+// 2. External Registration
+AIServiceRegistration.registerAllProviders()  // Register providers from outside
+
+// 3. Ready for Use  
+AIService.getKeyTakeaway("John 3:16")  // Uses registered providers with fallback
+```
+
+**Benefits:**
+- ✅ **Separation of Concerns:** Registry vs Registration logic
+- ✅ **Plugin Architecture:** Easy to add/remove providers dynamically
+- ✅ **Better Testability:** Components can be tested independently  
+- ✅ **No Hardcoded Dependencies:** Registry doesn't know about specific providers
+- ✅ **Runtime Flexibility:** Providers can be registered conditionally
+- ✅ **Future-Proof:** Prepared for MCP integration and plugin systems
+
+**Registration Flow:**
+```
+AIService.init() 
+    ↓
+AIServiceRegistry.initialize() (clean registry)
+    ↓  
+AIServiceRegistration.registerAllProviders() (external registration)
+    ↓
+Providers ready for use with automatic fallback
+```
 
 ## Adding a New AI Provider
 
@@ -202,24 +245,53 @@ class DeepSeekServiceProvider : AIServiceProvider {
 
 ### Step 5: Register the Provider
 
-Add your provider to the registry in `AIServiceRegistry.kt`:
+Add your provider to the external registration system in `AIServiceRegistration.kt`:
 
 ```kotlin
-// File: app/src/main/java/com/darblee/livingword/data/remote/AIServiceRegistry.kt
-private fun registerBuiltInProviders() {
-    // Register AI providers
-    registerProvider(GeminiAIServiceProvider())
-    registerProvider(OpenAIServiceProvider())
-    registerProvider(DeepSeekServiceProvider()) // Add new provider
-    
-    // Register scripture providers
-    registerScriptureProvider(ESVScriptureProvider())
+// File: app/src/main/java/com/darblee/livingword/data/remote/AIServiceRegistration.kt
+private fun registerAIProviders() {
+    try {
+        // Register Gemini AI provider
+        val geminiProvider = GeminiAIServiceProvider()
+        AIServiceRegistry.registerProvider(geminiProvider)
+        
+        // Register OpenAI provider
+        val openAIProvider = OpenAIServiceProvider()
+        AIServiceRegistry.registerProvider(openAIProvider)
+        
+        // Register DeepSeek provider - ADD THIS
+        val deepSeekProvider = DeepSeekServiceProvider()
+        AIServiceRegistry.registerProvider(deepSeekProvider)
+        Log.d("AIServiceRegistration", "Registered DeepSeek provider")
+        
+    } catch (e: Exception) {
+        Log.e("AIServiceRegistration", "Failed to register AI providers", e)
+        throw e
+    }
 }
+```
+
+**Alternative: Dynamic Registration**
+
+You can also register providers dynamically at runtime:
+
+```kotlin
+// Register a provider dynamically
+val success = AIServiceRegistration.registerAIProvider(DeepSeekServiceProvider())
+if (success) {
+    Log.d("MyApp", "DeepSeek provider registered successfully")
+}
+
+// Check registration status
+val status = AIServiceRegistration.getRegistrationStatus()
+println("Total providers: ${status.totalProviders}")
+println("Available providers: ${status.availableProviders}")
+println("System ready: ${status.isReady}")
 ```
 
 ### Step 6: Update Configuration Logic
 
-Update the configuration logic in `AIServiceRegistry.kt`:
+The configuration logic in `AIServiceRegistry.kt` already supports new providers automatically through the external registration system. Just ensure your `AIServiceType` is handled:
 
 ```kotlin
 // File: app/src/main/java/com/darblee/livingword/data/remote/AIServiceRegistry.kt
@@ -232,11 +304,16 @@ fun configureProviders(settings: AISettings): ConfigurationResult {
                 AIServiceType.OPENAI -> settings.openAiConfig
                 AIServiceType.DEEPSEEK -> settings.deepSeekConfig // Add new case
             }
-            // ... rest of configuration logic
+            
+            val success = provider.configure(config)
+            results[provider.providerId] = success
+            // ... error handling
         }
     }
 }
 ```
+
+The external registration system automatically discovers and configures all registered providers, so no additional registry changes are needed.
 
 ### Step 7: Add UI Settings (Optional)
 
