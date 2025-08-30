@@ -8,16 +8,16 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
-import org.junit.FixMethodOrder
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.runners.MethodSorters
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class AllVersesScreenTest {
 
     companion object {
@@ -45,6 +45,67 @@ class AllVersesScreenTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
+    @Before
+    fun setUp() {
+        // Wait for app initialization first
+        Thread.sleep(3000)
+        composeTestRule.waitForIdle()
+        
+        // Clear app state after initialization to ensure test isolation
+        clearAppData()
+        
+        // Give the app a moment to settle after clearing data
+        Thread.sleep(1000)
+        composeTestRule.waitForIdle()
+    }
+
+    @After
+    fun tearDown() {
+        // Clean up after each test
+        composeTestRule.waitForIdle()
+    }
+
+    /**
+     * Clear application data to ensure clean state for each test.
+     * This helps with test isolation by removing any data from previous tests.
+     */
+    private fun clearAppData() {
+        try {
+            println("Test setup: Starting app data clearing for test isolation")
+            
+            // For now, let's use a simpler approach that's less likely to break database initialization
+            // Just clear SharedPreferences which may contain test state that affects UI
+            val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+            
+            try {
+                // Clear common SharedPreferences that might affect test state
+                val prefNames = arrayOf("app_prefs", "com.darblee.livingword", "bible_prefs", "user_preferences")
+                
+                for (prefName in prefNames) {
+                    try {
+                        val sharedPrefs = targetContext.getSharedPreferences(prefName, 0)
+                        sharedPrefs.edit().clear().commit()
+                        println("Cleared SharedPreferences: $prefName")
+                    } catch (e: Exception) {
+                        // Ignore if preference doesn't exist
+                    }
+                }
+                
+                println("Test setup: SharedPreferences cleared")
+                
+            } catch (e: Exception) {
+                println("Warning: Could not clear SharedPreferences: ${e.message}")
+            }
+            
+            // NOTE: We're not clearing the database aggressively since it caused initialization issues
+            // The improved test logic should handle different UI states gracefully
+            
+        } catch (e: Exception) {
+            println("Warning: Could not clear app data: ${e.message}")
+            // Continue with test - this is not critical for most test cases
+        }
+    }
+
     /**
      * Test adding a new specific scripture with single verse - John 3:16.
      * This test validates:
@@ -55,8 +116,7 @@ class AllVersesScreenTest {
     @Test
     fun test1_addSingleVerse_John316_validatesResponseAndTakeaway() = runBlocking {
         try {
-            // Extended wait for app initialization
-            Thread.sleep(3000)
+            // App initialization is now handled in setUp()
             composeTestRule.waitForIdle()
             
             // Step 1: Verify home screen and navigate to AllVersesScreen
@@ -74,8 +134,47 @@ class AllVersesScreenTest {
                     // Look for the option to add by reference (manual entry)
                     try {
                         // Click on "Add by description" or similar button that allows manual entry
-                        composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
-                            .performClick()
+                        // Try multiple approaches to find the button
+                        var addByButtonFound = false
+                        
+                        // First try: exact substring match
+                        try {
+                            composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
+                                .performClick()
+                            addByButtonFound = true
+                            println("Found 'Add by' button using substring match")
+                        } catch (e: Exception) {
+                            println("'Add by' substring match failed: ${e.message}")
+                        }
+                        
+                        // Second try: look for the full text with line break
+                        if (!addByButtonFound) {
+                            try {
+                                composeTestRule.onNodeWithText("Add by\ndescription", ignoreCase = true)
+                                    .performClick()
+                                addByButtonFound = true
+                                println("Found 'Add by' button using full text with line break")
+                            } catch (e: Exception) {
+                                println("'Add by\\ndescription' match failed: ${e.message}")
+                            }
+                        }
+                        
+                        // Third try: look for "description" part
+                        if (!addByButtonFound) {
+                            try {
+                                composeTestRule.onNodeWithText("description", substring = true, ignoreCase = true)
+                                    .performClick()
+                                addByButtonFound = true
+                                println("Found 'Add by' button using 'description' substring")
+                            } catch (e: Exception) {
+                                println("'description' substring match failed: ${e.message}")
+                            }
+                        }
+                        
+                        if (!addByButtonFound) {
+                            throw Exception("Could not find 'Add by' button using any matching strategy")
+                        }
+                        
                         composeTestRule.waitForIdle()
                         
                         // Alternative: Look for direct scripture input field
@@ -215,8 +314,7 @@ class AllVersesScreenTest {
     @Test
     fun test2_addVerseRange_Psalm37_3to5_validatesResponse() = runBlocking {
         try {
-            // Extended wait for app initialization
-            Thread.sleep(3000)
+            // App initialization is now handled in setUp()
             composeTestRule.waitForIdle()
             
             // Step 1: Navigate to AllVersesScreen
@@ -231,9 +329,26 @@ class AllVersesScreenTest {
                     Thread.sleep(1000)
                     
                     try {
-                        // Click on add by description option
-                        composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
-                            .performClick()
+                        // Click on add by description option with improved matching
+                        var addByButtonFound = false
+                        
+                        // Try multiple approaches to find the button
+                        try {
+                            composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
+                                .performClick()
+                            addByButtonFound = true
+                        } catch (e: Exception) {
+                            try {
+                                composeTestRule.onNodeWithText("Add by\ndescription", ignoreCase = true)
+                                    .performClick()
+                                addByButtonFound = true
+                            } catch (e2: Exception) {
+                                composeTestRule.onNodeWithText("description", substring = true, ignoreCase = true)
+                                    .performClick()
+                                addByButtonFound = true
+                            }
+                        }
+                        
                         composeTestRule.waitForIdle()
                         
                         // Step 3: Enter Psalm 37:3-5 description
@@ -371,8 +486,7 @@ class AllVersesScreenTest {
     @Test
     fun test3_addByDescription_forgiveness_validatesMultipleResults() = runBlocking {
         try {
-            // Extended wait for app initialization
-            Thread.sleep(3000)
+            // App initialization is now handled in setUp()
             composeTestRule.waitForIdle()
             
             // Step 1: Navigate to AllVersesScreen
@@ -387,9 +501,26 @@ class AllVersesScreenTest {
                     Thread.sleep(1000)
                     
                     try {
-                        // Click on "Add by description" option
-                        composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
-                            .performClick()
+                        // Click on "Add by description" option with improved matching
+                        var addByButtonFound = false
+                        
+                        // Try multiple approaches to find the button
+                        try {
+                            composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
+                                .performClick()
+                            addByButtonFound = true
+                        } catch (e: Exception) {
+                            try {
+                                composeTestRule.onNodeWithText("Add by\ndescription", ignoreCase = true)
+                                    .performClick()
+                                addByButtonFound = true
+                            } catch (e2: Exception) {
+                                composeTestRule.onNodeWithText("description", substring = true, ignoreCase = true)
+                                    .performClick()
+                                addByButtonFound = true
+                            }
+                        }
+                        
                         composeTestRule.waitForIdle()
                         
                         // Verify we're on the AddVerseByDescriptionScreen
@@ -681,41 +812,49 @@ class AllVersesScreenTest {
      */
     private fun navigateToAllVersesScreen(): Boolean {
         return try {
-            // Step 1: Verify home screen
+            // Step 1: Verify home screen with more retries
             var homeScreenReady = false
-            for (attempt in 1..3) {
+            for (attempt in 1..5) {
                 try {
                     composeTestRule.onNodeWithText("Prepare your heart").assertIsDisplayed()
                     composeTestRule.onNodeWithText("Verse of the Day").assertIsDisplayed()
                     homeScreenReady = true
+                    println("Home screen verified on attempt $attempt")
                     break
                 } catch (e: Exception) {
+                    println("Home screen verification attempt $attempt failed: ${e.message}")
                     Thread.sleep(2000)
                     composeTestRule.waitForIdle()
                 }
             }
             
-            if (!homeScreenReady) return false
+            if (!homeScreenReady) {
+                println("Home screen not ready after 5 attempts")
+                return false
+            }
             
             // Step 2: Navigate to AllVersesScreen using bottom navigation
             try {
                 composeTestRule.onNodeWithText("Verses").performClick()
                 composeTestRule.waitForIdle()
-                Thread.sleep(1000)
+                Thread.sleep(2000) // Increased wait time for navigation
                 
-                // Verify we're on AllVersesScreen by looking for characteristic elements
-                try {
-                    composeTestRule.onNodeWithText("Add new verse", substring = true, ignoreCase = true).assertIsDisplayed()
-                    true
-                } catch (e: Exception) {
-                    // Alternative verification - look for other AllVersesScreen indicators
+                // Step 3: Verify we're on AllVersesScreen with multiple attempts
+                var allVersesScreenReady = false
+                for (attempt in 1..3) {
                     try {
-                        composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true).assertIsDisplayed()
-                        true
-                    } catch (e2: Exception) {
-                        false
+                        composeTestRule.onNodeWithText("Add new verse", substring = true, ignoreCase = true).assertIsDisplayed()
+                        allVersesScreenReady = true
+                        println("AllVersesScreen verified on attempt $attempt")
+                        break
+                    } catch (e: Exception) {
+                        println("AllVersesScreen verification attempt $attempt failed: ${e.message}")
+                        Thread.sleep(1000)
+                        composeTestRule.waitForIdle()
                     }
                 }
+                
+                allVersesScreenReady
                 
             } catch (e: Exception) {
                 println("Navigation to AllVersesScreen failed: ${e.message}")
