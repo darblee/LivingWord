@@ -72,6 +72,19 @@ import kotlinx.coroutines.launch
 
 private val ExportImportViewModel = ExportImportViewModel()
 
+/**
+ * Composable function for the Google Drive Operations screen.
+ * This screen allows users to sign in to their Google account,
+ * export the application's database to their Google Drive,
+ * and import a previously exported database from their Google Drive.
+ *
+ * It manages Google Sign-In state, handles permissions for Google Drive access,
+ * displays UI for export and import actions, and shows progress and completion messages.
+ *
+ * @param navController The NavController used for navigation.
+ * @param onColorThemeUpdated A callback function to be invoked when the color theme is updated.
+ * @param currentTheme The currently selected [ColorThemeOption].
+ */
 @Composable
 fun GoogleDriveOpsScreen(
     navController: NavController,

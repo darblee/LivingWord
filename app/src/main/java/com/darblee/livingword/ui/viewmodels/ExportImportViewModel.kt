@@ -54,6 +54,48 @@ class ExportImportViewModel : ViewModel() {
                 val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
                 val exportFileName = "${Global.DATABASE_NAME}-$timestamp.db"
 
+                // CRITICAL FIX: Force a WAL checkpoint BEFORE export to ensure all data 
+                // (including new v2 fields like applicationFeedback) is written to the main DB file
+                val database = AppDatabase.getDatabase(context)
+                
+                // First, ensure all Room operations are completed by accessing the database
+                database.bibleVerseDao()
+                
+                // CRITICAL FIX: Force all database operations to complete and checkpoint WAL
+                android.util.Log.d("ExportDB", "Starting database export with checkpoint procedures")
+                
+                // 1. Force Room operations to complete by closing and reopening the database
+                try {
+                    database.close()
+                    android.util.Log.d("ExportDB", "Database closed for checkpoint")
+                } catch (e: Exception) {
+                    android.util.Log.d("ExportDB", "Database close failed (may be normal): ${e.message}")
+                }
+                
+                // 2. Reopen database to get fresh connection and force WAL checkpoint
+                val freshDatabase = AppDatabase.getDatabase(context)
+                val db = freshDatabase.openHelper.writableDatabase
+                
+                // 3. Simple checkpoint that should work - Room handles WAL mode automatically
+                try {
+                    db.execSQL("PRAGMA wal_checkpoint")
+                    android.util.Log.d("ExportDB", "Basic WAL checkpoint executed")
+                } catch (e: Exception) {
+                    android.util.Log.d("ExportDB", "WAL checkpoint failed: ${e.message}")
+                }
+                
+                // 4. Force a sync to disk
+                try {
+                    db.execSQL("PRAGMA synchronous = FULL")
+                    android.util.Log.d("ExportDB", "Synchronous mode set to FULL")
+                } catch (e: Exception) {
+                    android.util.Log.d("ExportDB", "Synchronous mode setting failed: ${e.message}")
+                }
+                
+                // 5. Brief pause to ensure all operations complete
+                Thread.sleep(200)
+                android.util.Log.d("ExportDB", "Database checkpoint procedures completed")
+
                 val credential = getCredential(context, tokenCredential)
                 val driveService = GoogleDriveService(credential)
                 val dbPath = context.getDatabasePath(Global.DATABASE_NAME).absolutePath
@@ -64,14 +106,28 @@ class ExportImportViewModel : ViewModel() {
                         _exportState.value = OperationState.Complete(false, "Failed to create backup folder.")
                         return@withContext
                     }
+                    
+                    // Debug: Check if database file exists and log its info
+                    val dbFile = java.io.File(dbPath)
+                    if (!dbFile.exists()) {
+                        _exportState.value = OperationState.Complete(false, "Database file not found at: $dbPath")
+                        return@withContext
+                    }
+                    
+                    // Log database file details for debugging
+                    android.util.Log.d("ExportDB", "Database file size: ${dbFile.length()} bytes")
+                    android.util.Log.d("ExportDB", "Database path: $dbPath")
+                    
+                    // Check for WAL and SHM files
+                    val walFile = java.io.File("$dbPath-wal")
+                    val shmFile = java.io.File("$dbPath-shm")
+                    android.util.Log.d("ExportDB", "WAL file exists: ${walFile.exists()}, size: ${if(walFile.exists()) walFile.length() else 0}")
+                    android.util.Log.d("ExportDB", "SHM file exists: ${shmFile.exists()}, size: ${if(shmFile.exists()) shmFile.length() else 0}")
+                    
                     // Use the new dynamic filename for the upload
                     driveService.uploadFile(exportFileName, dbPath, folderId)
                 }
                 _exportState.value = OperationState.Complete(true, "Export Successful.\nCreated file: $exportFileName")
-
-                // Force a WAL checkpoint to ensure all data is written to the main DB file.
-                // This is the correct way to sync the database without closing the connection.
-                AppDatabase.getDatabase(context).openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL);")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _exportState.value = OperationState.RequiresPermissions(e.intent)
