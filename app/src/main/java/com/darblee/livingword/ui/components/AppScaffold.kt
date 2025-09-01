@@ -54,6 +54,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.darblee.livingword.AIServiceType
+import com.darblee.livingword.AIServiceConfig
+import com.darblee.livingword.DynamicAIConfig
 import com.darblee.livingword.AISettings
 import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.Global
@@ -62,8 +64,6 @@ import com.darblee.livingword.R
 import com.darblee.livingword.Screen // Your sealed class for routes
 import com.darblee.livingword.click
 import com.darblee.livingword.data.remote.AIServiceRegistry
-import com.darblee.livingword.data.remote.AiServiceResult
-import com.darblee.livingword.data.remote.GeminiAIService
 import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
@@ -401,10 +401,9 @@ private fun SettingPopup(
                                     onConfirmation(aiSettings) // Pass new settings back
                                 }
                             },
-                            enabled = when (aiSettings.selectedService) {
-                                AIServiceType.GEMINI -> aiSettings.geminiConfig.apiKey.isNotBlank() && aiSettings.geminiConfig.modelName.isNotBlank()
-                                AIServiceType.OPENAI -> aiSettings.openAiConfig.apiKey.isNotBlank() && aiSettings.openAiConfig.modelName.isNotBlank()
-                            }
+                            enabled = aiSettings.selectedConfig?.let { config ->
+                                config.apiKey.isNotBlank() && config.modelName.isNotBlank()
+                            } ?: false
                         ) {
                             Text(stringResource(id = R.string.OK))
                         }
@@ -610,35 +609,44 @@ private fun AIModelSetting(
                     AIServiceRegistry.getAllProviders() 
                 }
                 availableProviders.forEach { provider ->
-                    DropdownMenuItem(
-                        text = { 
-                            Row {
-                                Text(provider.displayName)
-                                if (!provider.isInitialized()) {
-                                    Text(
-                                        " (Not Available)", 
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                    if (provider.isInitialized()) {
+                        DropdownMenuItem(
+                            text = {
+                                Row {
+                                    Text(provider.displayName)
                                 }
+                            },
+                            onClick = {
+                                onAISettingsChange(
+                                    aiSettings.copy(
+                                        selectedService = provider.serviceType,
+                                        selectedProviderId = provider.providerId
+                                    )
+                                )
+                                testResult = null
+                                testSuccess = null
+                                expanded = false
                             }
-                        },
-                        onClick = {
-                            onAISettingsChange(aiSettings.copy(selectedService = provider.serviceType))
-                            testResult = null
-                            testSuccess = null
-                            expanded = false
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
 
-        // Current Service Configuration
-        val currentConfig = when (aiSettings.selectedService) {
-            AIServiceType.GEMINI -> aiSettings.geminiConfig
-            AIServiceType.OPENAI -> aiSettings.openAiConfig
-        }
+        // Current Service Configuration (fully dynamic)
+        val currentConfig = aiSettings.selectedConfig?.let { dynamicConfig ->
+            AIServiceConfig(
+                serviceType = dynamicConfig.serviceType,
+                modelName = dynamicConfig.modelName,
+                apiKey = dynamicConfig.apiKey,
+                temperature = dynamicConfig.temperature
+            )
+        } ?: AIServiceConfig(
+            serviceType = aiSettings.selectedService,
+            modelName = aiSettings.selectedService.defaultModel,
+            apiKey = "",
+            temperature = 0.7f
+        )
 
         Text(
             text = "${aiSettings.selectedService.displayName} Settings",
@@ -652,10 +660,26 @@ private fun AIModelSetting(
             value = currentConfig.modelName,
             onValueChange = { newModelName ->
                 val newConfig = currentConfig.copy(modelName = newModelName)
-                val updatedSettings = when (aiSettings.selectedService) {
-                    AIServiceType.GEMINI -> aiSettings.copy(geminiConfig = newConfig)
-                    AIServiceType.OPENAI -> aiSettings.copy(openAiConfig = newConfig)
+                // Update the dynamic configuration for the selected provider
+                val providerId = aiSettings.selectedProviderId
+                val currentDynamicConfig = aiSettings.selectedConfig
+                val updatedDynamicConfig = if (currentDynamicConfig != null) {
+                    currentDynamicConfig.copy(modelName = newConfig.modelName)
+                } else {
+                    DynamicAIConfig(
+                        providerId = providerId,
+                        displayName = aiSettings.selectedService.displayName,
+                        serviceType = aiSettings.selectedService,
+                        modelName = newConfig.modelName,
+                        apiKey = newConfig.apiKey,
+                        temperature = newConfig.temperature,
+                        isEnabled = true
+                    )
                 }
+                
+                val updatedSettings = aiSettings.copy(
+                    dynamicConfigs = aiSettings.dynamicConfigs + (providerId to updatedDynamicConfig)
+                )
                 onAISettingsChange(updatedSettings)
             },
             label = { Text("Model Name") },
@@ -675,10 +699,26 @@ private fun AIModelSetting(
             value = currentConfig.apiKey,
             onValueChange = { newApiKey ->
                 val newConfig = currentConfig.copy(apiKey = newApiKey)
-                val updatedSettings = when (aiSettings.selectedService) {
-                    AIServiceType.GEMINI -> aiSettings.copy(geminiConfig = newConfig)
-                    AIServiceType.OPENAI -> aiSettings.copy(openAiConfig = newConfig)
+                // Update the dynamic configuration for the selected provider
+                val providerId = aiSettings.selectedProviderId
+                val currentDynamicConfig = aiSettings.selectedConfig
+                val updatedDynamicConfig = if (currentDynamicConfig != null) {
+                    currentDynamicConfig.copy(apiKey = newConfig.apiKey)
+                } else {
+                    DynamicAIConfig(
+                        providerId = providerId,
+                        displayName = aiSettings.selectedService.displayName,
+                        serviceType = aiSettings.selectedService,
+                        modelName = newConfig.modelName,
+                        apiKey = newConfig.apiKey,
+                        temperature = newConfig.temperature,
+                        isEnabled = true
+                    )
                 }
+                
+                val updatedSettings = aiSettings.copy(
+                    dynamicConfigs = aiSettings.dynamicConfigs + (providerId to updatedDynamicConfig)
+                )
                 onAISettingsChange(updatedSettings)
             },
             label = { Text("API Key") },
@@ -710,10 +750,26 @@ private fun AIModelSetting(
             onValueChange = { tempInput ->
                 val newTemp = tempInput.toFloatOrNull()?.coerceIn(0f, 1f) ?: currentConfig.temperature
                 val newConfig = currentConfig.copy(temperature = newTemp)
-                val updatedSettings = when (aiSettings.selectedService) {
-                    AIServiceType.GEMINI -> aiSettings.copy(geminiConfig = newConfig)
-                    AIServiceType.OPENAI -> aiSettings.copy(openAiConfig = newConfig)
+                // Update the dynamic configuration for the selected provider
+                val providerId = aiSettings.selectedProviderId
+                val currentDynamicConfig = aiSettings.selectedConfig
+                val updatedDynamicConfig = if (currentDynamicConfig != null) {
+                    currentDynamicConfig.copy(temperature = newConfig.temperature)
+                } else {
+                    DynamicAIConfig(
+                        providerId = providerId,
+                        displayName = aiSettings.selectedService.displayName,
+                        serviceType = aiSettings.selectedService,
+                        modelName = newConfig.modelName,
+                        apiKey = newConfig.apiKey,
+                        temperature = newConfig.temperature,
+                        isEnabled = true
+                    )
                 }
+                
+                val updatedSettings = aiSettings.copy(
+                    dynamicConfigs = aiSettings.dynamicConfigs + (providerId to updatedDynamicConfig)
+                )
                 onAISettingsChange(updatedSettings)
             },
             label = { Text("Temperature (0.0 - 1.0)") },
@@ -736,21 +792,28 @@ private fun AIModelSetting(
                         testSuccess = null
 
                         try {
-                            // Get the specific provider for the selected service type
-                            val providers = AIServiceRegistry.getProvidersByType(aiSettings.selectedService)
-                            if (providers.isEmpty()) {
+                            // Get the specific provider by ID (fully dynamic)
+                            val provider = AIServiceRegistry.getProvider(aiSettings.selectedProviderId)
+                            if (provider == null) {
                                 testSuccess = false
-                                testResult = "No provider available for ${aiSettings.selectedService.displayName}"
+                                testResult = "Provider '${aiSettings.selectedProviderId}' not found"
                                 return@launch
                             }
                             
-                            val provider = providers.first() // Get the first (highest priority) provider
-                            
-                            // Configure the specific provider with current settings
-                            val currentConfig = when (aiSettings.selectedService) {
-                                AIServiceType.GEMINI -> aiSettings.geminiConfig
-                                AIServiceType.OPENAI -> aiSettings.openAiConfig
-                            }
+                            // Configure the specific provider with current settings (dynamic)
+                            val currentConfig = aiSettings.selectedConfig?.let { dynamicConfig ->
+                                AIServiceConfig(
+                                    serviceType = dynamicConfig.serviceType,
+                                    modelName = dynamicConfig.modelName,
+                                    apiKey = dynamicConfig.apiKey,
+                                    temperature = dynamicConfig.temperature
+                                )
+                            } ?: AIServiceConfig(
+                                serviceType = aiSettings.selectedService,
+                                modelName = aiSettings.selectedService.defaultModel,
+                                apiKey = "",
+                                temperature = 0.7f
+                            )
                             
                             val configSuccess = provider.configure(currentConfig)
                             if (!configSuccess) {

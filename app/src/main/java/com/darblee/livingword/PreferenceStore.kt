@@ -10,16 +10,20 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.darblee.livingword.ui.theme.ColorThemeOption
+import com.darblee.livingword.data.remote.AIServiceRegistry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.io.IOException
 
 // Enum for AI service types
 enum class AIServiceType(val displayName: String, val defaultModel: String) {
     GEMINI("Gemini AI", "gemini-1.5-flash"),
-    OPENAI("OpenAI", "gpt-4o-mini")
+    OPENAI("OpenAI", "gpt-4o-mini"),
+    DEEPSEEK("DeepSeek AI", "deepseek-chat")
 }
 
 // Data class for individual AI service configuration
@@ -30,34 +34,81 @@ data class AIServiceConfig(
     val temperature: Float = 0.7f
 )
 
+// Dynamic AI configuration for any registered provider
+@Serializable
+data class DynamicAIConfig(
+    val providerId: String,
+    val displayName: String,
+    val serviceType: AIServiceType,
+    val modelName: String,
+    val apiKey: String,
+    val temperature: Float = 0.7f,
+    val isEnabled: Boolean = true
+)
+
 // Enhanced data class to hold AI settings for multiple services
 data class AISettings(
     val selectedService: AIServiceType = AIServiceType.GEMINI,
-    val geminiConfig: AIServiceConfig = AIServiceConfig(
-        serviceType = AIServiceType.GEMINI,
-        modelName = AIServiceType.GEMINI.defaultModel,
-        apiKey = "",
-        temperature = 0.7f
-    ),
-    val openAiConfig: AIServiceConfig = AIServiceConfig(
-        serviceType = AIServiceType.OPENAI,
-        modelName = AIServiceType.OPENAI.defaultModel,
-        apiKey = "",
-        temperature = 0.7f
-    )
+    val selectedProviderId: String = "gemini_ai",
+    val dynamicConfigs: Map<String, DynamicAIConfig> = emptyMap()
 ) {
-    // Compatibility methods for existing code
-    val modelName: String get() = when (selectedService) {
-        AIServiceType.GEMINI -> geminiConfig.modelName
-        AIServiceType.OPENAI -> openAiConfig.modelName
+    // Get currently selected config
+    val selectedConfig: DynamicAIConfig?
+        get() = dynamicConfigs[selectedProviderId]
+    
+    // Get config for a specific provider
+    fun getConfigForProvider(providerId: String): DynamicAIConfig? {
+        return dynamicConfigs[providerId]
     }
     
-    val apiKey: String get() = geminiConfig.apiKey
-    val openAiApiKey: String get() = openAiConfig.apiKey
-    val temperature: Float get() = when (selectedService) {
-        AIServiceType.GEMINI -> geminiConfig.temperature
-        AIServiceType.OPENAI -> openAiConfig.temperature
+    // Get all configs for a service type
+    fun getConfigsForServiceType(serviceType: AIServiceType): List<DynamicAIConfig> {
+        return dynamicConfigs.values.filter { it.serviceType == serviceType }
     }
+    
+    // Compatibility methods for existing code
+    val modelName: String 
+        get() = selectedConfig?.modelName ?: selectedService.defaultModel
+    
+    val apiKey: String 
+        get() = selectedConfig?.apiKey ?: ""
+        
+    val openAiApiKey: String 
+        get() = getConfigsForServiceType(AIServiceType.OPENAI).firstOrNull()?.apiKey ?: ""
+        
+    val temperature: Float 
+        get() = selectedConfig?.temperature ?: 0.7f
+    
+    // Legacy compatibility - creates AIServiceConfig objects from dynamic configs
+    val geminiConfig: AIServiceConfig
+        get() = getConfigsForServiceType(AIServiceType.GEMINI).firstOrNull()?.let {
+            AIServiceConfig(
+                serviceType = it.serviceType,
+                modelName = it.modelName,
+                apiKey = it.apiKey,
+                temperature = it.temperature
+            )
+        } ?: AIServiceConfig(
+            serviceType = AIServiceType.GEMINI,
+            modelName = AIServiceType.GEMINI.defaultModel,
+            apiKey = "",
+            temperature = 0.7f
+        )
+    
+    val openAiConfig: AIServiceConfig
+        get() = getConfigsForServiceType(AIServiceType.OPENAI).firstOrNull()?.let {
+            AIServiceConfig(
+                serviceType = it.serviceType,
+                modelName = it.modelName,
+                apiKey = it.apiKey,
+                temperature = it.temperature
+            )
+        } ?: AIServiceConfig(
+            serviceType = AIServiceType.OPENAI,
+            modelName = AIServiceType.OPENAI.defaultModel,
+            apiKey = "",
+            temperature = 0.7f
+        )
 }
 
 class PreferenceStore(private val context: Context) {
@@ -67,19 +118,10 @@ class PreferenceStore(private val context: Context) {
         // Keys for Color Mode
         private val COLOR_MODE_KEY = stringPreferencesKey("ColorMode")
 
-        // Keys for AI Settings (legacy)
-        val AI_MODEL_NAME_KEY = stringPreferencesKey("ai_model_name")
-        val AI_API_KEY_KEY = stringPreferencesKey("ai_api_key")
-        val OPENAI_API_KEY_KEY = stringPreferencesKey("openai_api_key")
-        val AI_TEMPERATURE_KEY = floatPreferencesKey("ai_temperature")
-        
-        // Enhanced AI Settings keys for multiple services
-        val SELECTED_AI_SERVICE_KEY = stringPreferencesKey("selected_ai_service")
-        val GEMINI_MODEL_NAME_KEY = stringPreferencesKey("gemini_model_name")
-        val GEMINI_API_KEY_KEY = stringPreferencesKey("gemini_api_key")
-        val GEMINI_TEMPERATURE_KEY = floatPreferencesKey("gemini_temperature")
-        val OPENAI_MODEL_NAME_KEY = stringPreferencesKey("openai_model_name")
-        val OPENAI_TEMPERATURE_KEY = floatPreferencesKey("openai_temperature")
+        // AI Settings keys (dynamic system)
+        private val SELECTED_AI_SERVICE_KEY = stringPreferencesKey("selected_ai_service")
+        private val SELECTED_AI_PROVIDER_ID_KEY = stringPreferencesKey("selected_ai_provider_id")
+        private val DYNAMIC_AI_CONFIGS_KEY = stringPreferencesKey("dynamic_ai_configs")
         val TRANSLATION_KEY = stringPreferencesKey("translation")
 
         // Key for AI Disclaimer Dialog
@@ -91,11 +133,7 @@ class PreferenceStore(private val context: Context) {
         val VOTD_CACHED_TRANSLATION_KEY = stringPreferencesKey("votd_cached_translation")
         val VOTD_LAST_FETCH_DATE_KEY = stringPreferencesKey("votd_last_fetch_date")
 
-        // Default AI Settings
-        const val DEFAULT_AI_MODEL_NAME = "gemini-2.5-flash"
-        const val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
-        const val DEFAULT_OPENAI_API_KEY = BuildConfig.OPENAI_API_KEY
-        const val DEFAULT_AI_TEMPERATURE = 0.7f
+        // Default Settings
         const val DEFAULT_TRANSLATION = "ESV"
         const val DEFAULT_AI_DISCLAIMER_SHOWN = false
     }
@@ -144,26 +182,25 @@ class PreferenceStore(private val context: Context) {
         return preferences[AI_DISCLAIMER_SHOWN_KEY] ?: DEFAULT_AI_DISCLAIMER_SHOWN
     }
 
-    // Save AI Settings (enhanced for multiple services)
+    // Save AI Settings (fully dynamic)
     suspend fun saveAISettings(aiSettings: AISettings) {
         context.datastore.edit { preferences ->
-            // Save enhanced settings
-            preferences[SELECTED_AI_SERVICE_KEY] = aiSettings.selectedService.name
-            preferences[GEMINI_MODEL_NAME_KEY] = aiSettings.geminiConfig.modelName
-            preferences[GEMINI_API_KEY_KEY] = aiSettings.geminiConfig.apiKey
-            preferences[GEMINI_TEMPERATURE_KEY] = aiSettings.geminiConfig.temperature
-            preferences[OPENAI_MODEL_NAME_KEY] = aiSettings.openAiConfig.modelName
-            preferences[OPENAI_TEMPERATURE_KEY] = aiSettings.openAiConfig.temperature
+            // Save dynamic configurations as JSON
+            try {
+                val dynamicConfigsJson = Json.encodeToString(aiSettings.dynamicConfigs)
+                preferences[DYNAMIC_AI_CONFIGS_KEY] = dynamicConfigsJson
+            } catch (e: Exception) {
+                // Fall back to empty map if serialization fails
+                preferences[DYNAMIC_AI_CONFIGS_KEY] = "{}"
+            }
             
-            // Maintain backward compatibility with legacy keys
-            preferences[AI_MODEL_NAME_KEY] = aiSettings.modelName
-            preferences[AI_API_KEY_KEY] = aiSettings.apiKey
-            preferences[OPENAI_API_KEY_KEY] = aiSettings.openAiApiKey
-            preferences[AI_TEMPERATURE_KEY] = aiSettings.temperature
+            // Save selection settings
+            preferences[SELECTED_AI_SERVICE_KEY] = aiSettings.selectedService.name
+            preferences[SELECTED_AI_PROVIDER_ID_KEY] = aiSettings.selectedProviderId
         }
     }
 
-    // Read AI Settings as a Flow
+    // Read AI Settings as a Flow (pure dynamic system)
     val aiSettingsFlow: Flow<AISettings> = context.datastore.data
         .catch { exception ->
             // dataStore.data throws an IOException when an error is encountered when reading data
@@ -173,7 +210,21 @@ class PreferenceStore(private val context: Context) {
                 throw exception
             }
         }.map { preferences ->
-            // Read enhanced settings first, fallback to legacy if not found
+            // Read dynamic configurations from JSON
+            val dynamicConfigs = try {
+                val dynamicConfigsJson = preferences[DYNAMIC_AI_CONFIGS_KEY]
+                if (dynamicConfigsJson != null && dynamicConfigsJson.isNotEmpty()) {
+                    Json.decodeFromString<Map<String, DynamicAIConfig>>(dynamicConfigsJson)
+                } else {
+                    // Generate dynamic configs from registered providers if none exist
+                    generateDynamicConfigsFromRegistry()
+                }
+            } catch (e: Exception) {
+                // Fall back to generating from registry if deserialization fails
+                generateDynamicConfigsFromRegistry()
+            }
+            
+            // Read selection settings
             val selectedServiceString = preferences[SELECTED_AI_SERVICE_KEY]
             val selectedService = try {
                 if (selectedServiceString != null) {
@@ -185,45 +236,72 @@ class PreferenceStore(private val context: Context) {
                 AIServiceType.GEMINI
             }
             
-            // Gemini configuration
-            val geminiModelName = preferences[GEMINI_MODEL_NAME_KEY] 
-                ?: preferences[AI_MODEL_NAME_KEY] // Fallback to legacy
-                ?: DEFAULT_AI_MODEL_NAME
-            val geminiApiKey = preferences[GEMINI_API_KEY_KEY] 
-                ?: preferences[AI_API_KEY_KEY] // Fallback to legacy
-                ?: DEFAULT_AI_API_KEY
-            val geminiTemperature = preferences[GEMINI_TEMPERATURE_KEY] 
-                ?: preferences[AI_TEMPERATURE_KEY] // Fallback to legacy
-                ?: DEFAULT_AI_TEMPERATURE
-            
-            // OpenAI configuration
-            val openAiModelName = preferences[OPENAI_MODEL_NAME_KEY] 
-                ?: AIServiceType.OPENAI.defaultModel
-            val openAiApiKey = preferences[OPENAI_API_KEY_KEY] 
-                ?: DEFAULT_OPENAI_API_KEY
-            val openAiTemperature = preferences[OPENAI_TEMPERATURE_KEY] 
-                ?: DEFAULT_AI_TEMPERATURE
+            // Determine selected provider based on service type if not explicitly set
+            val selectedProviderId = preferences[SELECTED_AI_PROVIDER_ID_KEY] 
+                ?: dynamicConfigs.values.firstOrNull { it.serviceType == selectedService }?.providerId
+                ?: "gemini_ai"
             
             AISettings(
                 selectedService = selectedService,
-                geminiConfig = AIServiceConfig(
-                    serviceType = AIServiceType.GEMINI,
-                    modelName = geminiModelName,
-                    apiKey = geminiApiKey,
-                    temperature = geminiTemperature
-                ),
-                openAiConfig = AIServiceConfig(
-                    serviceType = AIServiceType.OPENAI,
-                    modelName = openAiModelName,
-                    apiKey = openAiApiKey,
-                    temperature = openAiTemperature
-                )
+                selectedProviderId = selectedProviderId,
+                dynamicConfigs = dynamicConfigs
             )
         }
 
     // Read AI Settings once (suspending function)
     suspend fun readAISettings(): AISettings {
         return aiSettingsFlow.first()
+    }
+    
+    // Generate dynamic configs from registry providers
+    private fun generateDynamicConfigsFromRegistry(): Map<String, DynamicAIConfig> {
+        val dynamicConfigs = mutableMapOf<String, DynamicAIConfig>()
+        
+        try {
+            // Get all registered AI providers from the registry
+            val providers = AIServiceRegistry.getAllProviders()
+            
+            providers.forEach { provider ->
+                val apiKey = when (provider.serviceType) {
+                    AIServiceType.GEMINI -> BuildConfig.GEMINI_API_KEY
+                    AIServiceType.OPENAI -> BuildConfig.OPENAI_API_KEY
+                    AIServiceType.DEEPSEEK -> "" // No default API key for DeepSeek
+                }
+                
+                dynamicConfigs[provider.providerId] = DynamicAIConfig(
+                    providerId = provider.providerId,
+                    displayName = provider.displayName,
+                    serviceType = provider.serviceType,
+                    modelName = provider.defaultModel,
+                    apiKey = apiKey,
+                    temperature = 0.7f,
+                    isEnabled = true
+                )
+            }
+        } catch (e: Exception) {
+            // Fall back to basic defaults if registry is not available
+            dynamicConfigs["gemini_ai"] = DynamicAIConfig(
+                providerId = "gemini_ai",
+                displayName = "Gemini AI",
+                serviceType = AIServiceType.GEMINI,
+                modelName = AIServiceType.GEMINI.defaultModel,
+                apiKey = BuildConfig.GEMINI_API_KEY,
+                temperature = 0.7f,
+                isEnabled = true
+            )
+            
+            dynamicConfigs["openai"] = DynamicAIConfig(
+                providerId = "openai",
+                displayName = "OpenAI",
+                serviceType = AIServiceType.OPENAI,
+                modelName = AIServiceType.OPENAI.defaultModel,
+                apiKey = BuildConfig.OPENAI_API_KEY,
+                temperature = 0.7f,
+                isEnabled = true
+            )
+        }
+        
+        return dynamicConfigs
     }
 
     // Save VOTD Cache

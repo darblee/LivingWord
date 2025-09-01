@@ -27,15 +27,21 @@ class OpenAIServiceProvider : AIServiceProvider {
             currentConfig = config
             
             // Create AISettings for backward compatibility with existing OpenAIService
+            // Create AISettings for backward compatibility with existing OpenAIService
+            val openAiDynamicConfig = com.darblee.livingword.DynamicAIConfig(
+                providerId = "openai",
+                displayName = "OpenAI",
+                serviceType = config.serviceType,
+                modelName = config.modelName,
+                apiKey = config.apiKey,
+                temperature = config.temperature,
+                isEnabled = true
+            )
+            
             val legacySettings = com.darblee.livingword.AISettings(
                 selectedService = AIServiceType.OPENAI,
-                geminiConfig = com.darblee.livingword.AIServiceConfig(
-                    serviceType = AIServiceType.GEMINI,
-                    modelName = AIServiceType.GEMINI.defaultModel,
-                    apiKey = "",
-                    temperature = 0.7f
-                ),
-                openAiConfig = config
+                selectedProviderId = "openai",
+                dynamicConfigs = mapOf("openai" to openAiDynamicConfig)
             )
             
             OpenAIService.configure(legacySettings)

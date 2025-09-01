@@ -47,6 +47,11 @@ object AIServiceRegistration {
             AIServiceRegistry.registerProvider(openAIProvider)
             Log.d("AIServiceRegistration", "Registered OpenAI provider")
             
+            // Register DeepSeek provider (example of adding a new AI assistant)
+            val deepSeekProvider = DeepSeekServiceProvider()
+            AIServiceRegistry.registerProvider(deepSeekProvider)
+            Log.d("AIServiceRegistration", "Registered DeepSeek provider")
+            
         } catch (e: Exception) {
             Log.e("AIServiceRegistration", "Failed to register AI providers", e)
             throw e

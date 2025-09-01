@@ -109,9 +109,27 @@ object AIServiceRegistry {
         
         providers.values.forEach { provider ->
             try {
-                val config = when (provider.serviceType) {
-                    AIServiceType.GEMINI -> settings.geminiConfig
-                    AIServiceType.OPENAI -> settings.openAiConfig
+                // Get configuration for this specific provider from dynamic configs
+                val dynamicConfig = settings.getConfigForProvider(provider.providerId)
+                val config = if (dynamicConfig != null) {
+                    AIServiceConfig(
+                        serviceType = dynamicConfig.serviceType,
+                        modelName = dynamicConfig.modelName,
+                        apiKey = dynamicConfig.apiKey,
+                        temperature = dynamicConfig.temperature
+                    )
+                } else {
+                    // Fall back to compatibility method if no dynamic config exists
+                    when (provider.serviceType) {
+                        AIServiceType.GEMINI -> settings.geminiConfig
+                        AIServiceType.OPENAI -> settings.openAiConfig
+                        AIServiceType.DEEPSEEK -> AIServiceConfig(
+                            serviceType = AIServiceType.DEEPSEEK,
+                            modelName = AIServiceType.DEEPSEEK.defaultModel,
+                            apiKey = "",
+                            temperature = 0.7f
+                        )
+                    }
                 }
                 
                 val success = provider.configure(config)

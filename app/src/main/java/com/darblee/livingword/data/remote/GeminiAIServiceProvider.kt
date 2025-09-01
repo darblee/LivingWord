@@ -28,15 +28,20 @@ class GeminiAIServiceProvider : AIServiceProvider {
             currentConfig = config
             
             // Create AISettings for backward compatibility with existing GeminiAIService
+            val geminiDynamicConfig = com.darblee.livingword.DynamicAIConfig(
+                providerId = "gemini_ai",
+                displayName = "Gemini AI",
+                serviceType = config.serviceType,
+                modelName = config.modelName,
+                apiKey = config.apiKey,
+                temperature = config.temperature,
+                isEnabled = true
+            )
+            
             val legacySettings = com.darblee.livingword.AISettings(
                 selectedService = AIServiceType.GEMINI,
-                geminiConfig = config,
-                openAiConfig = com.darblee.livingword.AIServiceConfig(
-                    serviceType = AIServiceType.OPENAI,
-                    modelName = AIServiceType.OPENAI.defaultModel,
-                    apiKey = "",
-                    temperature = 0.7f
-                )
+                selectedProviderId = "gemini_ai",
+                dynamicConfigs = mapOf("gemini_ai" to geminiDynamicConfig)
             )
             
             GeminiAIService.configure(legacySettings)
