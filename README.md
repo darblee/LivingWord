@@ -84,7 +84,6 @@ LivingWord uses a modular AI provider system with **external registration** that
 - **Priority-Based Routing:** Providers are prioritized (ESV → Gemini → OpenAI)
 - **Centralized Prompts:** Consistent AI prompts across all providers
 - **Dynamic Provider Management:** Runtime provider registration and discovery
-- **Plugin-Ready Architecture:** Prepared for future MCP (Model Context Protocol) integration
 
 ### Architecture Components
 
@@ -114,7 +113,6 @@ AIService.getKeyTakeaway("John 3:16")  // Uses registered providers with fallbac
 - ✅ **Better Testability:** Components can be tested independently  
 - ✅ **No Hardcoded Dependencies:** Registry doesn't know about specific providers
 - ✅ **Runtime Flexibility:** Providers can be registered conditionally
-- ✅ **Future-Proof:** Prepared for MCP integration and plugin systems
 
 **Registration Flow:**
 ```
@@ -137,7 +135,7 @@ LivingWord features a **completely dynamic AI provider system** with no hardcode
 - ✅ **Auto-Discovery**: PreferenceStore automatically detects registered providers  
 - ✅ **Dynamic UI**: Settings UI adapts to available providers without code changes
 - ✅ **Clean Architecture**: Pure dynamic provider registration with no legacy code
-- ✅ **Plugin Ready**: Prepared for runtime provider loading and MCP integration
+- ✅ **Plugin Ready**: Prepared for runtime provider loading
 
 ### Architecture Overview
 
@@ -243,7 +241,6 @@ println("Available providers: ${status.availableProviders}")
 | **Better Testability** | Components can be tested independently |
 | **No Hardcoded Dependencies** | Registry doesn't know about specific providers |
 | **Runtime Flexibility** | Providers can be registered conditionally |
-| **Future-Proof** | Prepared for MCP integration and plugin systems |
 
 ### Example: DeepSeek Provider
 
