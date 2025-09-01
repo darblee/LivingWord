@@ -127,142 +127,81 @@ AIServiceRegistration.registerAllProviders() (external registration)
 Providers ready for use with automatic fallback
 ```
 
-## Adding a New AI Provider
+## Dynamic AI Provider System
 
-Follow these steps to add a new AI provider (e.g., DeepSeek) to the application:
+LivingWord features a **completely dynamic AI provider system** with no hardcoded configurations. The system automatically discovers, configures, and manages AI providers through a clean external registration pattern.
 
-### Step 1: Update AIServiceType Enum
+### Key Features
 
-Add your new provider to the `AIServiceType` enum in `PreferenceStore.kt`:
+- ✅ **Fully Dynamic**: Zero hardcoded provider configurations
+- ✅ **Auto-Discovery**: PreferenceStore automatically detects registered providers  
+- ✅ **Dynamic UI**: Settings UI adapts to available providers without code changes
+- ✅ **Clean Architecture**: Pure dynamic provider registration with no legacy code
+- ✅ **Plugin Ready**: Prepared for runtime provider loading and MCP integration
+
+### Architecture Overview
+
+The system uses a clean separation between registry and registration:
 
 ```kotlin
-// File: app/src/main/java/com/darblee/livingword/PreferenceStore.kt
+// 1. Clean Registry (no hardcoded providers)
+AIServiceRegistry.initialize()
+
+// 2. External Registration 
+AIServiceRegistration.registerAllProviders()
+
+// 3. Dynamic Discovery
+val providers = AIServiceRegistry.getAllProviders() // Auto-discovered
+```
+
+## Adding New AI Providers
+
+Adding a new AI provider (like DeepSeek, Claude, etc.) is now extremely simple:
+
+### Step 1: Add Service Type
+```kotlin
+// In PreferenceStore.kt
 enum class AIServiceType(val displayName: String, val defaultModel: String) {
     GEMINI("Gemini AI", "gemini-1.5-flash"),
     OPENAI("OpenAI", "gpt-4o-mini"),
-    DEEPSEEK("DeepSeek", "deepseek-chat")  // Add new provider
+    DEEPSEEK("DeepSeek AI", "deepseek-chat"),
+    CLAUDE("Claude AI", "claude-3-sonnet") // Add new service type
 }
 ```
 
-### Step 2: Update AISettings Data Class
-
-Add configuration support in `PreferenceStore.kt`:
-
+### Step 2: Create Provider Implementation
 ```kotlin
-// File: app/src/main/java/com/darblee/livingword/PreferenceStore.kt
-data class AISettings(
-    val selectedService: AIServiceType = AIServiceType.GEMINI,
-    val geminiConfig: AIServiceConfig = /* ... */,
-    val openAiConfig: AIServiceConfig = /* ... */,
-    val deepSeekConfig: AIServiceConfig = AIServiceConfig(  // Add new config
-        serviceType = AIServiceType.DEEPSEEK,
-        modelName = AIServiceType.DEEPSEEK.defaultModel,
-        apiKey = "",
-        temperature = 0.7f
-    )
-) {
-    // Update compatibility methods
-    val apiKey: String get() = when (selectedService) {
-        AIServiceType.GEMINI -> geminiConfig.apiKey
-        AIServiceType.OPENAI -> openAiConfig.apiKey
-        AIServiceType.DEEPSEEK -> deepSeekConfig.apiKey
-    }
-    
-    val deepSeekApiKey: String get() = deepSeekConfig.apiKey  // Add getter
-    // ... other methods
-}
-```
-
-### Step 3: Create the AI Service Implementation
-
-Create a new service class (e.g., `DeepSeekService.kt`) in the `data/remote` package:
-
-```kotlin
-// File: app/src/main/java/com/darblee/livingword/data/remote/DeepSeekService.kt
-object DeepSeekService {
-    private var isConfigured = false
-    private var currentSettings: AISettings? = null
-    
-    fun configure(settings: AISettings) {
-        // Initialize DeepSeek SDK/HTTP client
-        // Set API key, model, temperature
-        currentSettings = settings
-        isConfigured = true
-    }
-    
-    fun isInitialized(): Boolean = isConfigured
-    
-    suspend fun fetchScripture(/* parameters */): AiServiceResult<List<Verse>> {
-        // Implement scripture fetching logic
-    }
-    
-    suspend fun getKeyTakeaway(/* parameters */): AiServiceResult<String> {
-        // Implement takeaway generation logic
-    }
-    
-    suspend fun getAIScore(/* parameters */): AiServiceResult<ScoreData> {
-        // Implement scoring logic
-    }
-    
-    // ... other required methods
-}
-```
-
-### Step 4: Create the Provider Wrapper
-
-Create a provider class (e.g., `DeepSeekServiceProvider.kt`):
-
-```kotlin
-// File: app/src/main/java/com/darblee/livingword/data/remote/DeepSeekServiceProvider.kt
-class DeepSeekServiceProvider : AIServiceProvider {
-    override val providerId: String = "deepseek"
-    override val displayName: String = "DeepSeek"
-    override val serviceType: AIServiceType = AIServiceType.DEEPSEEK
-    override val defaultModel: String = AIServiceType.DEEPSEEK.defaultModel
-    override val priority: Int = 20 // Set priority (higher number = lower priority)
+class ClaudeAIServiceProvider : AIServiceProvider {
+    override val providerId: String = "claude_ai"
+    override val displayName: String = "Claude AI"
+    override val serviceType: AIServiceType = AIServiceType.CLAUDE
+    override val defaultModel: String = "claude-3-sonnet"
+    override val priority: Int = 20
     
     override fun configure(config: AIServiceConfig): Boolean {
-        return try {
-            val legacySettings = AISettings(
-                selectedService = AIServiceType.DEEPSEEK,
-                deepSeekConfig = config,
-                // ... other configs with empty keys
-            )
-            DeepSeekService.configure(legacySettings)
-            DeepSeekService.isInitialized()
-        } catch (e: Exception) {
-            false
-        }
+        // Initialize Claude AI with config
+        // Return true if successful
     }
     
-    override suspend fun fetchScripture(/* parameters */): AiServiceResult<List<Verse>> {
-        return DeepSeekService.fetchScripture(/* forward parameters */)
+    override suspend fun fetchScripture(/* params */): AiServiceResult<List<Verse>> {
+        // Implement Claude-specific scripture fetching
     }
     
-    // ... implement all AIServiceProvider methods
+    // Implement all other AIServiceProvider methods
 }
 ```
 
-### Step 5: Register the Provider
-
-Add your provider to the external registration system in `AIServiceRegistration.kt`:
-
+### Step 3: Register the Provider
 ```kotlin
-// File: app/src/main/java/com/darblee/livingword/data/remote/AIServiceRegistration.kt
+// In AIServiceRegistration.kt
 private fun registerAIProviders() {
     try {
-        // Register Gemini AI provider
-        val geminiProvider = GeminiAIServiceProvider()
-        AIServiceRegistry.registerProvider(geminiProvider)
+        // Existing providers...
         
-        // Register OpenAI provider
-        val openAIProvider = OpenAIServiceProvider()
-        AIServiceRegistry.registerProvider(openAIProvider)
-        
-        // Register DeepSeek provider - ADD THIS
-        val deepSeekProvider = DeepSeekServiceProvider()
-        AIServiceRegistry.registerProvider(deepSeekProvider)
-        Log.d("AIServiceRegistration", "Registered DeepSeek provider")
+        // Register your new provider
+        val claudeProvider = ClaudeAIServiceProvider()
+        AIServiceRegistry.registerProvider(claudeProvider)
+        Log.d("AIServiceRegistration", "Registered Claude provider")
         
     } catch (e: Exception) {
         Log.e("AIServiceRegistration", "Failed to register AI providers", e)
@@ -271,73 +210,48 @@ private fun registerAIProviders() {
 }
 ```
 
-**Alternative: Dynamic Registration**
+### That's It! ✨
+
+The system automatically:
+- ✅ Detects your new provider at runtime
+- ✅ Shows it in the settings UI dropdown
+- ✅ Creates configuration entries in PreferenceStore  
+- ✅ Handles user configuration changes
+- ✅ Saves and restores settings across app sessions
+- ✅ Configures the provider when settings change
+
+### Dynamic Registration
 
 You can also register providers dynamically at runtime:
 
 ```kotlin
-// Register a provider dynamically
-val success = AIServiceRegistration.registerAIProvider(DeepSeekServiceProvider())
-if (success) {
-    Log.d("MyApp", "DeepSeek provider registered successfully")
-}
+// Register provider at runtime
+val success = AIServiceRegistration.registerAIProvider(MyCustomProvider())
 
 // Check registration status
 val status = AIServiceRegistration.getRegistrationStatus()
 println("Total providers: ${status.totalProviders}")
 println("Available providers: ${status.availableProviders}")
-println("System ready: ${status.isReady}")
 ```
 
-### Step 6: Update Configuration Logic
+### External Registration Benefits
 
-The configuration logic in `AIServiceRegistry.kt` already supports new providers automatically through the external registration system. Just ensure your `AIServiceType` is handled:
+| Benefit | Description |
+|---------|-------------|
+| **Separation of Concerns** | Registry vs Registration logic |
+| **Plugin Architecture** | Easy to add/remove providers dynamically |
+| **Better Testability** | Components can be tested independently |
+| **No Hardcoded Dependencies** | Registry doesn't know about specific providers |
+| **Runtime Flexibility** | Providers can be registered conditionally |
+| **Future-Proof** | Prepared for MCP integration and plugin systems |
 
-```kotlin
-// File: app/src/main/java/com/darblee/livingword/data/remote/AIServiceRegistry.kt
-fun configureProviders(settings: AISettings): ConfigurationResult {
-    // ...
-    providers.values.forEach { provider ->
-        try {
-            val config = when (provider.serviceType) {
-                AIServiceType.GEMINI -> settings.geminiConfig
-                AIServiceType.OPENAI -> settings.openAiConfig
-                AIServiceType.DEEPSEEK -> settings.deepSeekConfig // Add new case
-            }
-            
-            val success = provider.configure(config)
-            results[provider.providerId] = success
-            // ... error handling
-        }
-    }
-}
-```
+### Example: DeepSeek Provider
 
-The external registration system automatically discovers and configures all registered providers, so no additional registry changes are needed.
-
-### Step 7: Add UI Settings (Optional)
-
-If you want users to configure the new provider in the app's settings:
-
-1. Update preference keys in `PreferenceStore.kt`
-2. Add UI components in settings screens
-3. Update preference save/load logic
-
-### Step 8: Update API Key Configuration
-
-Add your API key to `secrets.properties`:
-
-```properties
-GEMINI_API_KEY=your_gemini_key
-ESV_BIBLE_API_KEY=your_esv_key  
-DEEPSEEK_API_KEY=your_deepseek_key
-```
-
-Update `build.gradle.kts` (app level):
-
-```kotlin
-buildConfigField("String", "DEEPSEEK_API_KEY", "\"${project.findProperty("DEEPSEEK_API_KEY") ?: ""}\"")
-```
+The codebase includes a complete `DeepSeekServiceProvider` example demonstrating:
+- Service registration and configuration
+- Error handling and initialization
+- Integration with the dynamic UI system
+- Automatic preference management
 
 ## Testing AI Providers
 
