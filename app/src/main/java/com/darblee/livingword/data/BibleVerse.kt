@@ -25,7 +25,6 @@ data class BibleVerse(
     val userDirectQuote: String = "",
     val userContext: String = "",
     val userContextScore: Int = 0,
-    // Add null-safe getters for migrated fields
     val aiContextExplanationText: String = "",
     val applicationFeedback: String = "",
     val translation: String = "",
@@ -33,30 +32,7 @@ data class BibleVerse(
     val scriptureVerses: List<Verse> = emptyList(),
     val dateCreated: Long = System.currentTimeMillis(),
     val lastModified: Long = System.currentTimeMillis()
-) {
-    // Provide safe accessors for AI feedback fields to handle migration edge cases
-    fun getSafeAIContextExplanation(): String {
-        return aiContextExplanationText.takeIf { it.isNotBlank() } ?: ""
-    }
-
-    fun getSafeApplicationFeedback(): String {
-        return applicationFeedback.takeIf { it.isNotBlank() } ?: ""
-    }
-
-    // Helper method to check if this verse has cached AI feedback
-    fun hasCachedAIFeedback(): Boolean {
-        return (getSafeAIContextExplanation().isNotEmpty() ||
-                getSafeApplicationFeedback().isNotEmpty()) &&
-                (userContextScore > 0)
-        // Note: DirectQuoteScore is always 0 and DirectQuoteExplanation is always empty for token optimization
-    }
-
-    // Helper method to check if input matches cached evaluation
-    fun matchesCachedInput(directQuote: String, userApplication: String): Boolean {
-        return userDirectQuote.trim() == directQuote.trim() &&
-                userContext.trim() == userApplication.trim()
-    }
-}
+)
 
 @Serializable
 data class Verse(

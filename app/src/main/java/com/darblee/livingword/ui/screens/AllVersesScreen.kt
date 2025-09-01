@@ -124,6 +124,16 @@ fun AllVersesScreen(
         viewModelStoreOwner = LocalActivity.current as ComponentActivity
     )
 
+    // Reset navigation state when entering AllVersesScreen without newVerseJson
+    // This prevents bounce-back navigation from bottom nav bar
+    LaunchedEffect(Unit) {
+        if (newVerseJson == null) {
+            // We arrived here via bottom navigation, not verse creation flow
+            // Clear any pending navigation state to prevent auto-navigation to VerseDetailScreen
+            newVerseViewModel.resetNavigationState()
+        }
+    }
+
     var showFilterDialog by remember { mutableStateOf(false) }
 
     if (showFilterDialog) {

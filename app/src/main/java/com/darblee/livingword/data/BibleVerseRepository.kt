@@ -266,19 +266,9 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         bibleVerseDao.getVersesByTopic(topic)
 
 
-    /**
-     * Clean up any data inconsistencies from database migration.
-     * This method ensures all AI feedback fields are non-null by setting them to empty strings.
-     */
-    suspend fun cleanupMigrationData() {
-        withContext(Dispatchers.IO) {
-            bibleVerseDao.cleanupMigrationData()
-        }
-    }
 
     /**
-     * Updates AI feedback data for a specific verse safely, handling null values.
-     * This method updates all AI-related fields including explanations, feedback, and scores.
+     * Updates AI feedback data for a specific verse.
      */
     suspend fun updateAIFeedbackData(
         verseId: Long,
@@ -296,16 +286,6 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
         }
     }
 
-    /**
-     * Helper method to safely retrieve a verse with null-safe field handling.
-     * This is particularly useful after database migrations to handle potential data inconsistencies.
-     * Returns null if the verse is not found.
-     */
-    suspend fun getVerseSafely(id: Long): BibleVerse? {
-        return withContext(Dispatchers.IO) {
-            bibleVerseDao.getVerseSafely(id)
-        }
-    }
 
     /**
      * Check if a verse has valid AI feedback data.

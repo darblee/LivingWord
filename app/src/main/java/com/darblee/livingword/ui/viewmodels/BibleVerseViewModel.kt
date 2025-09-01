@@ -40,42 +40,12 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     init {
         viewModelScope.launch {
             repository.addDefaultTopicsIfEmpty()
-            // Clean up any migration data issues
-            cleanupMigrationData()
         }
         getAllVerses()
         getAllTopics()
         getAllFavoriteVerses()
     }
 
-    /**
-     * Clean up any data inconsistencies from database migration
-     */
-    private suspend fun cleanupMigrationData() {
-        try {
-            repository.cleanupMigrationData()
-            Log.i("BibleVerseViewModel", "Migration data cleanup completed")
-        } catch (e: Exception) {
-            Log.e("BibleVerseViewModel", "Error during migration cleanup", e)
-        }
-    }
-
-    /**
-     * Public method to force cleanup migration data if needed
-     * This can be called if users experience issues after database migration
-     */
-    fun forceCleanupMigrationData() {
-        viewModelScope.launch {
-            try {
-                cleanupMigrationData()
-                Log.i("BibleVerseViewModel", "Forced migration cleanup completed")
-                _errorMessage.value = "Database cleanup completed. Please try again."
-            } catch (e: Exception) {
-                Log.e("BibleVerseViewModel", "Error during forced migration cleanup", e)
-                _errorMessage.value = "Error during database cleanup: ${e.localizedMessage}"
-            }
-        }
-    }
 
     /**
      * Retrieves a specific Bible verse as a Flow by its ID.
@@ -479,35 +449,22 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
     /**
      * Checks if a BibleVerse has any user memorization data saved.
-     * Updated to use safe accessor methods for the new fields.
      *
      * @param bibleVerse The BibleVerse object to check.
      * @return True if user-entered text exists in either the direct quote or context fields, false otherwise.
      */
     fun hasUserData(bibleVerse: BibleVerse): Boolean {
-        return try {
-            // Data is considered "set" if either the direct quote or context text is not empty.
-            bibleVerse.userDirectQuote.isNotEmpty() || bibleVerse.userContext.isNotEmpty()
-        } catch (e: Exception) {
-            Log.w("BibleVerseViewModel", "Error checking user data for verse ${bibleVerse.id}: ${e.message}", e)
-            false // Return false if there's any serialization/access error
-        }
+        // Data is considered "set" if either the direct quote or context text is not empty.
+        return bibleVerse.userDirectQuote.isNotEmpty() || bibleVerse.userContext.isNotEmpty()
     }
 
     /**
      * Retrieves a specific Bible verse by its ID using the repository.
-     * Updated with error handling for migration issues.
      * @param id The unique ID of the Bible verse to retrieve.
      * @return The BibleVerse object matching the ID.
      */
     suspend fun getVerseById(id: Long): BibleVerse {
-        return try {
-            repository.getVerseById(id)
-        } catch (e: Exception) {
-            Log.e("BibleVerseViewModel", "Error retrieving verse by ID $id: ${e.message}", e)
-            // Try to get the verse safely (this should handle migration issues)
-            repository.getVerseSafely(id) ?: throw e
-        }
+        return repository.getVerseById(id)
     }
 
     fun renameOrMergeTopic(oldTopicName: String, newTopicName: String, isMergeIntent: Boolean) {
@@ -566,47 +523,32 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
 
     /***
      * Check if verse exist on database. We only need to check for matching book, chapter, and startingVerse.
-     * Updated with error handling for migration issues.
      */
     suspend fun findExistingVerse(book: String, chapter: Int, startVerse: Int): BibleVerse? {
-        return try {
-            repository.findVerseByReference(book, chapter, startVerse)
-        } catch (e: Exception) {
-            Log.e("BibleVerseViewModel", "Error finding existing verse: ${e.message}", e)
-            null // Return null if there's any error during lookup
-        }
+        return repository.findVerseByReference(book, chapter, startVerse)
     }
 
     /**
      * Check if the verse has AI feedback data for the given input
-     * Updated to use safe accessor methods.
      */
     fun hasCachedAIFeedback(verse: BibleVerse, directQuote: String, userApplication: String): Boolean {
-        return try {
-            verse.hasCachedAIFeedback() && verse.matchesCachedInput(directQuote, userApplication)
-        } catch (e: Exception) {
-            Log.w("BibleVerseViewModel", "Error checking cached AI feedback: ${e.message}", e)
-            false // Return false if there's any error accessing the data
-        }
+        return (verse.aiContextExplanationText.isNotEmpty() || verse.applicationFeedback.isNotEmpty()) &&
+                verse.userContextScore > 0 &&
+                verse.userDirectQuote.trim() == directQuote.trim() &&
+                verse.userContext.trim() == userApplication.trim()
     }
 
     /**
      * Get cached AI feedback if it exists for the given input
-     * Updated to use safe accessor methods.
      */
     fun getCachedAIFeedback(verse: BibleVerse): Pair<String, String>? {
-        return try {
-            if (verse.hasCachedAIFeedback()) {
-                Pair(
-                    verse.getSafeAIContextExplanation(),
-                    verse.getSafeApplicationFeedback()
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Log.w("BibleVerseViewModel", "Error getting cached AI feedback: ${e.message}", e)
-            null // Return null if there's any error accessing the data
+        return if ((verse.aiContextExplanationText.isNotEmpty() || verse.applicationFeedback.isNotEmpty()) && verse.userContextScore > 0) {
+            Pair(
+                verse.aiContextExplanationText,
+                verse.applicationFeedback
+            )
+        } else {
+            null
         }
     }
 

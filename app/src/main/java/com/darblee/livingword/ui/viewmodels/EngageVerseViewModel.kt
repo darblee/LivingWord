@@ -175,9 +175,11 @@ class EngageVerseViewModel() : ViewModel(){
         return try {
             Log.d("EngageVerseViewModel", "Checking for cached feedback...")
 
-            // Use the safe accessor methods from the updated BibleVerse class
-            val hasExistingFeedback = verse.hasCachedAIFeedback()
-            val inputMatches = verse.matchesCachedInput(userMemorizedScripture, userApplicationContent)
+            // Check if we have cached feedback data using direct property access
+            val hasExistingFeedback = (verse.aiContextExplanationText.isNotEmpty() || verse.applicationFeedback.isNotEmpty()) && 
+                                     verse.userContextScore > 0
+            val inputMatches = verse.userDirectQuote.trim() == userMemorizedScripture.trim() && 
+                              verse.userContext.trim() == userApplicationContent.trim()
 
             Log.d("EngageVerseViewModel", "Has cached feedback: $hasExistingFeedback, Input matches: $inputMatches")
             Log.d("EngageVerseViewModel", "Cached input - Direct quote: '${verse.userDirectQuote}', Context: '${verse.userContext}'")
@@ -186,9 +188,9 @@ class EngageVerseViewModel() : ViewModel(){
             if (hasExistingFeedback && inputMatches) {
                 Log.d("EngageVerseViewModel", "Loading cached AI feedback results")
 
-                // Validate cached data before using it
-                val cachedContextExplanation = verse.getSafeAIContextExplanation()
-                val cachedApplicationFeedback = verse.getSafeApplicationFeedback()
+                // Use direct property access for cached data
+                val cachedContextExplanation = verse.aiContextExplanationText
+                val cachedApplicationFeedback = verse.applicationFeedback
 
                 Log.d("EngageVerseViewModel", "Cached data validation:")
                 Log.d("EngageVerseViewModel", "  - ContextExplanation: '${cachedContextExplanation.take(50)}...' (length: ${cachedContextExplanation.length})")

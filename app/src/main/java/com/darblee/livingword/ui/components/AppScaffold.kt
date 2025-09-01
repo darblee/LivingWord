@@ -166,11 +166,12 @@ fun AppScaffold(
                     selected = currentScreenInstance is Screen.Home,
                     onClick = {
                         if (currentScreenInstance !is Screen.Home) {
+                            // Clear all back stack entries and navigate directly to Home
                             navController.navigate(route = Screen.Home) {
-                                popUpTo(navController.graph.startDestinationId) { // Or your specific graph's route name if not nested
-                                    saveState = true // Optional if you don't need to save its state
+                                popUpTo(0) { // Clear entire back stack
+                                    inclusive = true
                                 }
-                                launchSingleTop = true // Avoid multiple instances of Home Screen
+                                launchSingleTop = true
                             }
                         }
                     },
@@ -181,11 +182,12 @@ fun AppScaffold(
                     selected = currentScreenInstance is Screen.AllVersesScreen,
                     onClick = {
                         if (currentScreenInstance !is Screen.AllVersesScreen) {
+                            // Clear all back stack entries and navigate directly to AllVersesScreen
                             navController.navigate(route = Screen.AllVersesScreen) {
-                                popUpTo(navController.graph.findStartDestination().id) { // Or your specific graph's route name if not nested
-                                    saveState = true // Optional if you don't need to save its state
+                                popUpTo(0) { // Clear entire back stack
+                                    inclusive = true
                                 }
-                                launchSingleTop = true // Avoid multiple instances of Home Screen
+                                launchSingleTop = true
                             }
                         }
                     },
@@ -202,11 +204,12 @@ fun AppScaffold(
                     selected = currentScreenInstance is Screen.TopicScreen,
                     onClick = {
                         if (currentScreenInstance !is Screen.TopicScreen) {
+                            // Clear all back stack entries and navigate directly to TopicScreen
                             navController.navigate(route = Screen.TopicScreen) {
-                                popUpTo(navController.graph.findStartDestination().id) { // Or your specific graph's route name if not nested
-                                    saveState = true // Optional if you don't need to save its state
+                                popUpTo(0) { // Clear entire back stack
+                                    inclusive = true
                                 }
-                                launchSingleTop = true // Avoid multiple instances of Home Screen
+                                launchSingleTop = true
                             }
                         }
                     },
