@@ -9,10 +9,6 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.darblee.livingword.PreferenceStore.Companion.VOTD_CACHED_TRANSLATION_KEY
-import com.darblee.livingword.PreferenceStore.Companion.VOTD_CONTENT_CACHE_KEY
-import com.darblee.livingword.PreferenceStore.Companion.VOTD_LAST_FETCH_DATE_KEY
-import com.darblee.livingword.PreferenceStore.Companion.VOTD_REFERENCE_CACHE_KEY
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -96,11 +92,11 @@ class PreferenceStore(private val context: Context) {
         val VOTD_LAST_FETCH_DATE_KEY = stringPreferencesKey("votd_last_fetch_date")
 
         // Default AI Settings
-        val DEFAULT_AI_MODEL_NAME = "gemini-2.5-flash"
-        val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
-        val DEFAULT_OPENAI_API_KEY = BuildConfig.OPENAI_API_KEY
+        const val DEFAULT_AI_MODEL_NAME = "gemini-2.5-flash"
+        const val DEFAULT_AI_API_KEY = BuildConfig.GEMINI_API_KEY
+        const val DEFAULT_OPENAI_API_KEY = BuildConfig.OPENAI_API_KEY
         const val DEFAULT_AI_TEMPERATURE = 0.7f
-        val DEFAULT_TRANSLATION = "ESV"
+        const val DEFAULT_TRANSLATION = "ESV"
         const val DEFAULT_AI_DISCLAIMER_SHOWN = false
     }
 
@@ -185,7 +181,7 @@ class PreferenceStore(private val context: Context) {
                 } else {
                     AIServiceType.GEMINI // Default to Gemini
                 }
-            } catch (e: IllegalArgumentException) {
+            } catch (_: IllegalArgumentException) {
                 AIServiceType.GEMINI
             }
             

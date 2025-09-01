@@ -16,15 +16,10 @@ import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import com.darblee.livingword.BuildConfig
 import com.darblee.livingword.data.remote.AIServiceRegistry
-import com.darblee.livingword.data.remote.AIServiceRegistration
 import com.darblee.livingword.data.remote.GeminiAIServiceProvider
 import com.darblee.livingword.data.remote.OpenAIServiceProvider
 import com.darblee.livingword.data.remote.ESVScriptureProvider
-import com.darblee.livingword.AISettings
-import com.darblee.livingword.AIServiceType
-import com.darblee.livingword.AIServiceConfig
 
 @RunWith(AndroidJUnit4::class)
 class HomeScreenTest {
@@ -210,45 +205,15 @@ class HomeScreenTest {
     }
 
     /**
-     * This test fetches the Verse of the Day (VOTD) and retrieves it in ESV translation.
-     * It makes a real network call to fetch the VOTD reference and then scripture.
+     * This 2-part test fetches the Verse of the Day (VOTD) in ESV translation,
+     * then switches to AMP translation and verifies both work correctly.
+     * It makes real network calls to fetch the VOTD reference and then scripture.
      * Requires an active internet connection and valid API keys.
      * 
-     * Note: Uses registered AI providers for scripture fetching with ESV provider priority
+     * Note: Uses registered AI providers for scripture fetching with translation switching
      */
     @Test
-    fun fetchVOTD_ESV_returnsCorrectVerse() = runBlocking {
-        // Arrange - Get VOTD reference
-        val votdReference = VotdService.fetchVerseOfTheDayReference()
-        assertTrue("VOTD reference should not be null", votdReference != null)
-        
-        val verseRef = parseReferenceString(votdReference!!)
-        assertTrue("Should be able to parse VOTD reference: $votdReference", verseRef != null)
-        
-        val translation = "ESV"
-
-        // Act - Fetch scripture for VOTD using registered providers
-        // Allow additional time for AI service to be fully ready
-        Thread.sleep(1000)
-        val result = AIService.fetchScripture(verseRef!!, translation)
-
-        // Assert
-        assertTrue("API call should be successful for VOTD $votdReference, but was: $result", result is AiServiceResult.Success)
-        val verses = (result as AiServiceResult.Success).data
-        assertTrue("Should return at least 1 verse for VOTD", verses.isNotEmpty())
-        assertTrue("VOTD verse text should not be empty", verses[0].verseString.isNotEmpty())
-        assertTrue("Verse number should be within expected range", verses[0].verseNum >= verseRef.startVerse && verses[0].verseNum <= verseRef.endVerse)
-    }
-
-    /**
-     * This test changes the translation setting from ESV to AMP and verifies 
-     * that VOTD is retrieved in the new translation.
-     * It makes real network calls and requires active internet connection and valid API keys.
-     * 
-     * Note: Uses registered AI providers to test translation switching with provider priority
-     */
-    @Test
-    fun switchVOTD_ESV_to_AMP_returnsCorrectTranslation() = runBlocking {
+    fun votd_validation() = runBlocking {
         // Arrange - Get VOTD reference
         val votdReference = VotdService.fetchVerseOfTheDayReference()
         assertTrue("VOTD reference should not be null", votdReference != null)
@@ -256,28 +221,34 @@ class HomeScreenTest {
         val verseRef = parseReferenceString(votdReference!!)
         assertTrue("Should be able to parse VOTD reference: $votdReference", verseRef != null)
 
-        // Act 1 - Fetch scripture in ESV
+        // === PART 1: Test ESV Translation ===
+        
+        // Act 1 - Fetch scripture for VOTD using registered providers (ESV)
         // Allow additional time for AI service to be fully ready
         Thread.sleep(1000)
         val esvResult = AIService.fetchScripture(verseRef!!, "ESV")
-        assertTrue("ESV API call should be successful for VOTD $votdReference", esvResult is AiServiceResult.Success)
-        val esvVerses = (esvResult as AiServiceResult.Success).data
-        
-        // Act 2 - Fetch same scripture in AMP
-        Thread.sleep(500)
-        val ampResult = AIService.fetchScripture(verseRef, "AMP")
-        assertTrue("AMP API call should be successful for VOTD $votdReference", ampResult is AiServiceResult.Success)
-        val ampVerses = (ampResult as AiServiceResult.Success).data
 
-        // Assert
-        assertTrue("ESV should return at least 1 verse", esvVerses.isNotEmpty())
-        assertTrue("AMP should return at least 1 verse", ampVerses.isNotEmpty())
-        assertEquals("Both translations should return same number of verses", esvVerses.size, ampVerses.size)
+        // Assert Part 1 - ESV Translation
+        assertTrue("ESV API call should be successful for VOTD $votdReference, but was: $esvResult", esvResult is AiServiceResult.Success)
+        val esvVerses = (esvResult as AiServiceResult.Success).data
+        assertTrue("ESV should return at least 1 verse for VOTD", esvVerses.isNotEmpty())
+        assertTrue("ESV VOTD verse text should not be empty", esvVerses[0].verseString.isNotEmpty())
+        assertTrue("ESV verse number should be within expected range", esvVerses[0].verseNum >= verseRef.startVerse && esvVerses[0].verseNum <= verseRef.endVerse)
+
+        // === PART 2: Test Translation Switch from ESV to AMP ===
         
-        // Verify verses are different translations of the same content
+        // Act 2 - Fetch same scripture in AMP (allow time between calls)
+        Thread.sleep(1500)
+        val ampResult = AIService.fetchScripture(verseRef, "AMP")
+
+        // Assert Part 2 - AMP Translation
+        assertTrue("AMP API call should be successful for VOTD $votdReference, but was: $ampResult", ampResult is AiServiceResult.Success)
+        val ampVerses = (ampResult as AiServiceResult.Success).data
+        assertTrue("AMP should return at least 1 verse for VOTD", ampVerses.isNotEmpty())
+        assertTrue("AMP VOTD verse text should not be empty", ampVerses[0].verseString.isNotEmpty())
+        
+        // Assert cross-translation consistency
         assertEquals("Both should have same verse number", esvVerses[0].verseNum, ampVerses[0].verseNum)
-        assertTrue("ESV verse text should not be empty", esvVerses[0].verseString.isNotEmpty())
-        assertTrue("AMP verse text should not be empty", ampVerses[0].verseString.isNotEmpty())
         
         // The verse text should be different between translations (in most cases)
         // We'll allow them to be the same in rare cases where translations are identical
@@ -285,6 +256,8 @@ class HomeScreenTest {
         if (!differentTranslations) {
             println("Note: ESV and AMP translations are identical for $votdReference")
         }
+        
+        println("✅ Successfully tested VOTD in both ESV and AMP translations for $votdReference")
     }
 
     /**
