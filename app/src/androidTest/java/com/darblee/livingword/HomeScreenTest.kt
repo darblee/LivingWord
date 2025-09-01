@@ -87,17 +87,26 @@ class HomeScreenTest {
             // Configure AI service with test settings
             val testAISettings = AISettings(
                 selectedService = AIServiceType.GEMINI,
-                geminiConfig = AIServiceConfig(
-                    serviceType = AIServiceType.GEMINI,
-                    modelName = "gemini-1.5-flash",
-                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
-                    temperature = 0.7f
-                ),
-                openAiConfig = AIServiceConfig(
-                    serviceType = AIServiceType.OPENAI,
-                    modelName = "gpt-4o-mini",
-                    apiKey = "test-openai-key", // Will be invalid for fallback testing
-                    temperature = 0.7f
+                selectedProviderId = "gemini_ai",
+                dynamicConfigs = mapOf(
+                    "gemini_ai" to DynamicAIConfig(
+                        providerId = "gemini_ai",
+                        displayName = "Gemini AI",
+                        serviceType = AIServiceType.GEMINI,
+                        modelName = "gemini-1.5-flash",
+                        apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
+                        temperature = 0.7f,
+                        isEnabled = true
+                    ),
+                    "openai" to DynamicAIConfig(
+                        providerId = "openai",
+                        displayName = "OpenAI",
+                        serviceType = AIServiceType.OPENAI,
+                        modelName = "gpt-4o-mini",
+                        apiKey = "test-openai-key", // Will be invalid for fallback testing
+                        temperature = 0.7f,
+                        isEnabled = true
+                    )
                 )
             )
             

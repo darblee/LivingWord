@@ -12,6 +12,10 @@ import com.darblee.livingword.data.remote.AIServiceRegistration
 import com.darblee.livingword.data.remote.GeminiAIServiceProvider
 import com.darblee.livingword.data.remote.OpenAIServiceProvider
 import com.darblee.livingword.data.remote.ESVScriptureProvider
+import com.darblee.livingword.AISettings
+import com.darblee.livingword.AIServiceConfig
+import com.darblee.livingword.AIServiceType
+import com.darblee.livingword.DynamicAIConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -52,21 +56,32 @@ class AIServiceTestSuite {
         // Register providers using external registration system
         registerTestProviders()
         
-        // Create test AI settings for configuration
-        testAISettings = AISettings(
-            selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
+        // Create test AI settings for configuration using dynamic configs
+        val testDynamicConfigs = mapOf(
+            "gemini_ai" to DynamicAIConfig(
+                providerId = "gemini_ai",
+                displayName = "Gemini AI",
                 serviceType = AIServiceType.GEMINI,
                 modelName = "gemini-1.5-flash",
                 apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
-                temperature = 0.7f
+                temperature = 0.7f,
+                isEnabled = true
             ),
-            openAiConfig = AIServiceConfig(
+            "openai" to DynamicAIConfig(
+                providerId = "openai",
+                displayName = "OpenAI",
                 serviceType = AIServiceType.OPENAI,
                 modelName = "gpt-4o-mini",
                 apiKey = "test-openai-key", // Will be invalid for testing fallback
-                temperature = 0.7f
+                temperature = 0.7f,
+                isEnabled = true
             )
+        )
+        
+        testAISettings = AISettings(
+            selectedService = AIServiceType.GEMINI,
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = testDynamicConfigs
         )
         
         // Configure the registered providers
@@ -139,11 +154,17 @@ class AIServiceTestSuite {
         // Arrange
         val invalidSettings = AISettings(
             selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "invalid-model",
-                apiKey = "", // Empty API key
-                temperature = 0.7f
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "invalid-model",
+                    apiKey = "", // Empty API key
+                    temperature = 0.7f,
+                    isEnabled = false
+                )
             )
         )
 
@@ -665,17 +686,26 @@ class AIServiceTestSuite {
         
         val invalidSettings = AISettings(
             selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "invalid-model",
-                apiKey = "", // Empty API key
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "invalid-model",
-                apiKey = "", // Empty API key  
-                temperature = 0.7f
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "invalid-model",
+                    apiKey = "", // Empty API key
+                    temperature = 0.7f,
+                    isEnabled = false
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "invalid-model",
+                    apiKey = "", // Empty API key
+                    temperature = 0.7f,
+                    isEnabled = false
+                )
             )
         )
 
@@ -833,17 +863,26 @@ class AIServiceTestSuite {
         // Arrange - Configure only Gemini
         val geminiOnlySettings = AISettings(
             selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "", // Empty to disable OpenAI
-                temperature = 0.7f
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
+                    temperature = 0.7f,
+                    isEnabled = true
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "", // Empty to disable OpenAI
+                    temperature = 0.7f,
+                    isEnabled = false
+                )
             )
         )
         
@@ -886,17 +925,26 @@ class AIServiceTestSuite {
         // Arrange - Configure only Gemini
         val geminiOnlySettings = AISettings(
             selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "", // Empty to disable OpenAI
-                temperature = 0.7f
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
+                    temperature = 0.7f,
+                    isEnabled = true
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "", // Empty to disable OpenAI
+                    temperature = 0.7f,
+                    isEnabled = false
+                )
             )
         )
         
@@ -938,17 +986,26 @@ class AIServiceTestSuite {
         // Arrange - Configure only Gemini
         val geminiOnlySettings = AISettings(
             selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "", // Empty to disable OpenAI
-                temperature = 0.7f
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
+                    temperature = 0.7f,
+                    isEnabled = true
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "", // Empty to disable OpenAI
+                    temperature = 0.7f,
+                    isEnabled = false
+                )
             )
         )
         
@@ -993,17 +1050,26 @@ class AIServiceTestSuite {
         // Arrange - Configure only Gemini
         val geminiOnlySettings = AISettings(
             selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "", // Empty to disable OpenAI
-                temperature = 0.7f
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-gemini-key" },
+                    temperature = 0.7f,
+                    isEnabled = true
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "", // Empty to disable OpenAI
+                    temperature = 0.7f,
+                    isEnabled = false
+                )
             )
         )
         
@@ -1043,17 +1109,26 @@ class AIServiceTestSuite {
         // Arrange - Configure only OpenAI
         val openAIOnlySettings = AISettings(
             selectedService = AIServiceType.OPENAI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = "", // Empty to disable Gemini
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "test-openai-key", // Will likely be invalid - that's OK for testing
-                temperature = 0.7f
+            selectedProviderId = "openai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = "", // Empty to disable Gemini
+                    temperature = 0.7f,
+                    isEnabled = false
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "test-openai-key", // Will likely be invalid - that's OK for testing
+                    temperature = 0.7f,
+                    isEnabled = true
+                )
             )
         )
         
@@ -1097,17 +1172,26 @@ class AIServiceTestSuite {
         // Arrange - Configure only OpenAI
         val openAIOnlySettings = AISettings(
             selectedService = AIServiceType.OPENAI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = "", // Empty to disable Gemini
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "test-openai-key", // Will likely be invalid - that's OK for testing
-                temperature = 0.7f
+            selectedProviderId = "openai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = "", // Empty to disable Gemini
+                    temperature = 0.7f,
+                    isEnabled = false
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "test-openai-key", // Will likely be invalid - that's OK for testing
+                    temperature = 0.7f,
+                    isEnabled = true
+                )
             )
         )
         
@@ -1149,17 +1233,26 @@ class AIServiceTestSuite {
         // Arrange - Configure only OpenAI
         val openAIOnlySettings = AISettings(
             selectedService = AIServiceType.OPENAI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = "", // Empty to disable Gemini
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "test-openai-key", // Will likely be invalid - that's OK for testing
-                temperature = 0.7f
+            selectedProviderId = "openai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = "", // Empty to disable Gemini
+                    temperature = 0.7f,
+                    isEnabled = false
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "test-openai-key", // Will likely be invalid - that's OK for testing
+                    temperature = 0.7f,
+                    isEnabled = true
+                )
             )
         )
         
@@ -1237,17 +1330,26 @@ class AIServiceTestSuite {
         // Step 1: Configure Gemini only
         val geminiSettings = AISettings(
             selectedService = AIServiceType.GEMINI,
-            geminiConfig = AIServiceConfig(
-                serviceType = AIServiceType.GEMINI,
-                modelName = "gemini-1.5-flash",
-                apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-key" },
-                temperature = 0.7f
-            ),
-            openAiConfig = AIServiceConfig(
-                serviceType = AIServiceType.OPENAI,
-                modelName = "gpt-4o-mini",
-                apiKey = "", // Disabled
-                temperature = 0.7f
+            selectedProviderId = "gemini_ai",
+            dynamicConfigs = mapOf(
+                "gemini_ai" to DynamicAIConfig(
+                    providerId = "gemini_ai",
+                    displayName = "Gemini AI",
+                    serviceType = AIServiceType.GEMINI,
+                    modelName = "gemini-1.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY.ifEmpty { "test-key" },
+                    temperature = 0.7f,
+                    isEnabled = true
+                ),
+                "openai" to DynamicAIConfig(
+                    providerId = "openai",
+                    displayName = "OpenAI",
+                    serviceType = AIServiceType.OPENAI,
+                    modelName = "gpt-4o-mini",
+                    apiKey = "", // Disabled
+                    temperature = 0.7f,
+                    isEnabled = false
+                )
             )
         )
         
