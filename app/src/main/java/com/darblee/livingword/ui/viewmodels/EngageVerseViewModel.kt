@@ -15,9 +15,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ScoreData(
-    var DirectQuoteScore: Int,
     val ContextScore: Int,
-    var DirectQuoteExplanation: String,
     val ContextExplanation: String,
     var ApplicationFeedback: String
 )
@@ -34,10 +32,8 @@ class EngageVerseViewModel() : ViewModel(){
         val isTopicContentLoading: Boolean = false, // Loading state for topic-based content
 
         // State for the currently displayed single verse
-        val directQuoteScore: Int = -1,
         val contextScore: Int = -1,
         val verse: BibleVerseRef? = null,
-        val aiDirectQuoteExplanationText : String? = null,
         val aiScoreExplanationText : String? = null,
         val aiResponseLoading: Boolean = false,
         val aiResponseError: String? = null,
@@ -76,10 +72,8 @@ class EngageVerseViewModel() : ViewModel(){
     fun loadScores(directQuoteScore: Int, contextScore: Int) {
         _state.update {
             it.copy(
-                directQuoteScore = directQuoteScore,
                 contextScore = contextScore,
                 // Reset explanations as they are tied to a specific evaluation
-                aiDirectQuoteExplanationText = null,
                 aiScoreExplanationText = null,
                 applicationFeedback = null,
                 aiResponseError = null,
@@ -94,9 +88,7 @@ class EngageVerseViewModel() : ViewModel(){
             _state.update {
                 it.copy(
                     aiResponseLoading = false, // Make it false - don't show loading when just resetting
-                    directQuoteScore = -1,
                     contextScore = -1,
-                    aiDirectQuoteExplanationText = null,
                     aiScoreExplanationText = null,
                     applicationFeedback = null,
                     aiResponseError = null,
@@ -133,7 +125,7 @@ class EngageVerseViewModel() : ViewModel(){
                 is AiServiceResult.Success -> {
                     _state.update {
                         it.copy(
-                            aiResponseError = "AI service test successful! DirectQuoteScore: ${result.data.DirectQuoteScore}"
+                            aiResponseError = "AI service test successful! ContextScore: ${result.data.ContextScore}"
                         )
                     }
                     Log.d("EngageVerseViewModel", "AI service test successful: ${result.data}")
@@ -164,10 +156,8 @@ class EngageVerseViewModel() : ViewModel(){
         Log.d("EngageVerseViewModel", "  - Context: '${currentState.lastEvaluatedUserApplication}'")
         Log.d("EngageVerseViewModel", "Input matches: ${currentState.lastEvaluatedDirectQuote.trim() == userDirectQuote.trim() && currentState.lastEvaluatedUserApplication.trim() == userContext.trim()}")
         Log.d("EngageVerseViewModel", "Has valid AI data:")
-        Log.d("EngageVerseViewModel", "  - DirectQuoteExplanation: ${!currentState.aiDirectQuoteExplanationText.isNullOrEmpty()} (always empty for token optimization)")
         Log.d("EngageVerseViewModel", "  - ContextExplanation: ${!currentState.aiScoreExplanationText.isNullOrEmpty()}")
         Log.d("EngageVerseViewModel", "  - ApplicationFeedback: ${!currentState.applicationFeedback.isNullOrEmpty()}")
-        Log.d("EngageVerseViewModel", "  - DirectQuoteScore: ${currentState.directQuoteScore} (always 0 for token optimization)")
         Log.d("EngageVerseViewModel", "  - ContextScore: ${currentState.contextScore}")
         Log.d("EngageVerseViewModel", "  - No error: ${currentState.aiResponseError == null}")
         Log.d("EngageVerseViewModel", "Using cached results flag: ${currentState.isUsingCachedResults}")
@@ -197,25 +187,20 @@ class EngageVerseViewModel() : ViewModel(){
                 Log.d("EngageVerseViewModel", "Loading cached AI feedback results")
 
                 // Validate cached data before using it
-                val cachedDirectExplanation = verse.getSafeAIDirectQuoteExplanation()
                 val cachedContextExplanation = verse.getSafeAIContextExplanation()
                 val cachedApplicationFeedback = verse.getSafeApplicationFeedback()
 
                 Log.d("EngageVerseViewModel", "Cached data validation:")
-                Log.d("EngageVerseViewModel", "  - DirectExplanation: '${cachedDirectExplanation.take(50)}...' (length: ${cachedDirectExplanation.length})")
                 Log.d("EngageVerseViewModel", "  - ContextExplanation: '${cachedContextExplanation.take(50)}...' (length: ${cachedContextExplanation.length})")
                 Log.d("EngageVerseViewModel", "  - ApplicationFeedback: '${cachedApplicationFeedback.take(50)}...' (length: ${cachedApplicationFeedback.length})")
-                Log.d("EngageVerseViewModel", "  - DirectQuoteScore: ${verse.userDirectQuoteScore}")
                 Log.d("EngageVerseViewModel", "  - ContextScore: ${verse.userContextScore}")
 
                 // Check if the cached data is actually valid (not empty or placeholder text)
-                // Note: DirectQuoteExplanation is now always empty and DirectQuoteScore is always 0 for token optimization
                 val isValidCache = (
                     cachedContextExplanation.isNotEmpty() &&
                     cachedApplicationFeedback.isNotEmpty() &&
                     !cachedContextExplanation.contains("Getting score") &&
                     verse.userContextScore > 0
-                    // DirectQuoteScore and DirectQuoteExplanation are hardcoded values, not validated
                 )
                 
                 Log.d("EngageVerseViewModel", "Cache validity check: $isValidCache")
@@ -224,9 +209,7 @@ class EngageVerseViewModel() : ViewModel(){
                     _state.update {
                         it.copy(
                             aiResponseLoading = false,
-                            directQuoteScore = verse.userDirectQuoteScore,
                             contextScore = verse.userContextScore,
-                            aiDirectQuoteExplanationText = cachedDirectExplanation,
                             aiScoreExplanationText = cachedContextExplanation,
                             applicationFeedback = cachedApplicationFeedback,
                             aiResponseError = null,
@@ -297,7 +280,6 @@ class EngageVerseViewModel() : ViewModel(){
             !currentState.applicationFeedback.isNullOrEmpty() &&
             currentState.contextScore > 0 &&
             currentState.aiResponseError == null
-            // DirectQuoteScore is always 0 and DirectQuoteExplanation is always empty for token optimization
         )
         
         if (currentInputMatches && hasValidStateResults) {
@@ -340,9 +322,7 @@ class EngageVerseViewModel() : ViewModel(){
             it.copy(
                 aiResponseLoading = true,
                 aiResponseError = null,
-                directQuoteScore = -1,
                 contextScore = -1,
-                aiDirectQuoteExplanationText = null,
                 aiScoreExplanationText = null,
                 applicationFeedback = null,
                 isUsingCachedResults = false
@@ -363,9 +343,7 @@ class EngageVerseViewModel() : ViewModel(){
                         _state.update {
                             it.copy(
                                 aiResponseLoading = false,
-                                directQuoteScore = scoreData.data.DirectQuoteScore,
                                 contextScore = scoreData.data.ContextScore,
-                                aiDirectQuoteExplanationText = scoreData.data.DirectQuoteExplanation,
                                 aiScoreExplanationText = scoreData.data.ContextExplanation,
                                 applicationFeedback = scoreData.data.ApplicationFeedback,
                                 aiResponseError = null,
@@ -381,9 +359,7 @@ class EngageVerseViewModel() : ViewModel(){
                         _state.update {
                             it.copy(
                                 aiResponseLoading = false,
-                                directQuoteScore = -1,
                                 contextScore = -1,
-                                aiDirectQuoteExplanationText = null,
                                 aiScoreExplanationText = null,
                                 applicationFeedback = null,
                                 aiResponseError = "Unable to parse AI response: ${e.message}",
@@ -398,9 +374,7 @@ class EngageVerseViewModel() : ViewModel(){
                     _state.update {
                         it.copy(
                             aiResponseLoading = false,
-                            directQuoteScore = -1,
                             contextScore = -1,
-                            aiDirectQuoteExplanationText = null,
                             aiScoreExplanationText = null,
                             applicationFeedback = null,
                             aiResponseError = scoreData.message,

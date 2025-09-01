@@ -411,10 +411,8 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
     fun updateUserData(
         verseId: Long,
         userDirectQuote: String,
-        userDirectQuoteScore: Int,
         userContext: String,
         userContextScore: Int,
-        aiDirectQuoteExplanationText: String,
         aiContextExplanationText: String,
         applicationFeedback: String
     ) {
@@ -423,10 +421,8 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                 // Use the safe DAO method for updating AI feedback data
                 repository.updateAIFeedbackData(
                     verseId = verseId,
-                    aiDirectQuoteExplanation = aiDirectQuoteExplanationText,
                     aiContextExplanation = aiContextExplanationText,
                     applicationFeedback = applicationFeedback,
-                    directQuoteScore = userDirectQuoteScore,
                     contextScore = userContextScore
                 )
 
@@ -435,9 +431,7 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
                 val updatedVerse = verseToUpdate.copy(
                     userDirectQuote = userDirectQuote,
                     userContext = userContext,
-                    userDirectQuoteScore = userDirectQuoteScore,
                     userContextScore = userContextScore,
-                    aiDirectQuoteExplanationText = aiDirectQuoteExplanationText,
                     aiContextExplanationText = aiContextExplanationText,
                     applicationFeedback = applicationFeedback,
                     lastModified = System.currentTimeMillis()
@@ -600,11 +594,10 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
      * Get cached AI feedback if it exists for the given input
      * Updated to use safe accessor methods.
      */
-    fun getCachedAIFeedback(verse: BibleVerse): Triple<String, String, String>? {
+    fun getCachedAIFeedback(verse: BibleVerse): Pair<String, String>? {
         return try {
             if (verse.hasCachedAIFeedback()) {
-                Triple(
-                    verse.getSafeAIDirectQuoteExplanation(),
+                Pair(
                     verse.getSafeAIContextExplanation(),
                     verse.getSafeApplicationFeedback()
                 )

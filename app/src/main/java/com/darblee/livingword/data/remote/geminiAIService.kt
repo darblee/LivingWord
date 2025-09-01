@@ -345,9 +345,7 @@ object GeminiAIService {
                 try {
                     val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
                     
-                    // Ensure hardcoded values are set correctly to reduce token usage
-                    parseResponse.DirectQuoteScore = 0
-                    parseResponse.DirectQuoteExplanation = ""
+                    // Note: DirectQuoteScore and DirectQuoteExplanation fields have been removed to reduce token usage
                     
                     if (applicationFeedback != null) {
                         parseResponse.ApplicationFeedback = applicationFeedback

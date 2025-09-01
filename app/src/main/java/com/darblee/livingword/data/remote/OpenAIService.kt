@@ -180,9 +180,7 @@ object OpenAIService {
                             
                             val parseResponse = jsonParser.decodeFromString<ScoreData>(cleanedJson)
                             
-                            // Ensure hardcoded values are set correctly to reduce token usage
-                            parseResponse.DirectQuoteScore = 0
-                            parseResponse.DirectQuoteExplanation = ""
+                            // Note: DirectQuoteScore and DirectQuoteExplanation fields have been removed to reduce token usage
                             
                             // Get application feedback separately using centralized prompt
                             val feedbackSystemInstruction = "You are an expert in theology. You provide insightful and encouraging feedback on how users apply Bible verses to their lives."

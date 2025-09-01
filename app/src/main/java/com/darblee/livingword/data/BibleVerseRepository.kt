@@ -282,19 +282,15 @@ class BibleVerseRepository(private val bibleVerseDao: BibleVerseDao) {
      */
     suspend fun updateAIFeedbackData(
         verseId: Long,
-        aiDirectQuoteExplanation: String,
         aiContextExplanation: String,
         applicationFeedback: String,
-        directQuoteScore: Int,
         contextScore: Int
     ) {
         withContext(Dispatchers.IO) {
             bibleVerseDao.updateAIFeedbackData(
                 verseId = verseId,
-                aiDirectQuoteExplanation = aiDirectQuoteExplanation,
                 aiContextExplanation = aiContextExplanation,
                 applicationFeedback = applicationFeedback,
-                directQuoteScore = directQuoteScore,
                 contextScore = contextScore
             )
         }

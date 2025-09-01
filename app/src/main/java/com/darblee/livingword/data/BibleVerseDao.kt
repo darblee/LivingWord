@@ -295,20 +295,16 @@ interface BibleVerseDao {
      */
     @Query("""
         UPDATE BibleVerse_Items 
-        SET aiDirectQuoteExplanationText = :aiDirectQuoteExplanation,
-            aiContextExplanationText = :aiContextExplanation,
+        SET aiContextExplanationText = :aiContextExplanation,
             applicationFeedback = :applicationFeedback,
-            userDirectQuoteScore = :directQuoteScore,
             userContextScore = :contextScore,
             lastModified = :lastModified
         WHERE id = :verseId
     """)
     suspend fun updateAIFeedbackData(
         verseId: Long,
-        aiDirectQuoteExplanation: String,
         aiContextExplanation: String,
         applicationFeedback: String,
-        directQuoteScore: Int,
         contextScore: Int,
         lastModified: Long = System.currentTimeMillis()
     )
@@ -319,10 +315,9 @@ interface BibleVerseDao {
     @Query("""
         SELECT COUNT(*) FROM BibleVerse_Items 
         WHERE id = :verseId 
-        AND (aiDirectQuoteExplanationText != '' 
-             OR aiContextExplanationText != '' 
+        AND (aiContextExplanationText != '' 
              OR applicationFeedback != '')
-        AND (userDirectQuoteScore > 0 OR userContextScore > 0)
+        AND userContextScore > 0
     """)
     suspend fun hasValidAIFeedback(verseId: Long): Int
 
@@ -331,11 +326,9 @@ interface BibleVerseDao {
      */
     @Query("""
         UPDATE BibleVerse_Items 
-        SET aiDirectQuoteExplanationText = COALESCE(aiDirectQuoteExplanationText, ''),
-            aiContextExplanationText = COALESCE(aiContextExplanationText, ''),
+        SET aiContextExplanationText = COALESCE(aiContextExplanationText, ''),
             applicationFeedback = COALESCE(applicationFeedback, '')
-        WHERE aiDirectQuoteExplanationText IS NULL 
-           OR aiContextExplanationText IS NULL 
+        WHERE aiContextExplanationText IS NULL 
            OR applicationFeedback IS NULL
     """)
     suspend fun cleanupMigrationData()

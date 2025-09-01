@@ -23,11 +23,9 @@ data class BibleVerse(
     val memorizedSuccessCount: Int = 0,
     val memorizedFailedCount: Int = 0,
     val userDirectQuote: String = "",
-    val userDirectQuoteScore: Int = 0,
     val userContext: String = "",
     val userContextScore: Int = 0,
     // Add null-safe getters for migrated fields
-    val aiDirectQuoteExplanationText: String = "",
     val aiContextExplanationText: String = "",
     val applicationFeedback: String = "",
     val translation: String = "",
@@ -37,10 +35,6 @@ data class BibleVerse(
     val lastModified: Long = System.currentTimeMillis()
 ) {
     // Provide safe accessors for AI feedback fields to handle migration edge cases
-    fun getSafeAIDirectQuoteExplanation(): String {
-        return aiDirectQuoteExplanationText.takeIf { it.isNotBlank() } ?: ""
-    }
-
     fun getSafeAIContextExplanation(): String {
         return aiContextExplanationText.takeIf { it.isNotBlank() } ?: ""
     }

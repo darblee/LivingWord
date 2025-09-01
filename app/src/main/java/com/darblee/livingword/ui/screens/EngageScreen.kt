@@ -860,7 +860,7 @@ fun EngageScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = if (state.directQuoteScore >= 0) "Memorization Score (Direct Quote:${state.directQuoteScore} Context:${state.contextScore})" else "Memorized Content",
+                                        text = if (state.contextScore >= 0) "Memorization Score (Context:${state.contextScore})" else "Memorized Content",
                                         style = MaterialTheme.typography.labelMedium,
                                         color = if (isDirectQuoteTextFieldFocused)
                                             MaterialTheme.colorScheme.primary
@@ -868,7 +868,7 @@ fun EngageScreen(
                                             MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     // Only show menu button when not in scoring mode and text is not empty
-                                    if (state.directQuoteScore < 0 && directQuoteTextFieldValue.text.isNotBlank()) {
+                                    if (state.contextScore < 0 && directQuoteTextFieldValue.text.isNotBlank()) {
                                         IconButton(
                                             onClick = { showMemorizedContentDropdownMenu = true },
                                             modifier = Modifier.size(16.dp)
@@ -1192,7 +1192,7 @@ fun EngageScreen(
                             val hasContentChanged = directQuoteChanged || applicationChanged
 
                             val enabled = hasDirectQuote && hasApplicationContent && hasContentChanged
-                            if (enabled && state.directQuoteScore < 0 && state.contextScore < 0) {
+                            if (enabled && state.contextScore < 0) {
                                 Log.d("EngageScreen", "Save button enabled without AI scores - user can override/save content")
                             }
                             if (!hasContentChanged && hasDirectQuote && hasApplicationContent) {
@@ -1339,7 +1339,7 @@ fun EngageScreen(
                                                     selection = TextRange(savedVerse.userContext.length)
                                                 )
                                                 engageVerseViewModel.loadScores(
-                                                    directQuoteScore = savedVerse.userDirectQuoteScore,
+                                                    directQuoteScore = -1,
                                                     contextScore = savedVerse.userContextScore
                                                 )
                                                 isSavedDataLoaded = true
@@ -1401,7 +1401,7 @@ fun EngageScreen(
                                             Text("Saved", style = MaterialTheme.typography.titleMedium)
 
                                             // Box for Saved Direct Quote
-                                            val savedDirectQuoteLabel = "Direct Quote" + if ((verse?.userDirectQuoteScore ?: -1) >= 0) " (${verse!!.userDirectQuoteScore})" else ""
+                                            val savedDirectQuoteLabel = "Direct Quote"
                                             CompareContentBox(label = savedDirectQuoteLabel, content = verse?.userDirectQuote ?: "")
 
                                             // Box for Saved Context
@@ -1419,7 +1419,7 @@ fun EngageScreen(
                                             Text("Current", style = MaterialTheme.typography.titleMedium)
 
                                             // Box for Current Direct Quote
-                                            val currentDirectQuoteLabel = "Direct Quote" + if (state.directQuoteScore >= 0) " (${state.directQuoteScore})" else ""
+                                            val currentDirectQuoteLabel = "Direct Quote"
                                             CompareContentBox(label = currentDirectQuoteLabel, content = directQuoteTextFieldValue.text)
 
                                             // Box for Current Context
@@ -1700,9 +1700,7 @@ fun EngageScreen(
                             val textToCopy = buildShareText(
                                 directQuoteText = directQuoteTextFieldValue.text,
                                 userApplicationText = userApplicationTextFieldValue.text,
-                                directQuoteScore = state.directQuoteScore,
                                 contextScore = state.contextScore,
-                                aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText,
                                 aiContextExplanation = state.aiScoreExplanationText,
                                 applicationFeedback = state.applicationFeedback
                             )
@@ -1715,9 +1713,7 @@ fun EngageScreen(
                             val shareText = buildShareText(
                                 directQuoteText = directQuoteTextFieldValue.text,
                                 userApplicationText = userApplicationTextFieldValue.text,
-                                directQuoteScore = state.directQuoteScore,
                                 contextScore = state.contextScore,
-                                aiDirectQuoteExplanation = state.aiDirectQuoteExplanationText,
                                 aiContextExplanation = state.aiScoreExplanationText,
                                 applicationFeedback = state.applicationFeedback
                             )
@@ -1895,16 +1891,13 @@ fun EngageScreen(
                                             verse?.let { currentVerse ->
                                                 val directQuoteToSave = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
                                                 val contextToSave = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
-                                                val directQuoteScoreToSave = if (state.directQuoteScore >= 0) state.directQuoteScore else -1
                                                 val contextScoreToSave = if (state.contextScore >= 0) state.contextScore else -1
 
                                                 bibleViewModel.updateUserData(
                                                     verseId = currentVerse.id,
                                                     userDirectQuote = directQuoteToSave,
-                                                    userDirectQuoteScore = directQuoteScoreToSave,
                                                     userContext = contextToSave,
                                                     userContextScore = contextScoreToSave,
-                                                    aiDirectQuoteExplanationText = state.aiDirectQuoteExplanationText ?: "",
                                                     aiContextExplanationText = state.aiScoreExplanationText ?: "",
                                                     applicationFeedback = state.applicationFeedback ?: ""
                                                 )
@@ -2167,9 +2160,7 @@ private fun CompareContentBox(label: String, content: String) {
 private fun buildShareText(
     directQuoteText: String,
     userApplicationText: String,
-    directQuoteScore: Int,
     contextScore: Int,
-    aiDirectQuoteExplanation: String?,
     aiContextExplanation: String?,
     applicationFeedback: String?
 ): String {
@@ -2184,26 +2175,16 @@ private fun buildShareText(
     stringBuilder.append(userApplicationText)
 
     // Add AI feedback content if it exists
-    val hasAiFeedback = directQuoteScore >= 0 || contextScore >= 0 ||
-            !aiDirectQuoteExplanation.isNullOrBlank() ||
+    val hasAiFeedback = contextScore >= 0 ||
             !aiContextExplanation.isNullOrBlank() ||
             !applicationFeedback.isNullOrBlank()
 
     if (hasAiFeedback) {
         stringBuilder.append("\n\n--- AI Feedback ---\n")
 
-        // Add Direct Quote Score and explanation if available
-        if (directQuoteScore >= 0) {
-            stringBuilder.append("\nDirect Quote Score: $directQuoteScore")
-            if (!aiDirectQuoteExplanation.isNullOrBlank()) {
-                stringBuilder.append("\nDirect Quote Feedback:\n")
-                stringBuilder.append(aiDirectQuoteExplanation.trim())
-            }
-        }
-
         // Add Context Score and explanation if available
         if (contextScore >= 0) {
-            stringBuilder.append("\n\nContext Score: $contextScore")
+            stringBuilder.append("\nContext Score: $contextScore")
             if (!aiContextExplanation.isNullOrBlank()) {
                 stringBuilder.append("\nContext Feedback:\n")
                 stringBuilder.append(aiContextExplanation.trim())
