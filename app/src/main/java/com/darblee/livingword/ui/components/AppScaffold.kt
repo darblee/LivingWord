@@ -710,54 +710,71 @@ private fun AIModelSetting(
             singleLine = true
         )
 
-        // API Key Field
-        OutlinedTextField(
-            value = currentConfig.apiKey,
-            onValueChange = { newApiKey ->
-                val newConfig = currentConfig.copy(apiKey = newApiKey)
-                // Update the dynamic configuration for the selected provider
-                val providerId = aiSettings.selectedProviderId
-                val currentDynamicConfig = aiSettings.selectedConfig
-                val updatedDynamicConfig = if (currentDynamicConfig != null) {
-                    currentDynamicConfig.copy(apiKey = newConfig.apiKey)
-                } else {
-                    DynamicAIConfig(
-                        providerId = providerId,
-                        displayName = aiSettings.selectedService.displayName,
-                        serviceType = aiSettings.selectedService,
-                        modelName = newConfig.modelName,
-                        apiKey = newConfig.apiKey,
-                        temperature = newConfig.temperature,
-                        isEnabled = true
+        // API Key Field - Only show for services that need API keys
+        if (aiSettings.selectedService != AIServiceType.REFORMED_BIBLE) {
+            OutlinedTextField(
+                value = currentConfig.apiKey,
+                onValueChange = { newApiKey ->
+                    val newConfig = currentConfig.copy(apiKey = newApiKey)
+                    // Update the dynamic configuration for the selected provider
+                    val providerId = aiSettings.selectedProviderId
+                    val currentDynamicConfig = aiSettings.selectedConfig
+                    val updatedDynamicConfig = if (currentDynamicConfig != null) {
+                        currentDynamicConfig.copy(apiKey = newConfig.apiKey)
+                    } else {
+                        DynamicAIConfig(
+                            providerId = providerId,
+                            displayName = aiSettings.selectedService.displayName,
+                            serviceType = aiSettings.selectedService,
+                            modelName = newConfig.modelName,
+                            apiKey = newConfig.apiKey,
+                            temperature = newConfig.temperature,
+                            isEnabled = true
+                        )
+                    }
+                    
+                    val updatedSettings = aiSettings.copy(
+                        dynamicConfigs = aiSettings.dynamicConfigs + (providerId to updatedDynamicConfig)
                     )
+                    onAISettingsChange(updatedSettings)
+                },
+                label = { Text("API Key") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    val image = if (apiKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
+                    val description = if (apiKeyVisible) "Hide API Key" else "Show API Key"
+                    IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                        Icon(imageVector = image, description)
+                    }
                 }
-                
-                val updatedSettings = aiSettings.copy(
-                    dynamicConfigs = aiSettings.dynamicConfigs + (providerId to updatedDynamicConfig)
-                )
-                onAISettingsChange(updatedSettings)
-            },
-            label = { Text("API Key") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            trailingIcon = {
-                val image = if (apiKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
-                val description = if (apiKeyVisible) "Hide API Key" else "Show API Key"
-                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
-                    Icon(imageVector = image, description)
-                }
-            }
-        )
+            )
+        }
         
         if (currentConfig.apiKey.isBlank()) {
-            Text(
-                "API Key is required for AI features.",
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.error,
-                modifier = Modifier.padding(start = 4.dp)
-            )
+            // Check if this is a service that doesn't need an API key
+            val needsApiKey = when (aiSettings.selectedService) {
+                AIServiceType.REFORMED_BIBLE -> false // Reformed Bible AI connects to local Ollama server
+                else -> true // All other services need API keys
+            }
+            
+            if (needsApiKey) {
+                Text(
+                    "API Key is required for AI features.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.error,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            } else {
+                Text(
+                    "This AI service connects to a local server and doesn't require an API key.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
         }
 
         // Temperature Field
@@ -858,7 +875,7 @@ private fun AIModelSetting(
                         }
                     }
                 },
-                enabled = !isTestingConnection && currentConfig.apiKey.isNotBlank() && currentConfig.modelName.isNotBlank(),
+                enabled = !isTestingConnection && currentConfig.modelName.isNotBlank() && (currentConfig.apiKey.isNotBlank() || aiSettings.selectedService == AIServiceType.REFORMED_BIBLE),
                 modifier = Modifier.weight(1f)
             ) {
                 if (isTestingConnection) {

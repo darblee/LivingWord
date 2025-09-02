@@ -24,16 +24,13 @@
       <SelectionState runConfigName="AllVersesScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="test2_addVerseRange_Psalm37_3to5_validatesResponse()">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
-      <SelectionState runConfigName="HomeScreenTest">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
       <SelectionState runConfigName="Tests in 'com.darblee.livingword'">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
       <SelectionState runConfigName="EngageScreenTest">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="AIServiceTestSuite">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

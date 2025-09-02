@@ -169,5 +169,10 @@ dependencies {
     implementation(libs.google.api.services.drive)
     implementation(libs.google.http.client.gson)
 
+    // HTTP client for Ollama Reformed Bible AI
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.logging.interceptor)
+
     // implementation(libs.openai.client)
 }

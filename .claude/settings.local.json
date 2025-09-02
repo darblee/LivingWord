@@ -6,7 +6,8 @@
       "Bash(.gradlew assembleDebug)",
       "WebSearch",
       "Bash(find:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(move ReformedBibleAIService.kt OllamaAIService.kt)"
     ],
     "deny": [],
     "ask": []

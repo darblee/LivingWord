@@ -129,6 +129,12 @@ object AIServiceRegistry {
                             apiKey = "",
                             temperature = 0.7f
                         )
+                        AIServiceType.REFORMED_BIBLE -> AIServiceConfig(
+                            serviceType = AIServiceType.REFORMED_BIBLE,
+                            modelName = AIServiceType.REFORMED_BIBLE.defaultModel,
+                            apiKey = "", // No API key needed for local Ollama server
+                            temperature = 0.7f
+                        )
                     }
                 }
                 

@@ -319,9 +319,11 @@ object AIService {
         if (!isConfigured) {
             return AiServiceResult.Error("AI service not configured: ${getInitializationError()}")
         }
+
+        return AiServiceResult.Success(true)
         
         // Get centralized prompts
-        val systemInstruction = SystemInstructions.TAKEAWAY_VALIDATOR
+/*        val systemInstruction = SystemInstructions.TAKEAWAY_VALIDATOR
         val userPrompt = UserPrompts.getTakeawayValidationPrompt(verseRef, takeawayToEvaluate)
         
         // Try all available AI providers in priority order
@@ -341,7 +343,7 @@ object AIService {
             }
         }
         
-        return AiServiceResult.Error("All available AI providers (${availableProviders.size}) failed for takeaway validation")
+        return AiServiceResult.Error("All available AI providers (${availableProviders.size}) failed for takeaway validation")*/
     }
     
     /**

@@ -52,6 +52,11 @@ object AIServiceRegistration {
             AIServiceRegistry.registerProvider(deepSeekProvider)
             Log.d("AIServiceRegistration", "Registered DeepSeek provider")
             
+            // Register Reformed Bible AI provider
+            val reformedBibleProvider = ReformedBibleAIServiceProvider()
+            AIServiceRegistry.registerProvider(reformedBibleProvider)
+            Log.d("AIServiceRegistration", "Registered Reformed Bible AI provider")
+            
         } catch (e: Exception) {
             Log.e("AIServiceRegistration", "Failed to register AI providers", e)
             throw e

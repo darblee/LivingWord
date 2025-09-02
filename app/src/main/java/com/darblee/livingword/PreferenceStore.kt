@@ -23,7 +23,8 @@ import java.io.IOException
 enum class AIServiceType(val displayName: String, val defaultModel: String) {
     GEMINI("Gemini AI", "gemini-1.5-flash"),
     OPENAI("OpenAI", "gpt-4o-mini"),
-    DEEPSEEK("DeepSeek AI", "deepseek-chat")
+    DEEPSEEK("DeepSeek AI", "deepseek-chat"),
+    REFORMED_BIBLE("Reformed Bible AI", "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0")
 }
 
 // Data class for individual AI service configuration
@@ -266,6 +267,7 @@ class PreferenceStore(private val context: Context) {
                     AIServiceType.GEMINI -> BuildConfig.GEMINI_API_KEY
                     AIServiceType.OPENAI -> BuildConfig.OPENAI_API_KEY
                     AIServiceType.DEEPSEEK -> "" // No default API key for DeepSeek
+                    AIServiceType.REFORMED_BIBLE -> "" // No API key needed for local Ollama server
                 }
                 
                 dynamicConfigs[provider.providerId] = DynamicAIConfig(
