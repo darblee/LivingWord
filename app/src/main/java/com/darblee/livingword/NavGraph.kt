@@ -228,12 +228,18 @@ fun ObserveNavigationStack(navController: NavHostController) {
     LaunchedEffect(navController, lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             navController.currentBackStackEntryFlow.collect { entry ->
+                Log.d(TAG, "=== NAVIGATION CHANGE DETECTED ===")
+                Log.d(TAG, "Current destination: ${entry?.destination?.route}")
+                Log.d(TAG, "Arguments: ${entry?.arguments}")
+                
                 // Log the entire back stack
                 val currentNavigationHistory = navController.currentBackStack.value
-                Log.d(TAG, "Current Back Stack:")
-                currentNavigationHistory.forEach {
-                    Log.d(TAG, "  Entry: ${it.destination.route}")
+                Log.d(TAG, "Complete Back Stack (${currentNavigationHistory.size} entries):")
+                currentNavigationHistory.forEachIndexed { index, backStackEntry ->
+                    val marker = if (backStackEntry == entry) " <-- CURRENT" else ""
+                    Log.d(TAG, "  [$index] ${backStackEntry.destination.route}$marker")
                 }
+                Log.d(TAG, "=============================")
             }
         }
     }

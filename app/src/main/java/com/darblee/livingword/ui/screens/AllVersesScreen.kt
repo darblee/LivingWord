@@ -124,13 +124,35 @@ fun AllVersesScreen(
         viewModelStoreOwner = LocalActivity.current as ComponentActivity
     )
 
+    // Track if reset has completed to ensure Navigation LaunchedEffect doesn't see stale state
+    var resetCompleted by remember { mutableStateOf(false) }
+    
+    // Reset the resetCompleted flag when newVerseJson changes (new composition)
+    LaunchedEffect(newVerseJson) {
+        resetCompleted = false
+    }
+
     // Reset navigation state when entering AllVersesScreen without newVerseJson
     // This prevents bounce-back navigation from bottom nav bar
     LaunchedEffect(Unit) {
+        Log.d("AllVersesScreen", "=== ALLVERSESSCREEN INITIALIZATION ===")
+        Log.d("AllVersesScreen", "newVerseJson parameter: $newVerseJson")
+        Log.d("AllVersesScreen", "newVerseViewModel state before reset:")
+        val currentState = newVerseViewModel.state.value
+        Log.d("AllVersesScreen", "  - newlySavedVerseId: ${currentState.newlySavedVerseId}")
+        Log.d("AllVersesScreen", "  - isContentSaved: ${currentState.isContentSaved}")
+        Log.d("AllVersesScreen", "  - loadingStage: ${currentState.loadingStage}")
+        
         if (newVerseJson == null) {
             // We arrived here via bottom navigation, not verse creation flow
             // Clear any pending navigation state to prevent auto-navigation to VerseDetailScreen
+            Log.d("AllVersesScreen", "Arrived via bottom navigation - resetting NewVerseViewModel state")
             newVerseViewModel.resetNavigationState()
+            Log.d("AllVersesScreen", "NewVerseViewModel state reset completed")
+            resetCompleted = true // Signal that reset is complete
+        } else {
+            Log.d("AllVersesScreen", "Arrived via verse creation flow - preserving NewVerseViewModel state")
+            resetCompleted = true // No reset needed, mark as complete immediately
         }
     }
 
@@ -335,22 +357,71 @@ fun AllVersesScreen(
     var hasNavigated by remember { mutableStateOf(false) }
 
     // New verse is saved. Now navigate to edit verse screen  
-    LaunchedEffect(newVerseState.newlySavedVerseId, hasNavigated) {
-        Log.d("AllVersesScreen", "LaunchedEffect(Navigation) triggered - newlySavedVerseId: ${newVerseState.newlySavedVerseId}, hasNavigated: $hasNavigated")
-        if (newVerseState.newlySavedVerseId != null && !hasNavigated) {
-            showRetrievingDataDialog = false // Hide dialog before navigating
-            navController.navigate(Screen.VerseDetailScreen(verseID = newVerseState.newlySavedVerseId!!, editMode = true)) {
-                popUpTo(Screen.Home)
+    // IMPORTANT: Collect state directly to avoid stale state issues
+    LaunchedEffect(hasNavigated, resetCompleted) {
+        Log.d("AllVersesScreen", "=== NAVIGATION LAUNCHEDEFFECT TRIGGERED ===")
+        Log.d("AllVersesScreen", "hasNavigated: $hasNavigated")
+        Log.d("AllVersesScreen", "resetCompleted: $resetCompleted")
+        Log.d("AllVersesScreen", "newVerseJson parameter: $newVerseJson")
+        
+        // Only proceed if reset is complete (prevents race condition)
+        if (resetCompleted && !hasNavigated) {
+            Log.d("AllVersesScreen", "Conditions met, starting state collection...")
+            
+            // Collect state directly within LaunchedEffect to avoid stale state
+            newVerseViewModel.state.collect { currentState ->
+                Log.d("AllVersesScreen", "Navigation LaunchedEffect: collecting fresh state")
+                Log.d("AllVersesScreen", "Fresh state - newlySavedVerseId: ${currentState.newlySavedVerseId}")
+                Log.d("AllVersesScreen", "Fresh state - isContentSaved: ${currentState.isContentSaved}")
+                Log.d("AllVersesScreen", "Fresh state - loadingStage: ${currentState.loadingStage}")
+                
+                if (currentState.newlySavedVerseId != null && !hasNavigated) {
+                    Log.d("AllVersesScreen", "!!! BOUNCE-BACK NAVIGATION TRIGGERED !!!")
+                    Log.d("AllVersesScreen", "Navigating to VerseDetailScreen(${currentState.newlySavedVerseId}, editMode=true)")
+                    Log.d("AllVersesScreen", "Current back stack:")
+                    navController.currentBackStack.value.forEach { entry ->
+                        Log.d("AllVersesScreen", "  - ${entry.destination.route}")
+                    }
+                    
+                    showRetrievingDataDialog = false // Hide dialog before navigating
+                    navController.navigate(Screen.VerseDetailScreen(verseID = currentState.newlySavedVerseId!!, editMode = true)) {
+                        popUpTo(Screen.Home)
+                    }
+                    hasNavigated = true // Mark as navigated to prevent re-navigation
+                    Log.d("AllVersesScreen", "Bounce-back navigation completed, hasNavigated set to true")
+                    return@collect // Exit the collect loop after navigation
+                } else {
+                    val reason = when {
+                        currentState.newlySavedVerseId == null -> "newlySavedVerseId is null"
+                        hasNavigated -> "already navigated"
+                        else -> "unknown"
+                    }
+                    Log.d("AllVersesScreen", "Navigation conditions not met - reason: $reason")
+                }
             }
-            hasNavigated = true // Mark as navigated to prevent re-navigation
+        } else {
+            val reason = when {
+                !resetCompleted -> "reset not completed (preventing race condition)"
+                hasNavigated -> "already navigated"
+                else -> "unknown"
+            }
+            Log.d("AllVersesScreen", "Initial conditions not met - reason: $reason")
         }
     }
 
     // Reset navigation state after final save completes
     LaunchedEffect(newVerseState.isContentSaved) {
+        Log.d("AllVersesScreen", "=== RESET NAVIGATION STATE LAUNCHEDEFFECT ===")
+        Log.d("AllVersesScreen", "isContentSaved: ${newVerseState.isContentSaved}")
+        Log.d("AllVersesScreen", "newlySavedVerseId: ${newVerseState.newlySavedVerseId}")
+        
         if (newVerseState.isContentSaved && newVerseState.newlySavedVerseId != null) {
+            Log.d("AllVersesScreen", "Resetting navigation state after content save")
             newVerseViewModel.resetNavigationState()
             hasNavigated = false // Reset for next verse
+            Log.d("AllVersesScreen", "Navigation state reset completed, hasNavigated set to false")
+        } else {
+            Log.d("AllVersesScreen", "Reset conditions not met - no reset performed")
         }
     }
 

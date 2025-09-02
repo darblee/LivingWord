@@ -1,5 +1,6 @@
 package com.darblee.livingword.ui.components
 
+import android.util.Log
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -182,6 +183,14 @@ fun AppScaffold(
                     selected = currentScreenInstance is Screen.AllVersesScreen,
                     onClick = {
                         if (currentScreenInstance !is Screen.AllVersesScreen) {
+                            Log.d("AppScaffold", "=== BOTTOM NAV VERSES CLICKED ===")
+                            Log.d("AppScaffold", "Current screen: $currentScreenInstance")
+                            Log.d("AppScaffold", "Target screen: AllVersesScreen")
+                            Log.d("AppScaffold", "Back stack before navigation:")
+                            navController.currentBackStack.value.forEach { entry ->
+                                Log.d("AppScaffold", "  - ${entry.destination.route}")
+                            }
+                            
                             // Clear all back stack entries and navigate directly to AllVersesScreen
                             navController.navigate(route = Screen.AllVersesScreen) {
                                 popUpTo(0) { // Clear entire back stack
@@ -189,6 +198,10 @@ fun AppScaffold(
                                 }
                                 launchSingleTop = true
                             }
+                            
+                            Log.d("AppScaffold", "Navigation command issued to AllVersesScreen")
+                        } else {
+                            Log.d("AppScaffold", "Already on AllVersesScreen, ignoring navigation")
                         }
                     },
                     label = { Text("Verses") },

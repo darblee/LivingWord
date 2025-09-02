@@ -304,8 +304,21 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun resetNavigationState() {
+        Log.d("NewVerseViewModel", "=== RESET NAVIGATION STATE CALLED ===")
+        val currentState = _state.value
+        Log.d("NewVerseViewModel", "State before reset:")
+        Log.d("NewVerseViewModel", "  - newlySavedVerseId: ${currentState.newlySavedVerseId}")
+        Log.d("NewVerseViewModel", "  - isContentSaved: ${currentState.isContentSaved}")
+        Log.d("NewVerseViewModel", "  - loadingStage: ${currentState.loadingStage}")
+        
         _state.update {
             it.copy(newlySavedVerseId = null, isContentSaved = false)
         }
+        
+        val newState = _state.value
+        Log.d("NewVerseViewModel", "State after reset:")
+        Log.d("NewVerseViewModel", "  - newlySavedVerseId: ${newState.newlySavedVerseId}")
+        Log.d("NewVerseViewModel", "  - isContentSaved: ${newState.isContentSaved}")
+        Log.d("NewVerseViewModel", "  - loadingStage: ${newState.loadingStage}")
     }
 }
