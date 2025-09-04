@@ -3,6 +3,7 @@ package com.darblee.livingword.data.remote
 import android.util.Log
 import com.darblee.livingword.AIServiceConfig
 import com.darblee.livingword.AIServiceType
+import com.darblee.livingword.DynamicAIConfig
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.ui.viewmodels.ScoreData
@@ -27,8 +28,7 @@ class OpenAIServiceProvider : AIServiceProvider {
             currentConfig = config
             
             // Create AISettings for backward compatibility with existing OpenAIService
-            // Create AISettings for backward compatibility with existing OpenAIService
-            val openAiDynamicConfig = com.darblee.livingword.DynamicAIConfig(
+            val openAiDynamicConfig = DynamicAIConfig(
                 providerId = "openai",
                 displayName = "OpenAI",
                 serviceType = config.serviceType,

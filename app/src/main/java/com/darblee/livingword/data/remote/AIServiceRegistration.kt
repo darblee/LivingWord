@@ -53,7 +53,7 @@ object AIServiceRegistration {
             Log.d("AIServiceRegistration", "Registered DeepSeek provider")
             
             // Register Reformed Bible AI provider
-            val reformedBibleProvider = ReformedBibleAIServiceProvider()
+            val reformedBibleProvider = OllamaAIServiceProvider()
             AIServiceRegistry.registerProvider(reformedBibleProvider)
             Log.d("AIServiceRegistration", "Registered Reformed Bible AI provider")
             

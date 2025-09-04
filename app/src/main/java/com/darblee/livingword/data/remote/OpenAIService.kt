@@ -458,7 +458,7 @@ object OpenAIService {
     suspend fun test(): Boolean {
         return try {
             // Create John 3:16 reference for testing
-            val testVerseRef = com.darblee.livingword.data.BibleVerseRef(
+            val testVerseRef = BibleVerseRef(
                 book = "John",
                 chapter = 3,
                 startVerse = 16,

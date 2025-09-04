@@ -22,7 +22,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
     override val displayName: String = "DeepSeek AI"
     override val serviceType: AIServiceType = AIServiceType.DEEPSEEK
     override val defaultModel: String = "deepseek-chat"
-    override val priority: Int = 100 // Lower priority than Gemini/OpenAI
+    override val priority: Int = 100
     
     private var currentConfig: AIServiceConfig? = null
     private var initializationError: String? = null

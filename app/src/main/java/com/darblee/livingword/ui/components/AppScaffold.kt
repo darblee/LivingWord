@@ -417,9 +417,7 @@ private fun SettingPopup(
                                     onConfirmation(aiSettings) // Pass new settings back
                                 }
                             },
-                            enabled = aiSettings.selectedConfig?.let { config ->
-                                config.apiKey.isNotBlank() && config.modelName.isNotBlank()
-                            } ?: false
+                            enabled = aiSettings.selectedConfig?.modelName?.isNotBlank() ?: false
                         ) {
                             Text(stringResource(id = R.string.OK))
                         }
@@ -711,7 +709,7 @@ private fun AIModelSetting(
         )
 
         // API Key Field - Only show for services that need API keys
-        if (aiSettings.selectedService != AIServiceType.REFORMED_BIBLE) {
+        if (aiSettings.selectedService != AIServiceType.OLLAMA) {
             OutlinedTextField(
                 value = currentConfig.apiKey,
                 onValueChange = { newApiKey ->
@@ -756,7 +754,7 @@ private fun AIModelSetting(
         if (currentConfig.apiKey.isBlank()) {
             // Check if this is a service that doesn't need an API key
             val needsApiKey = when (aiSettings.selectedService) {
-                AIServiceType.REFORMED_BIBLE -> false // Reformed Bible AI connects to local Ollama server
+                AIServiceType.OLLAMA -> false // Reformed Bible AI connects to local Ollama server
                 else -> true // All other services need API keys
             }
             
@@ -875,7 +873,7 @@ private fun AIModelSetting(
                         }
                     }
                 },
-                enabled = !isTestingConnection && currentConfig.modelName.isNotBlank() && (currentConfig.apiKey.isNotBlank() || aiSettings.selectedService == AIServiceType.REFORMED_BIBLE),
+                enabled = !isTestingConnection && currentConfig.modelName.isNotBlank() && (currentConfig.apiKey.isNotBlank() || aiSettings.selectedService == AIServiceType.OLLAMA),
                 modifier = Modifier.weight(1f)
             ) {
                 if (isTestingConnection) {

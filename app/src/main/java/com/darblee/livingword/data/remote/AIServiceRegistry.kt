@@ -111,32 +111,16 @@ object AIServiceRegistry {
             try {
                 // Get configuration for this specific provider from dynamic configs
                 val dynamicConfig = settings.getConfigForProvider(provider.providerId)
-                val config = if (dynamicConfig != null) {
-                    AIServiceConfig(
-                        serviceType = dynamicConfig.serviceType,
-                        modelName = dynamicConfig.modelName,
-                        apiKey = dynamicConfig.apiKey,
-                        temperature = dynamicConfig.temperature
-                    )
-                } else {
-                    // Fall back to compatibility method if no dynamic config exists
-                    when (provider.serviceType) {
-                        AIServiceType.GEMINI -> settings.geminiConfig
-                        AIServiceType.OPENAI -> settings.openAiConfig
-                        AIServiceType.DEEPSEEK -> AIServiceConfig(
-                            serviceType = AIServiceType.DEEPSEEK,
-                            modelName = AIServiceType.DEEPSEEK.defaultModel,
-                            apiKey = "",
-                            temperature = 0.7f
-                        )
-                        AIServiceType.REFORMED_BIBLE -> AIServiceConfig(
-                            serviceType = AIServiceType.REFORMED_BIBLE,
-                            modelName = AIServiceType.REFORMED_BIBLE.defaultModel,
-                            apiKey = "", // No API key needed for local Ollama server
-                            temperature = 0.7f
-                        )
-                    }
+                if (dynamicConfig == null) {
+                    results[provider.providerId] = false
+                    errors.add("${provider.displayName}: No configuration found for this provider")
+                    return@forEach
                 }
+                val config = AIServiceConfig(
+                    serviceType = dynamicConfig.serviceType,
+                    modelName = dynamicConfig.modelName,
+                    apiKey = dynamicConfig.apiKey,
+                    temperature = dynamicConfig.temperature)
                 
                 val success = provider.configure(config)
                 results[provider.providerId] = success

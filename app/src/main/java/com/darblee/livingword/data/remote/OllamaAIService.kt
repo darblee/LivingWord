@@ -18,7 +18,7 @@ class OllamaAIService private constructor() {
         
         // Hardcoded server IP as requested - Updated to match actual network
         private const val BASE_URL = "http://192.168.1.16:11434/"
-        private const val MODEL_NAME = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0"
+        private const val MODEL_NAME = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS"
         
         fun getInstance(): OllamaAIService {
             return INSTANCE ?: synchronized(this) {
@@ -189,11 +189,11 @@ class OllamaAIService private constructor() {
     /**
      * Test connection to the Ollama server
      */
-    suspend fun testConnection(): AiServiceResult<String> {
+    suspend fun testConnection(modelName: String): AiServiceResult<String> {
         return try {
             val testPrompt = "Hello, respond with 'Ollama AI is working' to confirm connection."
             val request = OllamaRequest(
-                model = MODEL_NAME,
+                model = modelName,
                 prompt = testPrompt,
                 stream = false,
                 options = OllamaOptions(temperature = 0.1f, max_tokens = 20)

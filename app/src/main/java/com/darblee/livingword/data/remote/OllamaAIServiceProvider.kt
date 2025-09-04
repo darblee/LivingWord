@@ -11,42 +11,44 @@ import com.google.gson.JsonSyntaxException
 import kotlinx.serialization.json.Json
 
 /**
- * Provider implementation for Reformed Bible AI service running on Ollama
+ * Provider implementation for Ollama AI service
  */
-class ReformedBibleAIServiceProvider : AIServiceProvider {
+class OllamaAIServiceProvider : AIServiceProvider {
     
-    override val providerId: String = "reformed_bible_ai"
-    override val displayName: String = "Reformed Bible AI"
-    override val serviceType: AIServiceType = AIServiceType.REFORMED_BIBLE
-
-    // hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS
-    // hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0
+    override val providerId: String = "ollama_ai"
+    override val displayName: String = "Ollama AI"
+    override val serviceType: AIServiceType = AIServiceType.OLLAMA
     override val defaultModel: String = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS"
-
 
     override val priority: Int = 2 // Lower priority than main services for now
     
     private var isConfigured = false
     private var initializationError: String? = null
     private val ollamaService = OllamaAIService.getInstance()
-    
+
+    private var currentConfig: AIServiceConfig? = null
+
+
     companion object {
-        private const val TAG = "ReformedBibleAIProvider"
+        private const val TAG = "OllamaAIProvider"
     }
     
     override fun configure(config: AIServiceConfig): Boolean {
         return try {
-            // Reformed Bible AI doesn't use API keys like other services
+            // Ollama service doesn't use API keys like other services
             // It connects directly to the local Ollama server
+
+            currentConfig = config
+
             if (ollamaService.isInitialized()) {
                 isConfigured = true
                 initializationError = null
-                Log.i(TAG, "Reformed Bible AI provider configured successfully")
+                Log.i(TAG, "Ollama AI provider configured successfully")
                 true
             } else {
                 initializationError = ollamaService.getInitializationError()
                 isConfigured = false
-                Log.e(TAG, "Failed to configure Reformed Bible AI provider: $initializationError")
+                Log.e(TAG, "Failed to configure Ollama AI provider: $initializationError")
                 false
             }
         } catch (e: Exception) {
@@ -62,12 +64,14 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
     override fun getInitializationError(): String? = initializationError
     
     override suspend fun test(): Boolean {
+        if (currentConfig == null) { return false }
+
         return if (!isInitialized()) {
             Log.w(TAG, "Cannot test - service not initialized")
             false
         } else {
             try {
-                val result = ollamaService.testConnection()
+                val result = ollamaService.testConnection(currentConfig!!.modelName)
                 when (result) {
                     is AiServiceResult.Success -> {
                         Log.i(TAG, "Test successful: ${result.data}")
@@ -92,13 +96,12 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
         userPrompt: String
     ): AiServiceResult<List<Verse>> {
         if (!isInitialized()) {
-            return AiServiceResult.Error("Reformed Bible AI not initialized: $initializationError")
+            return AiServiceResult.Error("Ollama AI not initialized: $initializationError")
         }
         
-        // Reformed Bible AI can fetch scripture but we'll use a custom prompt
-        // that leverages its theological expertise
+        // Ollama AI can fetch scripture using custom prompts
         val customPrompt = """
-            As a Reformed Christian Bible expert, provide the exact Bible verse text for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}${if (verseRef.startVerse != verseRef.endVerse) "-${verseRef.endVerse}" else ""} in the $translation translation.
+            As a Christian Bible expert, provide the exact Bible verse text for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}${if (verseRef.startVerse != verseRef.endVerse) "-${verseRef.endVerse}" else ""} in the $translation translation.
             
             Return ONLY a JSON array in the following format:
             [
@@ -126,7 +129,7 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
                 if (responseBody != null && responseBody.done) {
                     parseScriptureResponse(responseBody.response)
                 } else {
-                    AiServiceResult.Error("Invalid scripture response from Reformed Bible AI")
+                    AiServiceResult.Error("Invalid scripture response from Ollama AI")
                 }
             } else {
                 AiServiceResult.Error("Scripture fetch failed: HTTP ${response?.code()}")
@@ -143,7 +146,7 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
         userPrompt: String
     ): AiServiceResult<String> {
         if (!isInitialized()) {
-            return AiServiceResult.Error("Reformed Bible AI not initialized: $initializationError")
+            return AiServiceResult.Error("Ollama AI not initialized: $initializationError")
         }
         
         // Use the OllamaAIService's built-in takeaway method which already
@@ -159,7 +162,7 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
         applicationFeedbackPrompt: String
     ): AiServiceResult<ScoreData> {
         if (!isInitialized()) {
-            return AiServiceResult.Error("Reformed Bible AI not initialized: $initializationError")
+            return AiServiceResult.Error("Ollama AI not initialized: $initializationError")
         }
         
         // Create a Reformed-specific scoring prompt
@@ -199,7 +202,7 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
                 if (responseBody != null && responseBody.done) {
                     parseScoreResponse(responseBody.response)
                 } else {
-                    AiServiceResult.Error("Invalid scoring response from Reformed Bible AI")
+                    AiServiceResult.Error("Invalid scoring response from Ollama AI")
                 }
             } else {
                 AiServiceResult.Error("Scoring failed: HTTP ${response?.code()}")
@@ -215,7 +218,7 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
         userPrompt: String
     ): AiServiceResult<Boolean> {
         if (!isInitialized()) {
-            return AiServiceResult.Error("Reformed Bible AI not initialized: $initializationError")
+            return AiServiceResult.Error("Ollama AI not initialized: $initializationError")
         }
         
         // Extract verse reference and takeaway from the user prompt
@@ -239,7 +242,7 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
         userPrompt: String
     ): AiServiceResult<List<BibleVerseRef>> {
         if (!isInitialized()) {
-            return AiServiceResult.Error("Reformed Bible AI not initialized: $initializationError")
+            return AiServiceResult.Error("Ollama AI not initialized: $initializationError")
         }
         
         // Create a Reformed-specific verse search prompt
@@ -271,7 +274,7 @@ class ReformedBibleAIServiceProvider : AIServiceProvider {
                 if (responseBody != null && responseBody.done) {
                     parseVerseSearchResponse(responseBody.response)
                 } else {
-                    AiServiceResult.Error("Invalid verse search response from Reformed Bible AI")
+                    AiServiceResult.Error("Invalid verse search response from Ollama AI")
                 }
             } else {
                 AiServiceResult.Error("Verse search failed: HTTP ${response?.code()}")

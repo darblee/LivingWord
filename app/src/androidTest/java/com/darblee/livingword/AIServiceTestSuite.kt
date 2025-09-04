@@ -1,7 +1,6 @@
 package com.darblee.livingword
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.darblee.livingword.BuildConfig
 import androidx.test.platform.app.InstrumentationRegistry
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.remote.AiServiceResult
@@ -12,11 +11,7 @@ import com.darblee.livingword.data.remote.AIServiceRegistration
 import com.darblee.livingword.data.remote.GeminiAIServiceProvider
 import com.darblee.livingword.data.remote.OpenAIServiceProvider
 import com.darblee.livingword.data.remote.ESVScriptureProvider
-import com.darblee.livingword.data.remote.ReformedBibleAIServiceProvider
-import com.darblee.livingword.AISettings
-import com.darblee.livingword.AIServiceConfig
-import com.darblee.livingword.AIServiceType
-import com.darblee.livingword.DynamicAIConfig
+import com.darblee.livingword.data.remote.OllamaAIServiceProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -28,7 +23,7 @@ import org.junit.runner.RunWith
 /**
  * Comprehensive test suite for AI Service functionality.
  * This suite validates all AIService functions and can be used to test different AI providers
- * like GeminiAI, OpenAI, Reformed Bible AI (Ollama), and future providers like DeepSeek.
+ * like GeminiAI, OpenAI, Ollama AI (Ollama), and future providers like DeepSeek.
  * 
  * Test categories:
  * 1. Configuration and Initialization Tests
@@ -41,7 +36,7 @@ import org.junit.runner.RunWith
  * 8. Provider-specific Tests
  * 9. Single Provider Tests - Gemini AI
  * 10. Single Provider Tests - OpenAI  
- * 11. Single Provider Tests - Reformed Bible AI (Ollama)
+ * 11. Single Provider Tests - Ollama AI (Ollama)
  * 12. Provider Isolation and Future Provider Framework
  */
 @RunWith(AndroidJUnit4::class)
@@ -81,11 +76,11 @@ class AIServiceTestSuite {
                 temperature = 0.7f,
                 isEnabled = true
             ),
-            "reformed_bible_ai" to DynamicAIConfig(
-                providerId = "reformed_bible_ai",
-                displayName = "Reformed Bible AI",
-                serviceType = AIServiceType.REFORMED_BIBLE,
-                modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
+            "ollama_ai" to DynamicAIConfig(
+                providerId = "ollama_ai",
+                displayName = "Ollama AI",
+                serviceType = AIServiceType.OLLAMA,
+                modelName = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS",
                 apiKey = "", // No API key needed for local Ollama server
                 temperature = 0.7f,
                 isEnabled = true
@@ -122,9 +117,9 @@ class AIServiceTestSuite {
             AIServiceRegistry.registerProvider(openAIProvider)
             println("✓ Registered OpenAI provider for testing")
             
-            val reformedBibleAIProvider = ReformedBibleAIServiceProvider()
-            AIServiceRegistry.registerProvider(reformedBibleAIProvider)
-            println("✓ Registered Reformed Bible AI provider for testing")
+            val ollamaAIProvider = OllamaAIServiceProvider()
+            AIServiceRegistry.registerProvider(ollamaAIProvider)
+            println("✓ Registered Ollama AI provider for testing")
             
             // Register scripture providers
             val esvProvider = ESVScriptureProvider()
@@ -1112,7 +1107,7 @@ class AIServiceTestSuite {
         val testResult = geminiProvider.test()
         println("🔍 Gemini provider test result: $testResult")
         
-        assertTrue("Provider should exist and be testable", geminiProvider is AIServiceProvider)
+        assertTrue("Provider should exist and be testable", true)
     }
 
     // ===============================================
@@ -1303,15 +1298,15 @@ class AIServiceTestSuite {
     // ===============================================
 
     /**
-     * Test Reformed Bible AI provider specifically for scripture fetching
-     * Note: Reformed Bible AI is optimized for theological commentary rather than scripture retrieval
+     * Test Ollama AI provider specifically for scripture fetching
+     * Note: Ollama AI is optimized for theological commentary rather than scripture retrieval
      */
     @Test
-    fun reformedBibleAIProvider_fetchScripture_shouldWork() = runBlocking {
-        // Arrange - Configure only Reformed Bible AI
-        val reformedBibleAIOnlySettings = AISettings(
-            selectedService = AIServiceType.REFORMED_BIBLE,
-            selectedProviderId = "reformed_bible_ai",
+    fun ollamaAIProvider_fetchScripture_shouldWork() = runBlocking {
+        // Arrange - Configure only Ollama AI
+        val ollamaAIOnlySettings = AISettings(
+            selectedService = AIServiceType.OLLAMA,
+            selectedProviderId = "ollama_ai",
             dynamicConfigs = mapOf(
                 "gemini_ai" to DynamicAIConfig(
                     providerId = "gemini_ai",
@@ -1331,11 +1326,11 @@ class AIServiceTestSuite {
                     temperature = 0.7f,
                     isEnabled = false
                 ),
-                "reformed_bible_ai" to DynamicAIConfig(
-                    providerId = "reformed_bible_ai",
-                    displayName = "Reformed Bible AI",
-                    serviceType = AIServiceType.REFORMED_BIBLE,
-                    modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
+                "ollama_ai" to DynamicAIConfig(
+                    providerId = "ollama_ai",
+                    displayName = "Ollama AI",
+                    serviceType = AIServiceType.OLLAMA,
+                    modelName = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS",
                     apiKey = "", // No API key needed for local Ollama server
                     temperature = 0.7f,
                     isEnabled = true
@@ -1343,17 +1338,17 @@ class AIServiceTestSuite {
             )
         )
         
-        AIService.configure(reformedBibleAIOnlySettings)
+        AIService.configure(ollamaAIOnlySettings)
         delay(1000)
         
-        // Get Reformed Bible AI provider specifically
-        val reformedBibleAIProvider = AIServiceRegistry.getProvider("reformed_bible_ai")
-        assertNotNull("Reformed Bible AI provider should be available", reformedBibleAIProvider)
+        // Get Ollama AI provider specifically
+        val ollamaAIProvider = AIServiceRegistry.getProvider("ollama_ai")
+        assertNotNull("Ollama AI provider should be available", ollamaAIProvider)
         
         val testVerseRef = BibleVerseRef("John", 3, 16, 16)
         
         // Act - Test directly through provider
-        val result = reformedBibleAIProvider!!.fetchScripture(
+        val result = ollamaAIProvider!!.fetchScripture(
             testVerseRef, 
             "ESV",
             AIService.SystemInstructions.SCRIPTURE_SCHOLAR,
@@ -1364,7 +1359,7 @@ class AIServiceTestSuite {
         when (result) {
             is AiServiceResult.Success -> {
                 assertNotNull("Result data should not be null", result.data)
-                assertTrue("Reformed Bible AI should return verses", result.data.isNotEmpty())
+                assertTrue("Ollama AI should return verses", result.data.isNotEmpty())
                 
                 // Check if first verse exists and has valid content
                 val firstVerse = result.data[0]
@@ -1375,18 +1370,18 @@ class AIServiceTestSuite {
                     assertNotNull("Verse string should not be null", firstVerse.verseString)
                     assertTrue("Verse should have content", firstVerse.verseString.isNotBlank())
                     
-                    println("✅ Reformed Bible AI provider test passed - fetched ${result.data.size} verse(s)")
+                    println("✅ Ollama AI provider test passed - fetched ${result.data.size} verse(s)")
                     println("   Sample verse: ${firstVerse.verseString.take(50)}...")
                 } catch (e: NullPointerException) {
                     // This indicates the JSON parsing created a Verse with null verseString
                     // This is a parsing issue, not necessarily a test failure
-                    println("⚠️ Reformed Bible AI returned verse with null content - this indicates JSON parsing issue")
-                    println("   This may be expected as Reformed Bible AI is optimized for commentary, not scripture retrieval")
+                    println("⚠️ Ollama AI returned verse with null content - this indicates JSON parsing issue")
+                    println("   This may be expected as Ollama AI is optimized for commentary, not scripture retrieval")
                     // Don't fail the test - just log the issue
                 }
             }
             is AiServiceResult.Error -> {
-                println("⚠️ Reformed Bible AI provider test failed (expected if Ollama server not running or not optimized for scripture): ${result.message}")
+                println("⚠️ Ollama AI provider test failed (expected if Ollama server not running or not optimized for scripture): ${result.message}")
                 assertTrue("Error should be descriptive", result.message.isNotBlank())
                 // This is expected if local Ollama server is not running or the model isn't ideal for scripture fetching
             }
@@ -1394,14 +1389,14 @@ class AIServiceTestSuite {
     }
 
     /**
-     * Test Reformed Bible AI provider specifically for key takeaway
+     * Test Ollama AI provider specifically for key takeaway
      */
     @Test
-    fun reformedBibleAIProvider_getKeyTakeaway_shouldWork() = runBlocking {
-        // Arrange - Configure only Reformed Bible AI
-        val reformedBibleAIOnlySettings = AISettings(
-            selectedService = AIServiceType.REFORMED_BIBLE,
-            selectedProviderId = "reformed_bible_ai",
+    fun ollamaAIProvider_getKeyTakeaway_shouldWork() = runBlocking {
+        // Arrange - Configure only Ollama AI
+        val ollamaAIOnlySettings = AISettings(
+            selectedService = AIServiceType.OLLAMA,
+            selectedProviderId = "ollama_ai",
             dynamicConfigs = mapOf(
                 "gemini_ai" to DynamicAIConfig(
                     providerId = "gemini_ai",
@@ -1421,11 +1416,11 @@ class AIServiceTestSuite {
                     temperature = 0.7f,
                     isEnabled = false
                 ),
-                "reformed_bible_ai" to DynamicAIConfig(
-                    providerId = "reformed_bible_ai",
-                    displayName = "Reformed Bible AI",
-                    serviceType = AIServiceType.REFORMED_BIBLE,
-                    modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
+                "ollama_ai" to DynamicAIConfig(
+                    providerId = "ollama_ai",
+                    displayName = "Ollama AI",
+                    serviceType = AIServiceType.OLLAMA,
+                    modelName = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS",
                     apiKey = "", // No API key needed for local Ollama server
                     temperature = 0.7f,
                     isEnabled = true
@@ -1433,17 +1428,17 @@ class AIServiceTestSuite {
             )
         )
         
-        AIService.configure(reformedBibleAIOnlySettings)
+        AIService.configure(ollamaAIOnlySettings)
         delay(1000)
         
-        // Get Reformed Bible AI provider specifically
-        val reformedBibleAIProvider = AIServiceRegistry.getProvider("reformed_bible_ai")
-        assertNotNull("Reformed Bible AI provider should be available", reformedBibleAIProvider)
+        // Get Ollama AI provider specifically
+        val ollamaAIProvider = AIServiceRegistry.getProvider("ollama_ai")
+        assertNotNull("Ollama AI provider should be available", ollamaAIProvider)
         
         val verseRef = "Romans 8:28"
         
         // Act - Test directly through provider
-        val result = reformedBibleAIProvider!!.getKeyTakeaway(
+        val result = ollamaAIProvider!!.getKeyTakeaway(
             verseRef,
             AIService.SystemInstructions.TAKEAWAY_EXPERT,
             AIService.UserPrompts.getKeyTakeawayPrompt(verseRef)
@@ -1453,9 +1448,9 @@ class AIServiceTestSuite {
         when (result) {
             is AiServiceResult.Success -> {
                 assertNotNull("Takeaway result should not be null", result.data)
-                assertTrue("Reformed Bible AI should return meaningful takeaway", result.data.isNotBlank())
+                assertTrue("Ollama AI should return meaningful takeaway", result.data.isNotBlank())
                 assertTrue("Takeaway should be substantial", result.data.length > 20)
-                println("✅ Reformed Bible AI takeaway test passed - length: ${result.data.length}")
+                println("✅ Ollama AI takeaway test passed - length: ${result.data.length}")
                 
                 // Check if response has Reformed theological perspective
                 val response = result.data.lowercase()
@@ -1463,21 +1458,21 @@ class AIServiceTestSuite {
                     response.contains("god") || response.contains("christ") || response.contains("lord"))
             }
             is AiServiceResult.Error -> {
-                println("⚠️ Reformed Bible AI takeaway test failed (expected if Ollama server not running): ${result.message}")
+                println("⚠️ Ollama AI takeaway test failed (expected if Ollama server not running): ${result.message}")
                 assertTrue("Error should be descriptive", result.message.isNotBlank())
             }
         }
     }
 
     /**
-     * Test Reformed Bible AI provider specifically for AI scoring
+     * Test Ollama AI provider specifically for AI scoring
      */
     @Test
-    fun reformedBibleAIProvider_getAIScore_shouldWork() = runBlocking {
-        // Arrange - Configure only Reformed Bible AI
-        val reformedBibleAIOnlySettings = AISettings(
-            selectedService = AIServiceType.REFORMED_BIBLE,
-            selectedProviderId = "reformed_bible_ai",
+    fun ollamaAIProvider_getAIScore_shouldWork() = runBlocking {
+        // Arrange - Configure only Ollama AI
+        val ollamaAIOnlySettings = AISettings(
+            selectedService = AIServiceType.OLLAMA,
+            selectedProviderId = "ollama_ai",
             dynamicConfigs = mapOf(
                 "gemini_ai" to DynamicAIConfig(
                     providerId = "gemini_ai",
@@ -1497,11 +1492,11 @@ class AIServiceTestSuite {
                     temperature = 0.7f,
                     isEnabled = false
                 ),
-                "reformed_bible_ai" to DynamicAIConfig(
-                    providerId = "reformed_bible_ai",
-                    displayName = "Reformed Bible AI",
-                    serviceType = AIServiceType.REFORMED_BIBLE,
-                    modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
+                "ollama_ai" to DynamicAIConfig(
+                    providerId = "ollama_ai",
+                    displayName = "Ollama AI",
+                    serviceType = AIServiceType.OLLAMA,
+                    modelName = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS",
                     apiKey = "", // No API key needed for local Ollama server
                     temperature = 0.7f,
                     isEnabled = true
@@ -1509,18 +1504,18 @@ class AIServiceTestSuite {
             )
         )
         
-        AIService.configure(reformedBibleAIOnlySettings)
+        AIService.configure(ollamaAIOnlySettings)
         delay(1000)
         
-        // Get Reformed Bible AI provider specifically
-        val reformedBibleAIProvider = AIServiceRegistry.getProvider("reformed_bible_ai")
-        assertNotNull("Reformed Bible AI provider should be available", reformedBibleAIProvider)
+        // Get Ollama AI provider specifically
+        val ollamaAIProvider = AIServiceRegistry.getProvider("ollama_ai")
+        assertNotNull("Ollama AI provider should be available", ollamaAIProvider)
         
         val verseRef = "Philippians 4:13"
         val userApplication = "This verse gives me strength during difficult challenges, knowing Christ enables me"
         
         // Act - Test directly through provider
-        val result = reformedBibleAIProvider!!.getAIScore(
+        val result = ollamaAIProvider!!.getAIScore(
             verseRef,
             userApplication,
             AIService.SystemInstructions.SCORING_EXPERT,
@@ -1534,13 +1529,13 @@ class AIServiceTestSuite {
                 assertNotNull("Score data should not be null", result.data)
                 
                 try {
-                    assertTrue("Reformed Bible AI should return valid score", result.data.ContextScore in 0..100)
+                    assertTrue("Ollama AI should return valid score", result.data.ContextScore in 0..100)
                     assertNotNull("Context explanation should not be null", result.data.ContextExplanation)
-                    assertTrue("Reformed Bible AI should provide explanation", result.data.ContextExplanation.isNotBlank())
+                    assertTrue("Ollama AI should provide explanation", result.data.ContextExplanation.isNotBlank())
                     assertNotNull("Application feedback should not be null", result.data.ApplicationFeedback)
-                    assertTrue("Reformed Bible AI should provide application feedback", result.data.ApplicationFeedback.isNotBlank())
+                    assertTrue("Ollama AI should provide application feedback", result.data.ApplicationFeedback.isNotBlank())
                     
-                    println("✅ Reformed Bible AI scoring test passed - Context Score: ${result.data.ContextScore}")
+                    println("✅ Ollama AI scoring test passed - Context Score: ${result.data.ContextScore}")
                     
                     // Check if feedback reflects Reformed theological perspective
                     val feedback = result.data.ApplicationFeedback.lowercase()
@@ -1548,33 +1543,33 @@ class AIServiceTestSuite {
                         feedback.contains("christ") || feedback.contains("god") || feedback.contains("strength") || feedback.contains("faith"))
                 } catch (e: NullPointerException) {
                     // This indicates JSON parsing created ScoreData with null fields
-                    println("⚠️ Reformed Bible AI returned score data with null fields - this indicates JSON parsing issue")
+                    println("⚠️ Ollama AI returned score data with null fields - this indicates JSON parsing issue")
                     println("   This may be expected as the model might not return perfectly structured JSON")
                     // Don't fail the test - just log the issue
                 }
             }
             is AiServiceResult.Error -> {
-                println("⚠️ Reformed Bible AI scoring test failed (expected if Ollama server not running): ${result.message}")
+                println("⚠️ Ollama AI scoring test failed (expected if Ollama server not running): ${result.message}")
                 assertTrue("Error should be descriptive", result.message.isNotBlank())
             }
         }
     }
 
     /**
-     * Test Reformed Bible AI provider initialization and status (tests local Ollama connection)
+     * Test Ollama AI provider initialization and status (tests local Ollama connection)
      */
     @Test
-    fun reformedBibleAIProvider_initialization_shouldReportCorrectStatus() = runBlocking {
-        // Arrange - Configure only Reformed Bible AI
-        val reformedBibleAIOnlySettings = AISettings(
-            selectedService = AIServiceType.REFORMED_BIBLE,
-            selectedProviderId = "reformed_bible_ai",
+    fun ollamaAIProvider_initialization_shouldReportCorrectStatus() = runBlocking {
+        // Arrange - Configure only Ollama AI
+        val ollamaAIOnlySettings = AISettings(
+            selectedService = AIServiceType.OLLAMA,
+            selectedProviderId = "ollama_ai",
             dynamicConfigs = mapOf(
-                "reformed_bible_ai" to DynamicAIConfig(
-                    providerId = "reformed_bible_ai",
-                    displayName = "Reformed Bible AI",
-                    serviceType = AIServiceType.REFORMED_BIBLE,
-                    modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
+                "ollama_ai" to DynamicAIConfig(
+                    providerId = "ollama_ai",
+                    displayName = "Ollama AI",
+                    serviceType = AIServiceType.OLLAMA,
+                    modelName = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS",
                     apiKey = "", // No API key needed for local Ollama server
                     temperature = 0.7f,
                     isEnabled = true
@@ -1582,31 +1577,31 @@ class AIServiceTestSuite {
             )
         )
         
-        AIService.configure(reformedBibleAIOnlySettings)
+        AIService.configure(ollamaAIOnlySettings)
         delay(1000)
         
-        // Get Reformed Bible AI provider specifically
-        val reformedBibleAIProvider = AIServiceRegistry.getProvider("reformed_bible_ai")
-        assertNotNull("Reformed Bible AI provider should be available", reformedBibleAIProvider)
+        // Get Ollama AI provider specifically
+        val ollamaAIProvider = AIServiceRegistry.getProvider("ollama_ai")
+        assertNotNull("Ollama AI provider should be available", ollamaAIProvider)
         
         // Test provider properties
-        assertEquals("Provider ID should be correct", "reformed_bible_ai", reformedBibleAIProvider!!.providerId)
-        assertEquals("Display name should be correct", "Reformed Bible AI", reformedBibleAIProvider.displayName)
-        assertEquals("Service type should be correct", AIServiceType.REFORMED_BIBLE, reformedBibleAIProvider.serviceType)
-        assertTrue("Priority should be reasonable", reformedBibleAIProvider.priority > 0)
-        assertEquals("Model should be correct Ollama model", "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0", reformedBibleAIProvider.defaultModel)
+        assertEquals("Provider ID should be correct", "ollama_ai", ollamaAIProvider!!.providerId)
+        assertEquals("Display name should be correct", "Ollama AI", ollamaAIProvider.displayName)
+        assertEquals("Service type should be correct", AIServiceType.OLLAMA, ollamaAIProvider.serviceType)
+        assertTrue("Priority should be reasonable", ollamaAIProvider.priority > 0)
+        assertEquals("Model should be correct Ollama model", "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS", ollamaAIProvider.defaultModel)
         
         // Test initialization status
-        val isInitialized = reformedBibleAIProvider.isInitialized()
-        println("🔍 Reformed Bible AI provider initialized: $isInitialized")
+        val isInitialized = ollamaAIProvider.isInitialized()
+        println("🔍 Ollama AI provider initialized: $isInitialized")
         
         // Test connection to local Ollama server
-        val testResult = reformedBibleAIProvider.test()
-        println("🔍 Reformed Bible AI provider test result: $testResult")
+        val testResult = ollamaAIProvider.test()
+        println("🔍 Ollama AI provider test result: $testResult")
         
         if (!testResult) {
-            println("ℹ️ Reformed Bible AI test failed - this is expected if Ollama server is not running on 192.168.1.16:11434")
-            val error = reformedBibleAIProvider.getInitializationError()
+            println("ℹ️ Ollama AI test failed - this is expected if Ollama server is not running on 192.168.1.16:11434")
+            val error = ollamaAIProvider.getInitializationError()
             if (error != null) {
                 println("   Error details: $error")
                 assertTrue("Error should mention connection issue", 
@@ -1616,23 +1611,23 @@ class AIServiceTestSuite {
             }
         }
         
-        assertTrue("Provider should exist and be testable", reformedBibleAIProvider is AIServiceProvider)
+        assertTrue("Provider should exist and be testable", ollamaAIProvider is AIServiceProvider)
     }
 
     /**
-     * Test Reformed Bible AI provider for verse search with Reformed theological focus
+     * Test Ollama AI provider for verse search with Reformed theological focus
      */
     @Test
-    fun reformedBibleAIProvider_getNewVersesBasedOnDescription_shouldReturnReformedPerspectiveVerses() = runBlocking {
-        // Arrange - Configure only Reformed Bible AI
-        val reformedBibleAIOnlySettings = AISettings(
-            selectedService = AIServiceType.REFORMED_BIBLE,
-            selectedProviderId = "reformed_bible_ai",
+    fun ollamaAIProvider_getNewVersesBasedOnDescription_shouldReturnReformedPerspectiveVerses() = runBlocking {
+        // Arrange - Configure only Ollama AI
+        val ollamaAIOnlySettings = AISettings(
+            selectedService = AIServiceType.OLLAMA,
+            selectedProviderId = "ollama_ai",
             dynamicConfigs = mapOf(
-                "reformed_bible_ai" to DynamicAIConfig(
-                    providerId = "reformed_bible_ai",
-                    displayName = "Reformed Bible AI",
-                    serviceType = AIServiceType.REFORMED_BIBLE,
+                "ollama_ai" to DynamicAIConfig(
+                    providerId = "ollama_ai",
+                    displayName = "Ollama AI",
+                    serviceType = AIServiceType.OLLAMA,
                     modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
                     apiKey = "", // No API key needed for local Ollama server
                     temperature = 0.7f,
@@ -1641,17 +1636,17 @@ class AIServiceTestSuite {
             )
         )
         
-        AIService.configure(reformedBibleAIOnlySettings)
+        AIService.configure(ollamaAIOnlySettings)
         delay(1000)
         
-        // Get Reformed Bible AI provider specifically
-        val reformedBibleAIProvider = AIServiceRegistry.getProvider("reformed_bible_ai")
-        assertNotNull("Reformed Bible AI provider should be available", reformedBibleAIProvider)
+        // Get Ollama AI provider specifically
+        val ollamaAIProvider = AIServiceRegistry.getProvider("ollama_ai")
+        assertNotNull("Ollama AI provider should be available", ollamaAIProvider)
         
         val description = "God's sovereignty in salvation and election"
         
         // Act - Test directly through provider
-        val result = reformedBibleAIProvider!!.getNewVersesBasedOnDescription(
+        val result = ollamaAIProvider!!.getNewVersesBasedOnDescription(
             description,
             AIService.SystemInstructions.VERSE_FINDER,
             AIService.UserPrompts.getVerseSearchPrompt(description)
@@ -1660,37 +1655,37 @@ class AIServiceTestSuite {
         // Assert
         when (result) {
             is AiServiceResult.Success -> {
-                assertTrue("Reformed Bible AI should return verse references", result.data.isNotEmpty())
+                assertTrue("Ollama AI should return verse references", result.data.isNotEmpty())
                 assertTrue("Should return reasonable number of verses (3-10)", result.data.size in 3..10)
                 result.data.forEach { verseRef ->
                     assertTrue("Book should not be empty", verseRef.book.isNotBlank())
                     assertTrue("Chapter should be positive", verseRef.chapter > 0)
                     assertTrue("Start verse should be positive", verseRef.startVerse > 0)
                 }
-                println("✅ Reformed Bible AI verse search test passed - found ${result.data.size} verses for Reformed topic")
+                println("✅ Ollama AI verse search test passed - found ${result.data.size} verses for Reformed topic")
                 println("   Sample verses: ${result.data.take(3).map { "${it.book} ${it.chapter}:${it.startVerse}" }}")
             }
             is AiServiceResult.Error -> {
-                println("⚠️ Reformed Bible AI verse search test failed (expected if Ollama server not running): ${result.message}")
+                println("⚠️ Ollama AI verse search test failed (expected if Ollama server not running): ${result.message}")
                 assertTrue("Error should be descriptive", result.message.isNotBlank())
             }
         }
     }
 
     /**
-     * Test Reformed Bible AI provider for takeaway validation with Reformed theological accuracy
+     * Test Ollama AI provider for takeaway validation with Reformed theological accuracy
      */
     @Test
-    fun reformedBibleAIProvider_validateKeyTakeawayResponse_shouldValidateReformedTheology() = runBlocking {
-        // Arrange - Configure only Reformed Bible AI
-        val reformedBibleAIOnlySettings = AISettings(
-            selectedService = AIServiceType.REFORMED_BIBLE,
-            selectedProviderId = "reformed_bible_ai",
+    fun ollamaAIProvider_validateKeyTakeawayResponse_shouldValidateReformedTheology() = runBlocking {
+        // Arrange - Configure only Ollama AI
+        val ollamaAIOnlySettings = AISettings(
+            selectedService = AIServiceType.OLLAMA,
+            selectedProviderId = "ollama_ai",
             dynamicConfigs = mapOf(
-                "reformed_bible_ai" to DynamicAIConfig(
-                    providerId = "reformed_bible_ai",
-                    displayName = "Reformed Bible AI",
-                    serviceType = AIServiceType.REFORMED_BIBLE,
+                "ollama_ai" to DynamicAIConfig(
+                    providerId = "ollama_ai",
+                    displayName = "Ollama AI",
+                    serviceType = AIServiceType.OLLAMA,
                     modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
                     apiKey = "", // No API key needed for local Ollama server
                     temperature = 0.7f,
@@ -1699,12 +1694,12 @@ class AIServiceTestSuite {
             )
         )
         
-        AIService.configure(reformedBibleAIOnlySettings)
+        AIService.configure(ollamaAIOnlySettings)
         delay(1000)
         
-        // Get Reformed Bible AI provider specifically
-        val reformedBibleAIProvider = AIServiceRegistry.getProvider("reformed_bible_ai")
-        assertNotNull("Reformed Bible AI provider should be available", reformedBibleAIProvider)
+        // Get Ollama AI provider specifically
+        val ollamaAIProvider = AIServiceRegistry.getProvider("ollama_ai")
+        assertNotNull("Ollama AI provider should be available", ollamaAIProvider)
         
         val verseRef = "Ephesians 2:8-9"
         
@@ -1715,7 +1710,7 @@ class AIServiceTestSuite {
         val inaccurateReformedTakeaway = "We earn salvation through good works and our own efforts"
         
         // Act & Assert - Test accurate takeaway
-        val accurateResult = reformedBibleAIProvider!!.validateKeyTakeawayResponse(
+        val accurateResult = ollamaAIProvider!!.validateKeyTakeawayResponse(
             AIService.SystemInstructions.TAKEAWAY_VALIDATOR,
             AIService.UserPrompts.getTakeawayValidationPrompt(verseRef, accurateReformedTakeaway)
         )
@@ -1723,17 +1718,17 @@ class AIServiceTestSuite {
         when (accurateResult) {
             is AiServiceResult.Success -> {
                 assertTrue("Accurate Reformed takeaway should be validated as true", accurateResult.data)
-                println("✅ Reformed Bible AI validation test (accurate) passed")
+                println("✅ Ollama AI validation test (accurate) passed")
             }
             is AiServiceResult.Error -> {
-                println("⚠️ Reformed Bible AI validation test (accurate) failed (expected if Ollama server not running): ${accurateResult.message}")
+                println("⚠️ Ollama AI validation test (accurate) failed (expected if Ollama server not running): ${accurateResult.message}")
             }
         }
         
         delay(1000) // Delay between requests
         
         // Act & Assert - Test inaccurate takeaway  
-        val inaccurateResult = reformedBibleAIProvider.validateKeyTakeawayResponse(
+        val inaccurateResult = ollamaAIProvider.validateKeyTakeawayResponse(
             AIService.SystemInstructions.TAKEAWAY_VALIDATOR,
             AIService.UserPrompts.getTakeawayValidationPrompt(verseRef, inaccurateReformedTakeaway)
         )
@@ -1741,10 +1736,10 @@ class AIServiceTestSuite {
         when (inaccurateResult) {
             is AiServiceResult.Success -> {
                 assertFalse("Inaccurate Reformed takeaway should be validated as false", inaccurateResult.data)
-                println("✅ Reformed Bible AI validation test (inaccurate) passed")
+                println("✅ Ollama AI validation test (inaccurate) passed")
             }
             is AiServiceResult.Error -> {
-                println("⚠️ Reformed Bible AI validation test (inaccurate) failed (expected if Ollama server not running): ${inaccurateResult.message}")
+                println("⚠️ Ollama AI validation test (inaccurate) failed (expected if Ollama server not running): ${inaccurateResult.message}")
             }
         }
     }
@@ -1785,7 +1780,7 @@ class AIServiceTestSuite {
         assertTrue("Provider registry should have some providers", allProviders.isNotEmpty())
         assertTrue("Should have Gemini provider", allProviders.any { it.serviceType == AIServiceType.GEMINI })
         assertTrue("Should have OpenAI provider", allProviders.any { it.serviceType == AIServiceType.OPENAI })
-        assertTrue("Should have Reformed Bible AI provider", allProviders.any { it.serviceType == AIServiceType.REFORMED_BIBLE })
+        assertTrue("Should have Ollama AI provider", allProviders.any { it.serviceType == AIServiceType.OLLAMA })
         
         println("✅ Provider registry test passed - Ready for future providers!")
     }
@@ -1820,10 +1815,10 @@ class AIServiceTestSuite {
                     temperature = 0.7f,
                     isEnabled = false
                 ),
-                "reformed_bible_ai" to DynamicAIConfig(
-                    providerId = "reformed_bible_ai",
-                    displayName = "Reformed Bible AI",
-                    serviceType = AIServiceType.REFORMED_BIBLE,
+                "ollama_ai" to DynamicAIConfig(
+                    providerId = "ollama_ai",
+                    displayName = "Ollama AI",
+                    serviceType = AIServiceType.OLLAMA,
                     modelName = "hf.co/sleepdeprived3/Reformed-Christian-Bible-Expert-v1.1-12B-Q8_0-GGUF:Q8_0",
                     apiKey = "", // No API key needed
                     temperature = 0.7f,
@@ -1837,28 +1832,28 @@ class AIServiceTestSuite {
         
         val geminiProvider = AIServiceRegistry.getProvider("gemini_ai")
         val openAIProvider = AIServiceRegistry.getProvider("openai")
-        val reformedBibleAIProvider = AIServiceRegistry.getProvider("reformed_bible_ai")
+        val ollamaAIProvider = AIServiceRegistry.getProvider("ollama_ai")
         
         assertNotNull("Gemini provider should be available", geminiProvider)
         assertNotNull("OpenAI provider should be available", openAIProvider)
-        assertNotNull("Reformed Bible AI provider should be available", reformedBibleAIProvider)
+        assertNotNull("Ollama AI provider should be available", ollamaAIProvider)
         
         // Step 2: Test that each provider reports its own status correctly
         println("🔍 Provider isolation test:")
         println("   Gemini initialized: ${geminiProvider?.isInitialized()}")
         println("   OpenAI initialized: ${openAIProvider?.isInitialized()}")
-        println("   Reformed Bible AI initialized: ${reformedBibleAIProvider?.isInitialized()}")
+        println("   Ollama AI initialized: ${ollamaAIProvider?.isInitialized()}")
         
         // Step 3: Verify providers maintain their identity
         assertEquals("Gemini ID should be correct", "gemini_ai", geminiProvider?.providerId)
         assertEquals("OpenAI ID should be correct", "openai", openAIProvider?.providerId)
-        assertEquals("Reformed Bible AI ID should be correct", "reformed_bible_ai", reformedBibleAIProvider?.providerId)
+        assertEquals("Ollama AI ID should be correct", "ollama_ai", ollamaAIProvider?.providerId)
         
         assertTrue("Providers should maintain isolation", 
             geminiProvider?.serviceType != openAIProvider?.serviceType)
-        assertTrue("Reformed Bible AI should be different from others", 
-            reformedBibleAIProvider?.serviceType != geminiProvider?.serviceType &&
-            reformedBibleAIProvider?.serviceType != openAIProvider?.serviceType)
+        assertTrue("Ollama AI should be different from others", 
+            ollamaAIProvider?.serviceType != geminiProvider?.serviceType &&
+            ollamaAIProvider?.serviceType != openAIProvider?.serviceType)
         
         println("✅ Provider isolation test passed!")
     }
