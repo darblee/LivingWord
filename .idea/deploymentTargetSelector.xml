@@ -24,16 +24,16 @@
       <SelectionState runConfigName="AllVersesScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="Tests in 'com.darblee.livingword'">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
       <SelectionState runConfigName="EngageScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="test2_addVerseRange_Psalm37_3to5_validatesResponse()">
+      <SelectionState runConfigName="homeScreen_displaysCorrectly()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="test3_addByDescription_forgiveness_validatesMultipleResults()">
+      <SelectionState runConfigName="fetchScripture_Romans12_12_14_ESV_returnsCorrectVerses()">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="HomeScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
