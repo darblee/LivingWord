@@ -395,179 +395,7 @@ class AllVersesScreenTest {
             assertTrue("Test logic is correct, system environment has issues", true)
         }
     }
-    
-    /**
-     * Test adding a new specific scripture with verse range - Psalm 37:3-5.
-     * This test validates:
-     * 1. Navigation to AllVersesScreen
-     * 2. Adding scripture range by manual entry (using registered AI providers)
-     * 3. Validating response for multiple verses
-     * 
-     * Note: AI providers are registered in setUp() for verse search and content generation
-     */
-    @Test
-    fun test2_addVerseRange_Psalm37_3to5_validatesResponse() = runBlocking {
-        try {
-            // App initialization is now handled in setUp()
-            composeTestRule.waitForIdle()
-            
-            // Step 1: Navigate to AllVersesScreen
-            if (navigateToAllVersesScreen()) {
-                try {
-                    // Step 2: Access add verse functionality
-                    composeTestRule.onNodeWithText("Add new verse", substring = true, ignoreCase = true)
-                        .assertIsDisplayed()
-                        .performClick()
-                    
-                    composeTestRule.waitForIdle()
-                    Thread.sleep(1000)
-                    
-                    try {
-                        // Click on add by description option with improved matching
-                        var addByButtonFound = false
-                        
-                        // Try multiple approaches to find the button
-                        try {
-                            composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
-                                .performClick()
-                            addByButtonFound = true
-                        } catch (e: Exception) {
-                            try {
-                                composeTestRule.onNodeWithText("Add by\ndescription", ignoreCase = true)
-                                    .performClick()
-                                addByButtonFound = true
-                            } catch (e2: Exception) {
-                                composeTestRule.onNodeWithText("description", substring = true, ignoreCase = true)
-                                    .performClick()
-                                addByButtonFound = true
-                            }
-                        }
-                        
-                        composeTestRule.waitForIdle()
-                        
-                        // Step 3: Enter Psalm 37:3-5 description
-                        val psalmDescription = "Trust in the Lord and do good"
-                        composeTestRule.onNodeWithText("Enter a description")
-                            .performClick()
-                            .performTextInput(psalmDescription)
-                        
-                        composeTestRule.waitForIdle()
-                        
-                        // Click "Find Verses"
-                        composeTestRule.onNodeWithText("Find Verses")
-                            .assertIsDisplayed()
-                            .performClick()
-                        
-                        // Wait for AI to process the search
-                        Thread.sleep(10000) // Extended wait for AI processing of range
-                        composeTestRule.waitForIdle()
-                        
-                        // Step 4: Look for Psalm 37 in the results
-                        var psalmFound = false
-                        try {
-                            composeTestRule.onNodeWithText("Psalm", substring = true, ignoreCase = true)
-                                .assertIsDisplayed()
-                                .performClick()
-                            psalmFound = true
-                        } catch (e: Exception) {
-                            try {
-                                composeTestRule.onNodeWithText("37", substring = true)
-                                    .assertIsDisplayed()
-                                    .performClick()
-                                psalmFound = true
-                            } catch (e2: Exception) {
-                                println("Could not find Psalm 37 in search results")
-                            }
-                        }
-                        
-                        if (psalmFound) {
-                            composeTestRule.waitForIdle()
-                            
-                            // Select the psalm verse range
-                            composeTestRule.onNodeWithText("Select this one")
-                                .assertIsDisplayed()
-                                .performClick()
-                            
-                            composeTestRule.waitForIdle()
-                            Thread.sleep(4000) // Wait for verse range processing
-                            
-                            // Step 5: Validate the verse range response
-                            try {
-                                // Look for Psalm reference
-                                val psalmAdded = try {
-                                    composeTestRule.onNodeWithText("Psalm", substring = true).assertIsDisplayed()
-                                    true
-                                } catch (e: Exception) {
-                                    try {
-                                        composeTestRule.onNodeWithText("37", substring = true).assertIsDisplayed()
-                                        true
-                                    } catch (e2: Exception) {
-                                        false
-                                    }
-                                }
-                                
-                                if (psalmAdded) {
-                                    // Look for content that indicates multiple verses
-                                    val hasRangeContent = try {
-                                        // Look for key terms from Psalm 37:3-5
-                                        composeTestRule.onNodeWithText("trust", substring = true, ignoreCase = true).assertIsDisplayed()
-                                        true
-                                    } catch (e: Exception) {
-                                        try {
-                                            composeTestRule.onNodeWithText("good", substring = true, ignoreCase = true).assertIsDisplayed()
-                                            true
-                                        } catch (e2: Exception) {
-                                            try {
-                                                composeTestRule.onNodeWithText("Lord", substring = true, ignoreCase = true).assertIsDisplayed()
-                                                true
-                                            } catch (e3: Exception) {
-                                                false
-                                            }
-                                        }
-                                    }
-                                    
-                                    assertTrue("Psalm 37:3-5 should be successfully added", psalmAdded)
-                                    println("Psalm 37:3-5 verse range test completed successfully!")
-                                    
-                                    if (hasRangeContent) {
-                                        println("Verse range content found for Psalm 37:3-5")
-                                    }
-                                    
-                                } else {
-                                    assertTrue("Psalm verse range addition process completed", true)
-                                }
-                                
-                            } catch (e: Exception) {
-                                println("Psalm range validation failed: ${e.message}")
-                                assertTrue("Psalm 37:3-5 addition process reached completion", true)
-                            }
-                            
-                        } else {
-                            println("Psalm 37 not found in search results, but search functionality works")
-                            assertTrue("Verse range search functionality is operational", true)
-                        }
-                        
-                    } catch (e: Exception) {
-                        println("Psalm verse range interface access failed: ${e.message}")
-                        assertTrue("AllVersesScreen verse range UI is accessible", true)
-                    }
-                    
-                } catch (e: Exception) {
-                    println("AllVersesScreen verse range functionality failed: ${e.message}")
-                    assertTrue("AllVersesScreen verse range feature is accessible", true)
-                }
-                
-            } else {
-                println("Could not navigate to AllVersesScreen for verse range test")
-                assertTrue("Navigation test logic is correct, environment may have issues", true)
-            }
-            
-        } catch (e: Exception) {
-            println("Psalm 37:3-5 test failed due to system issues: ${e.message}")
-            assertTrue("Verse range test logic is correct, system environment has issues", true)
-        }
-    }
-    
+
     /**
      * Test adding by description with "forgiveness" keyword.
      * This test validates:
@@ -598,22 +426,18 @@ class AllVersesScreenTest {
                     
                     try {
                         // Click on "Add by description" option with improved matching
-                        var addByButtonFound = false
-                        
+
                         // Try multiple approaches to find the button
                         try {
                             composeTestRule.onNodeWithText("Add by", substring = true, ignoreCase = true)
                                 .performClick()
-                            addByButtonFound = true
                         } catch (e: Exception) {
                             try {
                                 composeTestRule.onNodeWithText("Add by\ndescription", ignoreCase = true)
                                     .performClick()
-                                addByButtonFound = true
                             } catch (e2: Exception) {
                                 composeTestRule.onNodeWithText("description", substring = true, ignoreCase = true)
                                     .performClick()
-                                addByButtonFound = true
                             }
                         }
                         

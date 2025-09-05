@@ -17,7 +17,8 @@ class OllamaAIService private constructor() {
         private const val TAG = "OllamaAI"
         
         // Hardcoded server IP as requested - Updated to match actual network
-        private const val BASE_URL = "http://192.168.1.16:11434/"
+       // private const val BASE_URL = "http://192.168.1.16:11434/"
+        private const val BASE_URL = "https://ddbf844b5fa7.ngrok-free.app/"
         private const val MODEL_NAME = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS"
         
         fun getInstance(): OllamaAIService {

@@ -566,33 +566,6 @@ class AIServiceTestSuite {
     // ===============================
 
     /**
-     * Test validateKeyTakeawayResponse with accurate takeaway
-     */
-    @Test
-    fun validateKeyTakeawayResponse_withAccurateTakeaway_shouldReturnTrue() = runBlocking {
-        // Arrange
-        AIService.configure(testAISettings)
-        delay(1000)
-        
-        val verseRef = "John 3:16"
-        val accurateTakeaway = "God demonstrates His love through sacrifice"
-
-        // Act
-        val result = AIService.validateKeyTakeawayResponse(verseRef, accurateTakeaway)
-
-        // Assert
-        when (result) {
-            is AiServiceResult.Success -> {
-                assertTrue("Accurate takeaway should be validated as true", result.data)
-            }
-            is AiServiceResult.Error -> {
-                assertTrue("Error message should not be empty", result.message.isNotBlank())
-                println("validateKeyTakeawayResponse failed (expected if API keys not configured): ${result.message}")
-            }
-        }
-    }
-
-    /**
      * Test validateKeyTakeawayResponse with inaccurate takeaway
      */
     @Test

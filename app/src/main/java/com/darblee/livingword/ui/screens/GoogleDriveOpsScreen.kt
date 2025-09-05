@@ -201,7 +201,7 @@ fun GoogleDriveOpsScreen(
                 if (state.message == "IMPORT_SUCCESS_RESTART_REQUIRED") {
                     showExitDialog = true
                 } else {
-                    // Show a toast for any other completion messages (like errors)
+                    // Show a toast for completion messages (success or errors)
                     Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
                 }
                 ExportImportViewModel.resetImportState()

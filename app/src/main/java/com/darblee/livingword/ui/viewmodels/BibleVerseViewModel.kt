@@ -12,6 +12,7 @@ import com.darblee.livingword.data.AppDatabase
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.BibleVerseRepository
+import com.darblee.livingword.data.DatabaseRefreshManager
 import com.darblee.livingword.data.TopicWithCount
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
@@ -23,7 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewModel() {
+class BibleVerseViewModel(private var repository: BibleVerseRepository, private val context: Context) : ViewModel() {
 
     private val _allVerses = MutableStateFlow<List<BibleVerse>>(emptyList())
     val allVerses: StateFlow<List<BibleVerse>> = _allVerses
@@ -44,6 +45,13 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         getAllVerses()
         getAllTopics()
         getAllFavoriteVerses()
+        
+        // Listen for database refresh signals
+        viewModelScope.launch {
+            DatabaseRefreshManager.refreshTrigger.collect {
+                refreshAfterDatabaseImport()
+            }
+        }
     }
 
 
@@ -511,12 +519,35 @@ class BibleVerseViewModel(private val repository: BibleVerseRepository) : ViewMo
         _errorMessage.value = message
     }
 
+    /**
+     * Refreshes the ViewModel's data after database import.
+     * Creates a new repository with the fresh database instance.
+     */
+    private fun refreshAfterDatabaseImport() {
+        viewModelScope.launch {
+            try {
+                // Create new repository with fresh database instance
+                val freshDatabase = AppDatabase.getDatabase(context)
+                repository = BibleVerseRepository(freshDatabase.bibleVerseDao())
+                
+                // Refresh all cached data with new repository
+                getAllVerses()
+                getAllTopics()
+                getAllFavoriteVerses()
+                
+                android.util.Log.d("BibleVerseViewModel", "ViewModel data refreshed with new repository after database import")
+            } catch (e: Exception) {
+                android.util.Log.e("BibleVerseViewModel", "Failed to refresh ViewModel data: ${e.message}", e)
+            }
+        }
+    }
+
     companion object {
         fun Factory(context: Context): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val database = AppDatabase.Companion.getDatabase(context)
                 val repository = BibleVerseRepository(database.bibleVerseDao())
-                BibleVerseViewModel(repository)
+                BibleVerseViewModel(repository, context)
             }
         }
     }

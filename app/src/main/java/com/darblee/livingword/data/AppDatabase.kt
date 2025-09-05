@@ -27,6 +27,14 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
+        
+        fun refreshDatabase(context: Context): AppDatabase {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+                return getDatabase(context)
+            }
+        }
 
     }
 }

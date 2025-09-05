@@ -30,7 +30,10 @@
       <SelectionState runConfigName="EngageScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="AIServiceTestSuite">
+      <SelectionState runConfigName="test2_addVerseRange_Psalm37_3to5_validatesResponse()">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="test3_addByDescription_forgiveness_validatesMultipleResults()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

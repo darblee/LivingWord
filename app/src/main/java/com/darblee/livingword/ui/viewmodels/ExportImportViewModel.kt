@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.darblee.livingword.Global
 import com.darblee.livingword.data.AppDatabase
+import com.darblee.livingword.data.DatabaseRefreshManager
 import com.darblee.livingword.data.remote.GoogleDriveService
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
@@ -42,6 +43,10 @@ class ExportImportViewModel : ViewModel() {
 
     private val _importState = MutableStateFlow<OperationState>(OperationState.NotStarted)
     val importState = _importState.asStateFlow()
+    
+    // Signal for database refresh after import
+    private val _databaseRefreshed = MutableStateFlow(0L)
+    val databaseRefreshed = _databaseRefreshed.asStateFlow()
 
     fun resetExportState() { _exportState.value = OperationState.NotStarted }
     fun resetImportState() { _importState.value = OperationState.NotStarted }
@@ -197,13 +202,6 @@ class ExportImportViewModel : ViewModel() {
                         android.util.Log.d("ImportDB", "Database close failed: ${e.message}")
                     }
                     
-                    // Clear the singleton instance to force recreation
-                    AppDatabase::class.java.getDeclaredField("INSTANCE").let { field ->
-                        field.isAccessible = true
-                        field.set(null, null)
-                        android.util.Log.d("ImportDB", "Database INSTANCE cleared")
-                    }
-                    
                     val dbPath = context.getDatabasePath(Global.DATABASE_NAME)
                     android.util.Log.d("ImportDB", "Importing to: $dbPath")
                     
@@ -217,8 +215,19 @@ class ExportImportViewModel : ViewModel() {
                     Thread.sleep(500)
                 }
                 
-                // Use a specific message to signal the UI to show the exit dialog
-                _importState.value = OperationState.Complete(true, "IMPORT_SUCCESS_RESTART_REQUIRED")
+                // Refresh the database instance to load the imported data
+                try {
+                    AppDatabase.refreshDatabase(context)
+                    android.util.Log.d("ImportDB", "Database refreshed successfully")
+                    
+                    // Signal all ViewModels to refresh their data
+                    DatabaseRefreshManager.triggerRefresh()
+                    
+                    _importState.value = OperationState.Complete(true, "Import successful! Data has been refreshed.")
+                } catch (e: Exception) {
+                    android.util.Log.e("ImportDB", "Database refresh failed: ${e.message}")
+                    _importState.value = OperationState.Complete(false, "Import completed but refresh failed. Please restart the app.")
+                }
 
             } catch (e: UserRecoverableAuthIOException) {
                 _importState.value = OperationState.RequiresPermissions(e.intent)
