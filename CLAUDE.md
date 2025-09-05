@@ -45,9 +45,9 @@ This is a native Android Bible study application built with:
 ## Important Implementation Details
 
 ### Database Schema
-- Recent migration (v1→v2) added AI feedback fields: `aiDirectQuoteExplanationText`, `aiContextExplanationText`, `applicationFeedback`
+- Current schema version 1 includes AI feedback fields: `aiContextExplanationText`, `applicationFeedback`
 - Complex many-to-many relationship between verses and topics via `CrossRefBibleVerseTopics`
-- Safe accessor methods in `BibleVerse` entity handle migration edge cases
+- Uses `fallbackToDestructiveMigration(true)` for schema changes
 
 ### Navigation System
 - Uses new type-safe navigation with serializable route objects

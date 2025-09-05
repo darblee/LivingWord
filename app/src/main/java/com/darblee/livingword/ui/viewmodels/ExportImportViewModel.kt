@@ -188,15 +188,37 @@ class ExportImportViewModel : ViewModel() {
                 val driveService = GoogleDriveService(credential)
 
                 withContext(Dispatchers.IO) {
+                    // CRITICAL FIX: Close the database connection BEFORE overwriting the file
+                    try {
+                        val database = AppDatabase.getDatabase(context)
+                        database.close()
+                        android.util.Log.d("ImportDB", "Database closed before import")
+                    } catch (e: Exception) {
+                        android.util.Log.d("ImportDB", "Database close failed: ${e.message}")
+                    }
+                    
+                    // Clear the singleton instance to force recreation
+                    AppDatabase::class.java.getDeclaredField("INSTANCE").let { field ->
+                        field.isAccessible = true
+                        field.set(null, null)
+                        android.util.Log.d("ImportDB", "Database INSTANCE cleared")
+                    }
+                    
                     val dbPath = context.getDatabasePath(Global.DATABASE_NAME)
+                    android.util.Log.d("ImportDB", "Importing to: $dbPath")
+                    
                     val outputStream = FileOutputStream(dbPath)
                     driveService.downloadFile(fileId, outputStream)
+                    outputStream.close()
+                    
+                    android.util.Log.d("ImportDB", "Database file imported successfully")
+                    
+                    // Force a brief delay to ensure file system operations complete
+                    Thread.sleep(500)
                 }
+                
                 // Use a specific message to signal the UI to show the exit dialog
                 _importState.value = OperationState.Complete(true, "IMPORT_SUCCESS_RESTART_REQUIRED")
-
-                // Force a WAL checkpoint to ensure the new data is loaded correctly.
-                AppDatabase.getDatabase(context).openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL);")
 
             } catch (e: UserRecoverableAuthIOException) {
                 _importState.value = OperationState.RequiresPermissions(e.intent)
