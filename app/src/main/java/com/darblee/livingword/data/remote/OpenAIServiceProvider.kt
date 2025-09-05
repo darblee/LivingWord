@@ -7,6 +7,7 @@ import com.darblee.livingword.DynamicAIConfig
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.ui.viewmodels.ScoreData
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Provider implementation for OpenAI Service.
@@ -82,7 +83,9 @@ class OpenAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("OpenAI provider not initialized")
             } else {
-                OpenAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    OpenAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("OpenAI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("OpenAIServiceProvider", "fetchScripture failed", e)
@@ -99,7 +102,9 @@ class OpenAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("OpenAI provider not initialized")
             } else {
-                OpenAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    OpenAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("OpenAI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("OpenAIServiceProvider", "getKeyTakeaway failed", e)
@@ -118,7 +123,9 @@ class OpenAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("OpenAI provider not initialized")
             } else {
-                OpenAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
+                withTimeoutOrNull(10000L) {
+                    OpenAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
+                } ?: AiServiceResult.Error("OpenAI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("OpenAIServiceProvider", "getAIScore failed", e)
@@ -134,7 +141,9 @@ class OpenAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("OpenAI provider not initialized")
             } else {
-                OpenAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    OpenAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("OpenAI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("OpenAIServiceProvider", "validateKeyTakeawayResponse failed", e)
@@ -151,7 +160,9 @@ class OpenAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("OpenAI provider not initialized")
             } else {
-                OpenAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    OpenAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("OpenAI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("OpenAIServiceProvider", "getNewVersesBasedOnDescription failed", e)

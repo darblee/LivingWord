@@ -6,6 +6,7 @@ import com.darblee.livingword.AIServiceType
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.ui.viewmodels.ScoreData
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Provider implementation for Gemini AI Service.
@@ -82,7 +83,9 @@ class GeminiAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("Gemini AI provider not initialized")
             } else {
-                GeminiAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    GeminiAIService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("Gemini AI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("GeminiAIServiceProvider", "fetchScripture failed", e)
@@ -99,7 +102,9 @@ class GeminiAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("Gemini AI provider not initialized")
             } else {
-                GeminiAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    GeminiAIService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("Gemini AI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("GeminiAIServiceProvider", "getKeyTakeaway failed", e)
@@ -118,7 +123,9 @@ class GeminiAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("Gemini AI provider not initialized")
             } else {
-                GeminiAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
+                withTimeoutOrNull(10000L) {
+                    GeminiAIService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
+                } ?: AiServiceResult.Error("Gemini AI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("GeminiAIServiceProvider", "getAIScore failed", e)
@@ -134,7 +141,9 @@ class GeminiAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("Gemini AI provider not initialized")
             } else {
-                GeminiAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    GeminiAIService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("Gemini AI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("GeminiAIServiceProvider", "validateKeyTakeawayResponse failed", e)
@@ -151,7 +160,9 @@ class GeminiAIServiceProvider : AIServiceProvider {
             if (!isInitialized()) {
                 AiServiceResult.Error("Gemini AI provider not initialized")
             } else {
-                GeminiAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
+                withTimeoutOrNull(10000L) {
+                    GeminiAIService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
+                } ?: AiServiceResult.Error("Gemini AI error: Timed out waiting for 10000 ms")
             }
         } catch (e: Exception) {
             Log.e("GeminiAIServiceProvider", "getNewVersesBasedOnDescription failed", e)

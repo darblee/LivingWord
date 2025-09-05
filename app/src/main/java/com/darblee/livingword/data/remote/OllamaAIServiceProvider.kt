@@ -9,6 +9,7 @@ import com.darblee.livingword.ui.viewmodels.ScoreData
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Provider implementation for Ollama AI service
@@ -122,9 +123,14 @@ class OllamaAIServiceProvider : AIServiceProvider {
                 options = OllamaOptions(temperature = 0.1f, max_tokens = 500)
             )
             
-            val response = ollamaService.ollamaService?.generateResponse(request)
+            val response = withTimeoutOrNull(15000L) {
+                ollamaService.ollamaService?.generateResponse(request)
+            }
             
-            if (response?.isSuccessful == true) {
+            if (response == null) {
+                Log.w(TAG, "Scripture fetch timed out after 10 seconds")
+                AiServiceResult.Error("Scripture fetch error: Timed out waiting for 10000 ms")
+            } else if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null && responseBody.done) {
                     parseScriptureResponse(responseBody.response)
@@ -132,7 +138,7 @@ class OllamaAIServiceProvider : AIServiceProvider {
                     AiServiceResult.Error("Invalid scripture response from Ollama AI")
                 }
             } else {
-                AiServiceResult.Error("Scripture fetch failed: HTTP ${response?.code()}")
+                AiServiceResult.Error("Scripture fetch failed: HTTP ${response.code()}")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching scripture", e)
@@ -151,7 +157,14 @@ class OllamaAIServiceProvider : AIServiceProvider {
         
         // Use the OllamaAIService's built-in takeaway method which already
         // has Reformed-specific prompting
-        return ollamaService.getKeyTakeaway(verseRef)
+        return try {
+            withTimeoutOrNull(15000L) {
+                ollamaService.getKeyTakeaway(verseRef)
+            } ?: AiServiceResult.Error("Key takeaway error: Timed out waiting for 10000 ms")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting key takeaway", e)
+            AiServiceResult.Error("Key takeaway error: ${e.message}")
+        }
     }
     
     override suspend fun getAIScore(
@@ -195,9 +208,14 @@ class OllamaAIServiceProvider : AIServiceProvider {
                 options = OllamaOptions(temperature = 0.7f, max_tokens = 1200)
             )
             
-            val response = ollamaService.ollamaService?.generateResponse(request)
+            val response = withTimeoutOrNull(15000L) {
+                ollamaService.ollamaService?.generateResponse(request)
+            }
             
-            if (response?.isSuccessful == true) {
+            if (response == null) {
+                Log.w(TAG, "AI score timed out after 10 seconds")
+                AiServiceResult.Error("AI score error: Timed out waiting for 10000 ms")
+            } else if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null && responseBody.done) {
                     parseScoreResponse(responseBody.response)
@@ -205,7 +223,7 @@ class OllamaAIServiceProvider : AIServiceProvider {
                     AiServiceResult.Error("Invalid scoring response from Ollama AI")
                 }
             } else {
-                AiServiceResult.Error("Scoring failed: HTTP ${response?.code()}")
+                AiServiceResult.Error("Scoring failed: HTTP ${response.code()}")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting AI score", e)
@@ -230,7 +248,14 @@ class OllamaAIServiceProvider : AIServiceProvider {
             val verseRef = verseRefMatch.groupValues[1]
             val takeaway = takeawayMatch.groupValues[1]
             
-            return ollamaService.validateKeyTakeawayResponse(verseRef, takeaway)
+            return try {
+                withTimeoutOrNull(15000L) {
+                    ollamaService.validateKeyTakeawayResponse(verseRef, takeaway)
+                } ?: AiServiceResult.Error("Takeaway validation error: Timed out waiting for 10000 ms")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error validating takeaway", e)
+                AiServiceResult.Error("Takeaway validation error: ${e.message}")
+            }
         } else {
             return AiServiceResult.Error("Could not parse verse reference or takeaway from validation prompt")
         }
@@ -267,9 +292,14 @@ class OllamaAIServiceProvider : AIServiceProvider {
                 options = OllamaOptions(temperature = 0.5f, max_tokens = 300)
             )
             
-            val response = ollamaService.ollamaService?.generateResponse(request)
+            val response = withTimeoutOrNull(15000L) {
+                ollamaService.ollamaService?.generateResponse(request)
+            }
             
-            if (response?.isSuccessful == true) {
+            if (response == null) {
+                Log.w(TAG, "Verse search timed out after 10 seconds")
+                AiServiceResult.Error("Verse search error: Timed out waiting for 10000 ms")
+            } else if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null && responseBody.done) {
                     parseVerseSearchResponse(responseBody.response)
@@ -277,7 +307,7 @@ class OllamaAIServiceProvider : AIServiceProvider {
                     AiServiceResult.Error("Invalid verse search response from Ollama AI")
                 }
             } else {
-                AiServiceResult.Error("Verse search failed: HTTP ${response?.code()}")
+                AiServiceResult.Error("Verse search failed: HTTP ${response.code()}")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error searching verses", e)
@@ -301,12 +331,6 @@ class OllamaAIServiceProvider : AIServiceProvider {
             
             val json = Json { ignoreUnknownKeys = true }
             val verses = json.decodeFromString<Array<Verse>>(cleanResponse)
-            
-            // Validate that verses are properly formed
-            if (verses == null) {
-                Log.e(TAG, "Json returned null array from response: $cleanResponse")
-                return AiServiceResult.Error("Failed to parse scripture response - null result")
-            }
             
             val validVerses = verses.mapNotNull { verse ->
                 when {

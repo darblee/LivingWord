@@ -80,7 +80,6 @@ import com.darblee.livingword.ui.viewmodels.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import java.text.BreakIterator
 import java.text.SimpleDateFormat
@@ -219,35 +218,28 @@ fun HomeScreen(
 
                 if (chapter != null && startVerse != null && endVerse != null) {
                     val bibleVerseRef = BibleVerseRef(book, chapter, startVerse, endVerse)
-                    val result = withTimeoutOrNull(10000) {
-                        AIService.fetchScripture(bibleVerseRef, selectedTranslation)
-                    }
-                    if (result == null) {
-                        verseContent = emptyList()
-                        Log.e("HomeScreen", "Error fetching scripture: Timeout")
-                    } else {
-                        when (result) {
-                            is AiServiceResult.Success -> {
-                                val fetchedVerses = result.data
-                                verseContent = fetchedVerses
-                                // Save the List<Verse> as a JSON string
-                                val jsonContent = Json.encodeToString(fetchedVerses)
-                                preferenceStore.saveVotdCache(
-                                    verseOfTheDayReference,
-                                    jsonContent,
-                                    selectedTranslation,
-                                    currentDate
-                                )
-                            }
+                    val result = AIService.fetchScripture(bibleVerseRef, selectedTranslation)
+                    when (result) {
+                        is AiServiceResult.Success -> {
+                            val fetchedVerses = result.data
+                            verseContent = fetchedVerses
+                            // Save the List<Verse> as a JSON string
+                            val jsonContent = Json.encodeToString(fetchedVerses)
+                            preferenceStore.saveVotdCache(
+                                verseOfTheDayReference,
+                                jsonContent,
+                                selectedTranslation,
+                                currentDate
+                            )
+                        }
 
-                            is AiServiceResult.Error -> {
-                                // Handle error, maybe set verseContent to an error message
-                                verseContent = emptyList() // Or a list with an error Verse
-                                Log.e(
-                                    "HomeScreen",
-                                    "Error fetching scripture: ${result.message}"
-                                )
-                            }
+                        is AiServiceResult.Error -> {
+                            // Handle error, maybe set verseContent to an error message
+                            verseContent = emptyList() // Or a list with an error Verse
+                            Log.e(
+                                "HomeScreen",
+                                "Error fetching scripture: ${result.message}"
+                            )
                         }
                     }
                 } else {
