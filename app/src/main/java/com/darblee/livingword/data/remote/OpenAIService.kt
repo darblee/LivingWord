@@ -307,34 +307,6 @@ object OpenAIService {
 
     // Private helper methods
 
-    /**
-     * Sanitizes JSON by fixing unescaped quotes inside verse_string values.
-     * This fixes issues where AI responses contain unescaped quotes that break JSON parsing.
-     */
-    private fun sanitizeJsonQuotes(json: String): String {
-        return try {
-            // Use regex to find and fix verse_string values with unescaped quotes
-            // Pattern: "verse_string": "content with potential "quotes" here"
-            val pattern = Regex("(\"verse_string\"\\s*:\\s*\")(.*?)(\"\\s*[,}])", RegexOption.DOT_MATCHES_ALL)
-            
-            val result = pattern.replace(json) { matchResult ->
-                val prefix = matchResult.groupValues[1]  // "verse_string": "
-                val content = matchResult.groupValues[2] // the verse content
-                val suffix = matchResult.groupValues[3]  // " followed by comma or brace
-                
-                // Escape any quotes in the content
-                val escapedContent = content.replace("\"", "\\\"")
-                
-                prefix + escapedContent + suffix
-            }
-            
-            Log.d("OpenAIService", "JSON sanitization complete. Changed: ${result != json}")
-            result
-        } catch (e: Exception) {
-            Log.w("OpenAIService", "Failed to sanitize JSON quotes, using original: ${e.message}")
-            json
-        }
-    }
 
     /**
      * Makes a call to the OpenAI API with optional system instruction.
@@ -441,11 +413,7 @@ object OpenAIService {
                 throw Exception("Response became empty after cleaning")
             }
             
-            // Sanitize JSON by escaping unescaped quotes inside verse_string values
-            val sanitizedJson = sanitizeJsonQuotes(cleanedJson)
-            Log.d("OpenAIService", "Sanitized JSON: $sanitizedJson")
-            
-            jsonParser.decodeFromString<List<Verse>>(sanitizedJson)
+            jsonParser.decodeFromString<List<Verse>>(cleanedJson)
         } catch (e: Exception) {
             Log.e("OpenAIService", "Error parsing scripture response: $jsonResponse", e)
             throw e

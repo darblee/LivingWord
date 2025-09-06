@@ -18,7 +18,7 @@ class GeminiAIServiceProvider : AIServiceProvider {
     override val displayName: String = "Gemini AI"
     override val serviceType: AIServiceType = AIServiceType.GEMINI
     override val defaultModel: String = AIServiceType.GEMINI.defaultModel
-    override val priority: Int = 50 // Higher priority than OpenAI
+    override val priority: Int = 1 // Higher priority than OpenAI
     
     private var currentConfig: AIServiceConfig? = null
     private var initializationError: String? = null

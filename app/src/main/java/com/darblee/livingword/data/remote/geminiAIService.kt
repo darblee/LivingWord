@@ -170,9 +170,7 @@ object GeminiAIService {
             if (responseText != null) {
                 // The model might wrap the JSON in markdown backticks, so we clean it.
                 val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
-                // Sanitize JSON by escaping unescaped quotes inside verse_string values
-                val sanitizedJson = sanitizeJsonQuotes(cleanedJson)
-                val verses = jsonParser.decodeFromString<List<Verse>>(sanitizedJson)
+                val verses = jsonParser.decodeFromString<List<Verse>>(cleanedJson)
                 AiServiceResult.Success(verses)
             } else {
                 AiServiceResult.Error("Received empty response from AI for verse range.")
@@ -526,9 +524,7 @@ object GeminiAIService {
             if (responseText != null) {
                 // The model might wrap the JSON in markdown backticks, so we clean it.
                 val cleanedJson = responseText.replace("```json", "").replace("```", "").trim()
-                // Apply sanitization (safe for BibleVerseRef parsing too)
-                val sanitizedJson = sanitizeJsonQuotes(cleanedJson)
-                val verses = jsonParser.decodeFromString<List<BibleVerseRef>>(sanitizedJson)
+                val verses = jsonParser.decodeFromString<List<BibleVerseRef>>(cleanedJson)
                 AiServiceResult.Success(verses)
             } else {
                 AiServiceResult.Error("Received empty response from AI.")
@@ -628,34 +624,6 @@ object GeminiAIService {
         return operation()
     }
     
-    /**
-     * Sanitizes JSON by fixing unescaped quotes inside verse_string values.
-     * This fixes issues where AI responses contain unescaped quotes that break JSON parsing.
-     */
-    private fun sanitizeJsonQuotes(json: String): String {
-        return try {
-            // Use regex to find and fix verse_string values with unescaped quotes
-            // Pattern: "verse_string": "content with potential "quotes" here"
-            val pattern = Regex("(\"verse_string\"\\s*:\\s*\")(.*?)(\"\\s*[,}])", RegexOption.DOT_MATCHES_ALL)
-            
-            val result = pattern.replace(json) { matchResult ->
-                val prefix = matchResult.groupValues[1]  // "verse_string": "
-                val content = matchResult.groupValues[2] // the verse content
-                val suffix = matchResult.groupValues[3]  // " followed by comma or brace
-                
-                // Escape any quotes in the content
-                val escapedContent = content.replace("\"", "\\\"")
-                
-                prefix + escapedContent + suffix
-            }
-            
-            Log.d("GeminiAIService", "JSON sanitization complete. Changed: ${result != json}")
-            result
-        } catch (e: Exception) {
-            Log.w("GeminiAIService", "Failed to sanitize JSON quotes, using original: ${e.message}")
-            json
-        }
-    }
     
     /**
      * Checks if an exception is retryable (503, 429, network issues, etc.)

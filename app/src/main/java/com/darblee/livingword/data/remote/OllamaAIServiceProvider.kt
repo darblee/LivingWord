@@ -21,7 +21,7 @@ class OllamaAIServiceProvider : AIServiceProvider {
     override val serviceType: AIServiceType = AIServiceType.OLLAMA
     override val defaultModel: String = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS"
 
-    override val priority: Int = 2 // Lower priority than main services for now
+    override val priority: Int = 3 // Lower priority than main services for now
     
     private var isConfigured = false
     private var initializationError: String? = null
@@ -319,27 +319,93 @@ class OllamaAIServiceProvider : AIServiceProvider {
     // Helper methods for parsing responses
     
     /**
-     * Sanitizes JSON by fixing unescaped quotes inside verse_string values.
+     * Sanitizes JSON by removing quotes inside verse_string values.
      * This fixes issues where AI responses contain unescaped quotes that break JSON parsing.
      */
     private fun sanitizeJsonQuotes(json: String): String {
         return try {
-            // Use regex to find and fix verse_string values with unescaped quotes
-            // Pattern: "verse_string": "content with potential "quotes" here"
-            val pattern = Regex("(\"verse_string\"\\s*:\\s*\")(.*?)(\"\\s*[,}])", RegexOption.DOT_MATCHES_ALL)
+            // Use a simple, targeted regex that matches line by line to avoid over-matching
+            val lines = json.lines().toMutableList()
+            var changed = false
             
-            val result = pattern.replace(json) { matchResult ->
-                val prefix = matchResult.groupValues[1]  // "verse_string": "
-                val content = matchResult.groupValues[2] // the verse content
-                val suffix = matchResult.groupValues[3]  // " followed by comma or brace
+            for (i in lines.indices) {
+                val line = lines[i]
                 
-                // Escape any quotes in the content
-                val escapedContent = content.replace("\"", "\\\"")
-                
-                prefix + escapedContent + suffix
+                // Check if this line contains a verse_string field
+                if (line.contains("\"verse_string\"")) {
+                    // Extract just the value part after the colon
+                    val colonIndex = line.indexOf(":")
+                    if (colonIndex != -1) {
+                        val beforeColon = line.substring(0, colonIndex + 1)
+                        val afterColon = line.substring(colonIndex + 1)
+                        
+                        // Find the opening quote
+                        val firstQuote = afterColon.indexOf('"')
+                        
+                        if (firstQuote != -1) {
+                            val beforeQuote = afterColon.substring(0, firstQuote + 1)
+                            val remaining = afterColon.substring(firstQuote + 1)
+                            
+                            // Find the JSON field closing quote - it should be the VERY last straight quote
+                            val jsonClosingQuoteIndex = remaining.lastIndexOf('"')
+                            
+                            val (content, afterLastQuote) = if (jsonClosingQuoteIndex != -1) {
+                                // Include everything up to but not including the JSON closing quote
+                                remaining.substring(0, jsonClosingQuoteIndex) to remaining.substring(jsonClosingQuoteIndex)
+                            } else {
+                                // No JSON closing quote found - the line is malformed
+                                // Treat the entire remaining as content and we'll add the missing quote
+                                remaining to ""
+                            }
+                            
+                            // Check if we need to add missing closing smart quote FIRST
+                            // Look for pattern where content has opening smart quote but no closing smart quote
+                            val leftDoubleQuote = 8220.toChar().toString()  // "
+                            val rightDoubleQuote = 8221.toChar().toString() // "
+                            val leftSingleQuote = 8216.toChar().toString()  // '
+                            val rightSingleQuote = 8217.toChar().toString() // '
+                            
+                            val hasOpeningSmartQuote = content.contains(leftDoubleQuote) || content.contains(leftSingleQuote)
+                            val hasClosingSmartQuote = content.contains(rightDoubleQuote) || content.contains(rightSingleQuote)
+                            val needsSmartQuoteCompletion = hasOpeningSmartQuote && !hasClosingSmartQuote
+                            
+                            // Add missing closing smart quote if needed
+                            var completedContent = content
+                            if (needsSmartQuoteCompletion) {
+                                // Determine which type of closing quote to add based on opening quote
+                                val closingQuote = when {
+                                    content.contains(leftDoubleQuote) -> rightDoubleQuote
+                                    content.contains(leftSingleQuote) -> rightSingleQuote
+                                    else -> ""
+                                }
+                                completedContent = content + closingQuote
+                            }
+                            
+                            // Now remove all quotes (handle both straight and smart quotes)
+                            val cleanedContent = completedContent
+                                .replace("\"", "")  // straight quotes (U+0022)
+                                .replace(leftDoubleQuote, "")   // left double quotation mark (U+201C)
+                                .replace(rightDoubleQuote, "")  // right double quotation mark (U+201D)
+                                .replace(leftSingleQuote, "")    // left single quotation mark (U+2018)
+                                .replace(rightSingleQuote, "")   // right single quotation mark (U+2019)
+                            
+                            // Check if we need to fix the string structure
+                            val needsCleaning = cleanedContent != content
+                            val needsClosingQuote = afterLastQuote.isEmpty() || !afterLastQuote.startsWith("\"")
+                            
+                            if (needsCleaning || needsClosingQuote || needsSmartQuoteCompletion) {
+                                val fixedAfterLastQuote = if (needsClosingQuote) "\"" + afterLastQuote else afterLastQuote
+                                val newLine = beforeColon + beforeQuote + cleanedContent + fixedAfterLastQuote
+                                lines[i] = newLine
+                                changed = true
+                            }
+                        }
+                    }
+                }
             }
             
-            Log.d(TAG, "JSON sanitization complete. Changed: ${result != json}")
+            val result = lines.joinToString("\n")
+            Log.d(TAG, "JSON sanitization complete. Changed: $changed")
             result
         } catch (e: Exception) {
             Log.w(TAG, "Failed to sanitize JSON quotes, using original: ${e.message}")
@@ -348,20 +414,19 @@ class OllamaAIServiceProvider : AIServiceProvider {
     }
 
     private fun parseScriptureResponse(response: String): AiServiceResult<List<Verse>> {
+        var sanitizedResponse = ""
+
         return try {
             val cleanResponse = response.trim()
-            Log.d(TAG, "Parsing scripture response: $cleanResponse")
             
             // Check if response looks like JSON
             if (!cleanResponse.startsWith("[") && !cleanResponse.startsWith("{")) {
-                Log.w(TAG, "Response doesn't appear to be JSON, treating as raw text")
                 // If it's not JSON, assume it's raw verse text and create a single verse
                 return AiServiceResult.Success(listOf(Verse(1, cleanResponse)))
             }
             
-            // Sanitize JSON by escaping unescaped quotes inside verse_string values
-            val sanitizedResponse = sanitizeJsonQuotes(cleanResponse)
-            Log.d(TAG, "Sanitized JSON: $sanitizedResponse")
+            // Sanitize JSON by removing quotes inside verse_string values
+            sanitizedResponse = sanitizeJsonQuotes(cleanResponse)
             
             val json = Json { ignoreUnknownKeys = true }
             val verses = json.decodeFromString<Array<Verse>>(sanitizedResponse)
@@ -381,19 +446,15 @@ class OllamaAIServiceProvider : AIServiceProvider {
             }
             
             if (validVerses.isEmpty()) {
-                Log.e(TAG, "No valid verses found in response: $cleanResponse")
                 AiServiceResult.Error("No valid scripture verses found in response")
             } else {
-                Log.d(TAG, "Successfully parsed ${validVerses.size} verses")
                 AiServiceResult.Success(validVerses)
             }
             
         } catch (e: kotlinx.serialization.SerializationException) {
-            Log.e(TAG, "Failed to parse scripture JSON: $response", e)
             // Try to extract any text that might be a verse
             val fallbackVerse = response.trim().takeIf { it.isNotBlank() }
             if (fallbackVerse != null) {
-                Log.d(TAG, "Using fallback parsing for non-JSON response")
                 AiServiceResult.Success(listOf(Verse(1, fallbackVerse)))
             } else {
                 AiServiceResult.Error("Invalid scripture JSON response and no fallback text")
