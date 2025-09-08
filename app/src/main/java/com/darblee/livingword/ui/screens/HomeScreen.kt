@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,6 +28,8 @@ import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -76,6 +79,7 @@ import com.darblee.livingword.R
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.viewmodels.HomeViewModel
+import com.darblee.livingword.ui.viewmodels.TranslationLoadingState
 import com.darblee.livingword.ui.viewmodels.TTSViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
@@ -120,10 +124,13 @@ fun HomeScreen(
     val context = LocalContext.current
     val preferenceStore = remember { PreferenceStore(context) }
     var selectedTranslation by remember { mutableStateOf("KJV") }
+    var displayTranslation by remember { mutableStateOf("KJV") } // The translation actually shown in UI
     var expandedTranslation by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        selectedTranslation = preferenceStore.readTranslationFromSetting()
+        val savedTranslation = preferenceStore.readTranslationFromSetting()
+        selectedTranslation = savedTranslation
+        displayTranslation = savedTranslation
     }
     val morningPrayerText = remember {
         """
@@ -176,10 +183,15 @@ fun HomeScreen(
     var showRetrievingDataDialog by remember { mutableStateOf(false) }
     var loadingMessage by remember { mutableStateOf("") }
 
+    // Translation loading states
+    var translationLoadingState by remember { mutableStateOf<TranslationLoadingState>(TranslationLoadingState.Idle) }
+    var isTranslationLoading by remember { mutableStateOf(false) }
+
     LaunchedEffect(selectedTranslation) {
         val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val cachedVotd = preferenceStore.readVotdCache()
 
+        // Check if we already have this translation cached for today
         if (cachedVotd != null && cachedVotd.date == currentDate && cachedVotd.translation == selectedTranslation) {
             verseOfTheDayReference = cachedVotd.reference
             // Need to parse the cached content back into List<Verse>
@@ -190,7 +202,14 @@ fun HomeScreen(
                 emptyList()
             }
             verseContent = parsedVerses
+            displayTranslation = selectedTranslation // Update display translation on successful load
+            translationLoadingState = TranslationLoadingState.Idle
         } else {
+            // Show loading state only if we're changing translation and have existing content
+            if (verseContent.isNotEmpty() && isTranslationLoading) {
+                translationLoadingState = TranslationLoadingState.Loading(selectedTranslation)
+            }
+            
             val reference = VotdService.fetchVerseOfTheDayReference()
             verseOfTheDayReference = reference ?: "Error loading Verse of the Day"
 
@@ -198,6 +217,7 @@ fun HomeScreen(
                 val parts = verseOfTheDayReference.split(":")
                 if (parts.size != 2) {
                     verseContent = emptyList()
+                    translationLoadingState = TranslationLoadingState.Idle
                     return@LaunchedEffect
                 }
                 val bookAndChapterPartRaw = parts[0].trim()
@@ -206,6 +226,7 @@ fun HomeScreen(
                 val lastSpaceIndex = bookAndChapterPartRaw.lastIndexOf(' ')
                 if (lastSpaceIndex == 0) {
                     verseContent = emptyList()
+                    translationLoadingState = TranslationLoadingState.Idle
                     return@LaunchedEffect
                 }
                 val book = bookAndChapterPartRaw.substring(0, lastSpaceIndex)
@@ -231,6 +252,8 @@ fun HomeScreen(
                                 selectedTranslation,
                                 currentDate
                             )
+                            displayTranslation = selectedTranslation // Update display translation on successful load
+                            translationLoadingState = TranslationLoadingState.Idle
                         }
 
                         is AiServiceResult.Error -> {
@@ -240,14 +263,21 @@ fun HomeScreen(
                                 "HomeScreen",
                                 "Error fetching scripture: ${result.message}"
                             )
+                            // Reset selected translation back to display translation on error
+                            selectedTranslation = displayTranslation
+                            translationLoadingState = TranslationLoadingState.Idle
                         }
                     }
                 } else {
                     verseContent = emptyList() // Or a list with an error Verse
                     Log.e("HomeScreen", "Error parsing verse reference.")
+                    // Reset selected translation back to display translation on error
+                    selectedTranslation = displayTranslation
+                    translationLoadingState = TranslationLoadingState.Idle
                 }
             }
         }
+        isTranslationLoading = false
     }
 
     // LaunchedEffect will run once and collect the flow from the ViewModel.
@@ -341,7 +371,13 @@ fun HomeScreen(
     }
 
     if (showRetrievingDataDialog) {
-        TransientRetrievingDataDialog(loadingMessage = loadingMessage)
+        TransientDialog(loadingMessage = loadingMessage)
+    }
+
+    // Translation Loading Dialog
+    val currentTranslationLoadingState = translationLoadingState
+    if (currentTranslationLoadingState is TranslationLoadingState.Loading) {
+        TransientDialog(loadingMessage = "Moving to ${currentTranslationLoadingState.translationName} translation...")
     }
 
     val displaySentences = remember(morningPrayerText, Locale.getDefault()) {
@@ -393,15 +429,18 @@ fun HomeScreen(
                     isSpeaking = isSpeaking,
                     isPaused = isPaused,
                     currentTtsTextId = currentTtsTextId,
-                    translation = selectedTranslation,
+                    translation = displayTranslation,
                     expanded = expandedTranslation,
                     onExpandedChange = { expandedTranslation = it },
                     onTranslationSelected = { newTranslation ->
-                        if (selectedTranslation != newTranslation) {
+                        if (displayTranslation != newTranslation) {
+                            isTranslationLoading = true
                             selectedTranslation = newTranslation
                             scope.launch {
                                 preferenceStore.saveTranslationToSetting(newTranslation)
                             }
+                        } else {
+                            Toast.makeText(context, "Verse is already in $newTranslation translation", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onPlayPauseClick = {

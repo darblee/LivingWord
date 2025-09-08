@@ -24,6 +24,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+sealed class TranslationLoadingState {
+    object Idle : TranslationLoadingState()
+    data class Loading(val translationName: String) : TranslationLoadingState()
+}
+
 class BibleVerseViewModel(private var repository: BibleVerseRepository, private val context: Context) : ViewModel() {
 
     private val _allVerses = MutableStateFlow<List<BibleVerse>>(emptyList())
@@ -37,6 +42,9 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
 
     private val _favoriteVerses = MutableStateFlow<List<BibleVerse>>(emptyList())
     val favoriteVerses: StateFlow<List<BibleVerse>> = _favoriteVerses
+
+    private val _translationLoadingState = MutableStateFlow<TranslationLoadingState>(TranslationLoadingState.Idle)
+    val translationLoadingState: StateFlow<TranslationLoadingState> = _translationLoadingState
 
     init {
         viewModelScope.launch {
@@ -79,6 +87,16 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
             try {
                 // Step 1: Get the current verse object to create the reference.
                 val verseToUpdate = repository.getVerseById(verseId)
+                
+                // Check if translation is already the same
+                if (verseToUpdate.translation == newTranslation) {
+                    SnackBarController.showMessage("Verse is already in $newTranslation translation")
+                    return@launch
+                }
+                
+                // Set loading state
+                _translationLoadingState.value = TranslationLoadingState.Loading(newTranslation)
+                
                 val verseRef = BibleVerseRef(
                     book = verseToUpdate.book,
                     chapter = verseToUpdate.chapter,
@@ -97,7 +115,6 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                             scriptureVerses = newScriptureVerses
                         )
                         repository.updateVerse(updatedVerse)
-                        SnackBarController.showMessage("Verse updated to $newTranslation")
                         Log.i("BibleVerseViewModel", "Successfully updated verse $verseId to $newTranslation.")
                     }
                     is AiServiceResult.Error -> {
@@ -112,6 +129,9 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                 val errorMessage = "A database error occurred while updating translation."
                 Log.e("BibleVerseViewModel", "$errorMessage - VerseID: $verseId", e)
                 _errorMessage.value = "$errorMessage Please try again."
+            } finally {
+                // Reset loading state
+                _translationLoadingState.value = TranslationLoadingState.Idle
             }
         }
     }

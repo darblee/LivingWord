@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -94,6 +95,7 @@ import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.verseReference
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
+import com.darblee.livingword.ui.viewmodels.TranslationLoadingState
 import com.darblee.livingword.ui.viewmodels.TTSViewModel
 import com.darblee.livingword.ui.viewmodels.TTS_OperationMode
 import com.darblee.livingword.ui.viewmodels.VerseDetailSequencePart
@@ -162,6 +164,8 @@ fun VerseDetailScreen(
     // when the data changes in the database.
     val verseItem by bibleViewModel.getVerseFlow(verseID).collectAsStateWithLifecycle(initialValue = null)
 
+    // Observe translation loading state
+    val translationLoadingState by bibleViewModel.translationLoadingState.collectAsStateWithLifecycle()
 
     Log.i("VerseDetailScreen", "Translation = ${verseItem?.translation}")
 
@@ -1101,6 +1105,12 @@ fun VerseDetailScreen(
                         }
                     )
                 }
+            }
+
+            // Translation Loading Dialog
+            val currentLoadingState = translationLoadingState
+            if (currentLoadingState is TranslationLoadingState.Loading) {
+                TransientDialog(loadingMessage = "Moving to ${currentLoadingState.translationName} translation ...",)
             }
 
             if (showShareDialog) {

@@ -32,7 +32,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -436,7 +435,7 @@ fun AllVersesScreen(
             newVerseState.loadingStage == NewVerseViewModel.LoadingStage.NONE && newVerseState.newlySavedVerseId != null && !newVerseState.isContentSaved -> "Saving AI content..."
             else -> "Finalizing..." // Fallback message
         }
-        TransientRetrievingDataDialog(loadingMessage = loadingMessage)
+        TransientDialog(loadingMessage = loadingMessage)
     }
 
 
@@ -769,28 +768,4 @@ private fun readyForEarlySave(state: NewVerseViewModel.NewVerseScreenState): Boo
             state.newlySavedVerseId == null &&
             state.scriptureVerses.isNotEmpty() &&
             state.scriptureError == null)
-}
-
-@Composable
-fun TransientRetrievingDataDialog(
-    loadingMessage: String
-) {
-    Dialog(onDismissRequest = { /* Dialog is controlled by state, not user dismissal */ }) {
-        Surface(
-            modifier = Modifier.padding(16.dp),
-            shape = MaterialTheme.shapes.medium, // Give it some shape
-            shadowElevation = 8.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(16.dp))
-                // Use the dynamic message passed into the function
-                Text(text = loadingMessage)
-            }
-        }
-    }
 }

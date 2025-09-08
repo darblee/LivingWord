@@ -20,8 +20,10 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 
 /**
  * Reusable composable for a labeled outlined box container.
@@ -97,6 +100,30 @@ fun ErrorDialog(
     }
 }
 
+
+@Composable
+fun TransientDialog(
+    loadingMessage: String
+) {
+    Dialog(onDismissRequest = { /* Dialog is controlled by state, not user dismissal */ }) {
+        Surface(
+            modifier = Modifier.padding(16.dp),
+            shape = MaterialTheme.shapes.medium, // Give it some shape
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(16.dp))
+                // Use the dynamic message passed into the function
+                Text(text = loadingMessage)
+            }
+        }
+    }
+}
 @Composable
 fun ShareDialog(
     onDismiss: () -> Unit,
