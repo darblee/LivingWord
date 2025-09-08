@@ -21,7 +21,7 @@ class OllamaAIServiceProvider : AIServiceProvider {
     override val serviceType: AIServiceType = AIServiceType.OLLAMA
     override val defaultModel: String = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS"
 
-    override val priority: Int = 3 // Lower priority than main services for now
+    override val priority: Int = 1
     
     private var isConfigured = false
     private var initializationError: String? = null
@@ -101,19 +101,8 @@ class OllamaAIServiceProvider : AIServiceProvider {
         }
         
         // Ollama AI can fetch scripture using custom prompts
-        val customPrompt = """
-            As a Christian Bible expert, provide the exact Bible verse text for ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}${if (verseRef.startVerse != verseRef.endVerse) "-${verseRef.endVerse}" else ""} in the $translation translation.
-            
-            Return ONLY a JSON array in the following format:
-            [
-                {
-                    "verse_num": verse_number,
-                    "verse_string": "exact_verse_text"
-                }
-            ]
-            
-            Do not include any commentary or explanations, only the JSON array with the verse text.
-        """.trimIndent()
+        val customPrompt = "As a Bible Expert, $userPrompt"
+
         
         return try {
             val request = OllamaRequest(
@@ -128,7 +117,7 @@ class OllamaAIServiceProvider : AIServiceProvider {
             }
             
             if (response == null) {
-                Log.w(TAG, "Scripture fetch timed out after 10 seconds")
+                Log.w(TAG, "Scripture fetch timed out after 15 seconds")
                 AiServiceResult.Error("Scripture fetch error: Timed out waiting for 10000 ms")
             } else if (response.isSuccessful) {
                 val responseBody = response.body()
