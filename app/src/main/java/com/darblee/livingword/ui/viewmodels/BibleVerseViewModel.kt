@@ -2,12 +2,12 @@ package com.darblee.livingword.ui.viewmodels
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.AppDatabase
 import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.BibleVerseRef
@@ -90,7 +90,7 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                 
                 // Check if translation is already the same
                 if (verseToUpdate.translation == newTranslation) {
-                    SnackBarController.showMessage("Verse is already in $newTranslation translation")
+                    Toast.makeText(context, "Verse is already in $newTranslation translation", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 
@@ -436,7 +436,7 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                 )
 
                 repository.updateVerse(updatedVerse)
-                SnackBarController.showMessage("Memorized Content is saved")
+                Toast.makeText(context, "Memorized Content is saved", Toast.LENGTH_SHORT).show()
                 Log.i("BibleVerseViewModel", "Successfully updated user memorization data for verse ID: $verseId")
                 _errorMessage.value = "Memorization progress saved!"
             } catch (e: Exception) {
@@ -465,7 +465,7 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                 )
 
                 repository.updateVerse(updatedVerse)
-                SnackBarController.showMessage("User input saved")
+                Toast.makeText(context, "User Input is saved", Toast.LENGTH_SHORT).show()
                 Log.i("BibleVerseViewModel", "Successfully updated user input for verse ID: $verseId")
                 _errorMessage.value = "User input saved!"
             } catch (e: Exception) {

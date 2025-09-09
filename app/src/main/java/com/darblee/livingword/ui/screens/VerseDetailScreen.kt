@@ -91,7 +91,6 @@ import com.darblee.livingword.Global
 import com.darblee.livingword.Global.TOPIC_SELECTION_RESULT_KEY
 import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.Screen
-import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.verseReference
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
@@ -105,6 +104,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import com.darblee.livingword.data.ScriptureUtils.verseListToString
 
 // Helper extension function to append text with verse number styling
@@ -816,9 +816,9 @@ fun VerseDetailScreen(
 
                                             // Since updateVerse is a suspend function, it will not return until
                                             // verse has been updated in database.
-                                            // Now, we cam  notify user and do cleam-up
+                                            // Now, we cam  notify user and do clean-up
 
-                                            SnackBarController.showMessage("Verse is saved")
+                                            Toast.makeText(context, "Verse is saved", Toast.LENGTH_SHORT).show()
 
                                             // Do final clean-up for these flags:
                                             //  - inEditingMode will set to false
@@ -934,7 +934,9 @@ fun VerseDetailScreen(
                                                     "VerseDetailScreen",
                                                     "TTS not initialized. Cannot perform TTS action."
                                                 )
-                                                coroutineScope.launch { SnackBarController.showMessage("TTS is not ready yet.") }
+                                                coroutineScope.launch {
+                                                    Toast.makeText(context, "Text to Speech mechanism (TTS) is not ready yet.", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                         }   // !inEditMode
                                     }  // OnTap
@@ -1045,7 +1047,7 @@ fun VerseDetailScreen(
 
                                         // NOTE: deleteVerse() is a suspend call. Ii will wait
                                         // until delete operation is completed before reaching here.
-                                        SnackBarController.showMessage("Verse is deleted")
+                                        Toast.makeText(context, "Verse is deleted", Toast.LENGTH_SHORT).show()
 
                                         // The following will do the clean-up for these flags
                                         //  - inEditingMode will set to false

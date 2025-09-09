@@ -2,10 +2,10 @@ package com.darblee.livingword.ui.viewmodels
 
 import android.app.Application
 import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.darblee.livingword.PreferenceStore
-import com.darblee.livingword.SnackBarController
 import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.data.remote.AiServiceResult
@@ -294,7 +294,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
-            SnackBarController.showMessage("Verse is added")
+            Toast.makeText(getApplication(), "Verse is added", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -85,14 +85,7 @@ class MainActivity : ComponentActivity() {
             }
 
             SetColorTheme(colorTheme) {
-                var currentSnackBarEvent by remember { mutableStateOf<SnackBarEvent?>(null) }
 
-                // Observe SnackBar events
-                ObserveAsEvents(
-                    flow = SnackBarController.events
-                ) { event ->
-                    currentSnackBarEvent = event
-                }
 
                 MainViewImplementation(
                     currentTheme = colorTheme,
@@ -102,10 +95,6 @@ class MainActivity : ComponentActivity() {
                     },
                 )
 
-                CustomSnackBarHost(
-                    snackBarEvent = currentSnackBarEvent,
-                    onDismiss = { currentSnackBarEvent = null }
-                )
 
                 // Show AI Disclaimer Dialog
                 if (showAIDisclaimer) {
