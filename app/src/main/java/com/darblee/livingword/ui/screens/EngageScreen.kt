@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
@@ -993,6 +994,34 @@ fun EngageScreen(
                                         }
                                     )
                                 }
+
+                                Spacer(modifier = Modifier.height(2.dp)) // Small spacer before Read Aloud button
+
+                                // Read Aloud button for Direct Quote
+                                FloatingActionButton(
+                                    onClick = {
+                                        val textToSpeak = directQuoteTextFieldValue.text + directQuotePartialText
+                                        if (textToSpeak.isNotEmpty()) {
+                                            ttsViewModel.togglePlayPauseResumeSingleText(textToSpeak)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(30.dp),
+                                    containerColor = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Headset,
+                                        contentDescription = "Read Aloud",
+                                        tint = if ((directQuoteTextFieldValue.text + directQuotePartialText).isNotEmpty()) {
+                                            MaterialTheme.colorScheme.onSecondary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        }
+                                    )
+                                }
                             }
                         }
 
@@ -1155,6 +1184,34 @@ fun EngageScreen(
                                         "Clear",
                                         color = if (userApplicationTextFieldValue.text.isNotEmpty()) {
                                             MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        }
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp)) // Small spacer before Read Aloud button
+
+                                // Read Aloud button for User Application
+                                FloatingActionButton(
+                                    onClick = {
+                                        val textToSpeak = userApplicationTextFieldValue.text + userApplicationPartialText
+                                        if (textToSpeak.isNotEmpty()) {
+                                            ttsViewModel.togglePlayPauseResumeSingleText(textToSpeak)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(30.dp),
+                                    containerColor = if ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Headset,
+                                        contentDescription = "Read Aloud",
+                                        tint = if ((userApplicationTextFieldValue.text + userApplicationPartialText).isNotEmpty()) {
+                                            MaterialTheme.colorScheme.onSecondary
                                         } else {
                                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                         }

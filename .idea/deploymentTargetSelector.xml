@@ -24,9 +24,6 @@
       <SelectionState runConfigName="AllVersesScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="HomeScreenTest">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
       <SelectionState runConfigName="AIServiceTestSuite">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
@@ -34,6 +31,9 @@
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
       <SelectionState runConfigName="EngageScreenTest">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="test1_engageScreen_feedbackFeature_completesSuccessfully()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
