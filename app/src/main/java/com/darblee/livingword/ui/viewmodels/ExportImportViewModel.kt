@@ -23,9 +23,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-
-// TODO: When importing the data, it only need to print one successful status. Right now, it prints 2 different successful message.
-
 // Data class to hold simplified file information for the UI
 data class DriveFile(val id: String, val name: String, val modifiedTime: String)
 

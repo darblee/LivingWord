@@ -3,6 +3,7 @@ package com.darblee.livingword.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -171,26 +172,6 @@ fun GoogleDriveOpsScreen(
     }
 
     // Effect to handle imports state changes
-    LaunchedEffect(importState) {
-        when (val state = importState) {
-            is OperationState.RequiresPermissions -> {
-                authorizationLauncher.launch(state.intent)
-            }
-            is OperationState.Complete -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                showImportDialog = false // Hide dialog on completion
-                ExportImportViewModel.resetImportState()
-            }
-            is OperationState.ImportFileSelection -> {
-                availableImports = state.files
-                showImportDialog = true
-                ExportImportViewModel.resetImportState() // Reset state so dialog doesn't reopen
-            }
-            else -> {} // Do nothing for NotStarted or InProgress
-        }
-    }
-
-
     LaunchedEffect(importState) {
         when (val state = importState) {
             is OperationState.RequiresPermissions -> {
