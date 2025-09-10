@@ -134,6 +134,10 @@ fun GoogleDriveOpsScreen(
 
     // State for managing the exit dialog
     var showExitDialog by remember { mutableStateOf(false) }
+    
+    // State for managing the export completion restart dialog
+    var showExportRestartDialog by remember { mutableStateOf(false) }
+    var exportedFileName by remember { mutableStateOf("") }
 
     /**
      * The following is used to start an activity (e.g. Google sign-in permission) and process the outcome when
@@ -165,10 +169,21 @@ fun GoogleDriveOpsScreen(
 
     // Effect to handle state changes that require action
     LaunchedEffect(exportState) {
-        handleOperationState(exportState, context,
-            launchIntent = { intent -> authorizationLauncher.launch(intent) },
-            onComplete = { ExportImportViewModel.resetExportState() }
-        )
+        when (val state = exportState) {
+            is OperationState.RequiresPermissions -> {
+                authorizationLauncher.launch(state.intent)
+            }
+            is OperationState.Complete -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                ExportImportViewModel.resetExportState()
+            }
+            is OperationState.ExportCompleteRestartRequired -> {
+                exportedFileName = state.fileName
+                showExportRestartDialog = true
+                ExportImportViewModel.resetExportState()
+            }
+            else -> {} // Do nothing for other states
+        }
     }
 
     // Effect to handle imports state changes
@@ -218,6 +233,18 @@ fun GoogleDriveOpsScreen(
             onDismissRequest = {
                 showExitDialog = false
                 // फिनिश एक्टिविटी ऑन डिसमिस
+                (context as? Activity)?.finish()
+            }
+        )
+    }
+    
+    // Show the export completion restart dialog
+    if (showExportRestartDialog) {
+        ExportCompleteRestartDialog(
+            fileName = exportedFileName,
+            onDismissRequest = {
+                showExportRestartDialog = false
+                // Exit the app after export to ensure fresh database connections
                 (context as? Activity)?.finish()
             }
         )
@@ -520,6 +547,45 @@ fun ExitAppDialog(onDismissRequest: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Exit")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A dialog to inform the user that the database export was successful and the app needs to be restarted
+ * to prevent database connection issues. Provides an "OK" button to close the application.
+ */
+@Composable
+fun ExportCompleteRestartDialog(fileName: String, onDismissRequest: () -> Unit) {
+    val context = LocalContext.current
+    Dialog(onDismissRequest = onDismissRequest) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(all = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Export Successful",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "Created file: $fileName\n\nTo prevent database connection issues, the app will now restart.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Button(
+                    onClick = {
+                        // Close the activity, which effectively exits the app
+                        (context as? Activity)?.finish()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("OK")
                 }
             }
         }

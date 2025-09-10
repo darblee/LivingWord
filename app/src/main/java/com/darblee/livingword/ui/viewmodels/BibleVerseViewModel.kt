@@ -72,7 +72,14 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
      * @return A Flow that emits the BibleVerse object whenever it's updated in the database.
      */
     fun getVerseFlow(id: Long): Flow<BibleVerse> {
-        return repository.getVerseFlow(id)
+        // DEBUG: Log Flow requests to track repository state
+        Log.d("BibleVerseViewModel", "getVerseFlow requested for id: $id")
+        Log.d("BibleVerseViewModel", "Repository instance: ${repository.hashCode()}")
+        Log.d("BibleVerseViewModel", "ViewModel instance: ${this.hashCode()}")
+        
+        return repository.getVerseFlow(id).also { flow ->
+            android.util.Log.d("BibleVerseViewModel", "Flow created for id: $id, flow hashCode: ${flow.hashCode()}")
+        }
     }
 
     /**
@@ -546,18 +553,33 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
     private fun refreshAfterDatabaseImport() {
         viewModelScope.launch {
             try {
+                Log.d("BibleVerseViewModel", "=== DATABASE REFRESH STARTED ===")
+                Log.d("BibleVerseViewModel", "OLD repository instance: ${repository.hashCode()}")
+                
                 // Create new repository with fresh database instance
                 val freshDatabase = AppDatabase.getDatabase(context)
+                Log.d("BibleVerseViewModel", "Fresh database instance created: ${freshDatabase.hashCode()}")
+                
+                val oldRepository = repository
                 repository = BibleVerseRepository(freshDatabase.bibleVerseDao())
+                android.util.Log.d("BibleVerseViewModel", "NEW repository instance: ${repository.hashCode()}")
+                
+                // CRITICAL: The issue is that existing Flows from getVerseFlow() are still connected 
+                // to the old repository. We need to notify UI components that they should re-collect
+                // the Flow, but there's no built-in mechanism for that. Hence, we are forcing the user to restart the app
+                // to reconnect to the database/repository.
                 
                 // Refresh all cached data with new repository
                 getAllVerses()
                 getAllTopics()
                 getAllFavoriteVerses()
                 
-                android.util.Log.d("BibleVerseViewModel", "ViewModel data refreshed with new repository after database import")
+                Log.d("BibleVerseViewModel", "=== DATABASE REFRESH COMPLETED ===")
+                Log.w("BibleVerseViewModel", "WARNING: Existing Flows may still be connected to old repository (${oldRepository.hashCode()})")
+                Log.w("BibleVerseViewModel", "UI components using getVerseFlow() may need to re-observe the Flow to get the new repository connection")
+                
             } catch (e: Exception) {
-                android.util.Log.e("BibleVerseViewModel", "Failed to refresh ViewModel data: ${e.message}", e)
+                Log.e("BibleVerseViewModel", "Failed to refresh ViewModel data: ${e.message}", e)
             }
         }
     }

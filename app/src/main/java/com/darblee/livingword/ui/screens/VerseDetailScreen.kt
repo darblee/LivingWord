@@ -105,6 +105,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.lifecycle.viewModelScope
 import com.darblee.livingword.data.ScriptureUtils.verseListToString
 
 // Helper extension function to append text with verse number styling
@@ -160,14 +162,61 @@ fun VerseDetailScreen(
     // Remember scroll states for the text fields (UI concern)
     val aiResponseScrollState = rememberScrollState()
 
+    // DEBUG: Add comprehensive logging to identify hang issue after database export
+    Log.d("VerseDetailScreen", "=== VERSE DETAIL SCREEN DEBUG ===")
+    Log.d("VerseDetailScreen", "Screen initialized for verseID: $verseID")
+    Log.d("VerseDetailScreen", "BibleViewModel instance: ${bibleViewModel.hashCode()}")
+    
+    // DEBUG: Monitor Flow collection state
+    var flowCollectionCount by remember { mutableIntStateOf(0) }
+    
     // Observe the verse as a state from a Flow. This will automatically update
     // when the data changes in the database.
     val verseItem by bibleViewModel.getVerseFlow(verseID).collectAsStateWithLifecycle(initialValue = null)
+
+    // DEBUG: Track Flow emissions
+    LaunchedEffect(verseItem) {
+        flowCollectionCount++
+        Log.d("VerseDetailScreen", "Flow emission #$flowCollectionCount - verseItem: ${if (verseItem != null) "LOADED (id=${verseItem?.id})" else "NULL"}")
+        if (verseItem != null) {
+            Log.d("VerseDetailScreen", "Verse details - translation: ${verseItem?.translation}, scriptureVerses: ${verseItem?.scriptureVerses?.size ?: 0}")
+        }
+    }
+    
+    // DEBUG: Add timeout detection for Flow
+    var flowTimeoutDetected by remember { mutableStateOf(false) }
+    LaunchedEffect(verseID) {
+        kotlinx.coroutines.delay(10000) // 10 second timeout
+        if (verseItem == null && !flowTimeoutDetected) {
+            flowTimeoutDetected = true
+            Log.e("VerseDetailScreen", "TIMEOUT DETECTED: Flow has not emitted verse data after 10 seconds for verseID: $verseID")
+            Log.e("VerseDetailScreen", "This may indicate a stale database connection after export/import")
+            Log.e("VerseDetailScreen", "RECOMMENDED FIX: Navigate back and re-enter this screen to establish fresh Flow connection")
+            Toast.makeText(navController.context, "Timeout detected. It appears there is a stale database connection. Please restart the application.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // DEBUG: Listen for database refresh events to detect when we need to re-establish Flow connection
+    LaunchedEffect(Unit) {
+        bibleViewModel.viewModelScope.launch {
+            com.darblee.livingword.data.DatabaseRefreshManager.refreshTrigger.collect {
+                Log.w("VerseDetailScreen", "Database refresh detected! Current Flow may be stale.")
+                Log.w("VerseDetailScreen", "Current verseItem state: ${if (verseItem != null) "LOADED" else "NULL"}")
+                Log.w("VerseDetailScreen", "If verse loading hangs, navigate back and re-enter this screen.")
+                Toast.makeText(navController.context, "It appears there is a stale database connection. Please restart the application.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     // Observe translation loading state
     val translationLoadingState by bibleViewModel.translationLoadingState.collectAsStateWithLifecycle()
 
     Log.i("VerseDetailScreen", "Translation = ${verseItem?.translation}")
+    
+    // DEBUG: Log loading state changes
+    LaunchedEffect(translationLoadingState) {
+        Log.d("VerseDetailScreen", "Translation loading state: $translationLoadingState")
+    }
 
     // State for controlling the edit mode
     var inEditMode by remember { mutableStateOf(editMode) }
@@ -475,7 +524,13 @@ fun VerseDetailScreen(
                                 )
                             )
                         } else {
-                            buildAnnotatedString { append("Loading scripture....") }
+                            buildAnnotatedString { 
+                                if (flowTimeoutDetected) {
+                                    append("⚠️ Scripture loading timed out. This may be due to a stale database connection after export/import. Please restart the application.")
+                                } else {
+                                    append("Loading scripture....")
+                                }
+                            }
                         }
 
                         Box(modifier = Modifier.fillMaxSize()) { // Box to anchor dropdown

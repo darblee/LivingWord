@@ -64,17 +64,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         Log.i("HomeViewModel", "setSelectedVerseAndFetchData: $verse")
 
         updateAiServiceStatus()
-        val geminiReady = _state.value.isAiServiceReady
-        val geminiInitError = _state.value.aiResponseError ?: _state.value.generalError
+        val aiReady = _state.value.isAiServiceReady
+        val aiInitError = _state.value.aiResponseError ?: _state.value.generalError
 
         val currentState = _state.value
 
         if (verse == currentState.selectedVOTD &&
             currentState.scriptureVerses.isNotEmpty() && currentState.scriptureError == null &&
-            (currentState.aiTakeAwayText.isNotEmpty() || currentState.aiResponseError != null || !geminiReady)
+            (currentState.aiTakeAwayText.isNotEmpty() || currentState.aiResponseError != null || !aiReady)
         ) {
             Log.d("HomeViewModel", "Verse $verse already loaded. Skipping fetch.")
-            if (geminiReady && currentState.aiTakeAwayText.isEmpty() && currentState.aiResponseError != null &&
+            if (aiReady && currentState.aiTakeAwayText.isEmpty() && currentState.aiResponseError != null &&
                 currentState.loadingStage != LoadingStage.FETCHING_TAKEAWAY && currentState.loadingStage != LoadingStage.VALIDATING_TAKEAWAY
             ) {
                 Log.d("HomeViewModel", "Retrying AI response fetch for $verse.")
@@ -87,28 +87,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         Log.d("HomeViewModel", "Before initial state update. Current loadingStage: ${_state.value.loadingStage}")
         _state.update {
-            val newLoadingStage = if (geminiReady) LoadingStage.FETCHING_SCRIPTURE else LoadingStage.NONE
+            val newLoadingStage = if (aiReady) LoadingStage.FETCHING_SCRIPTURE else LoadingStage.NONE
             Log.i("HomeViewModel", "Updating state for $verse. Setting loadingStage to $newLoadingStage")
             it.copy(
                 selectedVOTD = verse,
                 loadingStage = newLoadingStage,
-                aiTakeAwayText = if (geminiReady) "Starting process..." else (geminiInitError ?: "AI Service not ready."),
+                aiTakeAwayText = if (aiReady) "Starting process..." else (aiInitError ?: "AI Service not ready."),
                 scriptureError = null,
-                aiResponseError = if (geminiReady) null else geminiInitError,
-                generalError = if (geminiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || geminiInitError?.contains("API Key missing", ignoreCase = true) == true) "initError" else null,
+                aiResponseError = if (aiReady) null else aiInitError,
+                generalError = if (aiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || aiInitError?.contains("API Key missing", ignoreCase = true) == true) "initError" else null,
                 isContentSaved = false,
                 isVotdAddInitiated = true
             )
         }
         Log.d("HomeViewModel", "After initial state update. New loadingStage: ${_state.value.loadingStage}")
 
-        if (!geminiReady) return
-
+        if (!aiReady) return
 
         fetchDataJob = viewModelScope.launch {
             val translation = preferenceStore.readTranslationFromSetting()
             delay(100)
-
 
             when (val scriptureResult = aIService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {

@@ -34,6 +34,8 @@ sealed class OperationState {
     // New state to prompt user for file selection
     data class ImportFileSelection(val files: List<DriveFile>) : OperationState()
     data class Complete(val success: Boolean, val message: String) : OperationState()
+    // New state to prompt user to restart application after export
+    data class ExportCompleteRestartRequired(val fileName: String) : OperationState()
 }
 
 class ExportImportViewModel : ViewModel() {
@@ -132,7 +134,7 @@ class ExportImportViewModel : ViewModel() {
                     // Use the new dynamic filename for the upload
                     driveService.uploadFile(exportFileName, dbPath, folderId)
                 }
-                _exportState.value = OperationState.Complete(true, "Export Successful.\nCreated file: $exportFileName")
+                _exportState.value = OperationState.ExportCompleteRestartRequired(exportFileName)
 
             } catch (e: UserRecoverableAuthIOException) {
                 _exportState.value = OperationState.RequiresPermissions(e.intent)
@@ -222,6 +224,7 @@ class ExportImportViewModel : ViewModel() {
                     
                     // Signal all ViewModels to refresh their data
                     DatabaseRefreshManager.triggerRefresh()
+                    android.util.Log.d("ImportDB", "DatabaseRefreshManager.triggerRefresh() called successfully")
                     
                     _importState.value = OperationState.Complete(true, "Import successful! Data has been refreshed.")
                 } catch (e: Exception) {
