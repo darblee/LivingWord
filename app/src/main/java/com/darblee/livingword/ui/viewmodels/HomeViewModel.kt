@@ -63,12 +63,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         Log.i("HomeViewModel", "setSelectedVerseAndFetchData: $verse")
 
-        updateAiServiceStatus()
+        updateAiServiceStatus() // Refresh AI status before fetching
         val aiReady = _state.value.isAiServiceReady
         val aiInitError = _state.value.aiResponseError ?: _state.value.generalError
 
         val currentState = _state.value
 
+        // Avoid re-fetching if the exact same verse is already selected and loaded without errors
         if (verse == currentState.selectedVOTD &&
             currentState.scriptureVerses.isNotEmpty() && currentState.scriptureError == null &&
             (currentState.aiTakeAwayText.isNotEmpty() || currentState.aiResponseError != null || !aiReady)
@@ -85,13 +86,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         fetchDataJob?.cancel()
 
-        Log.d("HomeViewModel", "Before initial state update. Current loadingStage: ${_state.value.loadingStage}")
         _state.update {
-            val newLoadingStage = if (aiReady) LoadingStage.FETCHING_SCRIPTURE else LoadingStage.NONE
-            Log.i("HomeViewModel", "Updating state for $verse. Setting loadingStage to $newLoadingStage")
             it.copy(
                 selectedVOTD = verse,
-                loadingStage = newLoadingStage,
+                loadingStage = if (aiReady) LoadingStage.FETCHING_SCRIPTURE else LoadingStage.NONE,
                 aiTakeAwayText = if (aiReady) "Starting process..." else (aiInitError ?: "AI Service not ready."),
                 scriptureError = null,
                 aiResponseError = if (aiReady) null else aiInitError,
@@ -100,7 +98,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 isVotdAddInitiated = true
             )
         }
-        Log.d("HomeViewModel", "After initial state update. New loadingStage: ${_state.value.loadingStage}")
 
         if (!aiReady) return
 
@@ -108,20 +105,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val translation = preferenceStore.readTranslationFromSetting()
             delay(100)
 
+            // STAGE 1: Fetch Scripture
+            _state.update { it.copy(loadingStage = LoadingStage.FETCHING_SCRIPTURE) }
+
             when (val scriptureResult = aIService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
-                    Log.i("HomeViewModel", "Fetched scripture for $verse")
+                    Log.i("HomeViewModel", "Successful Fetched scripture for $verse")
                     _state.update { it.copy(
                         scriptureVerses = scriptureResult.data,
-                        translation = translation
+                        translation = translation,
                         )
                     }
                 }
                 is AiServiceResult.Error -> {
-                    Log.d("HomeViewModel", "Before updating to NONE (scripture error). Current loadingStage: ${_state.value.loadingStage}")
                     _state.update { it.copy(loadingStage = LoadingStage.NONE, scriptureError = scriptureResult.message, isVotdAddInitiated = false) }
-                    Log.d("HomeViewModel", "After updating to NONE (scripture error). New loadingStage: ${_state.value.loadingStage}")
-                    return@launch
+                    return@launch // Stop the process on error
                 }
             }
 

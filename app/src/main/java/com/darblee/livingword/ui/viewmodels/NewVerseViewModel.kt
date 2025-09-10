@@ -130,6 +130,8 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
+        Log.i("NewVerseViewModel", "setSelectedVerseAndFetchData: $verse")
+
         updateAiServiceStatus() // Refresh AI status before fetching
         val aiReady = _state.value.isAiServiceReady
         val aiInitError = _state.value.aiResponseError ?: _state.value.generalError
@@ -169,11 +171,13 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
 
         fetchDataJob = viewModelScope.launch {
             val translation = preferenceStore.readTranslationFromSetting()
+            delay(100)
 
             // STAGE 1: Fetch Scripture
             _state.update { it.copy(loadingStage = LoadingStage.FETCHING_SCRIPTURE) }
             when (val scriptureResult = aiService.fetchScripture(verse, translation)) {
                 is AiServiceResult.Success -> {
+                    Log.i("NewVerseViewModel", "Successful Fetched scripture for $verse")
                     _state.update { it.copy(
                         scriptureVerses = scriptureResult.data,
                         translation = translation,

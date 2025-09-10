@@ -424,21 +424,6 @@ fun AllVersesScreen(
         }
     }
 
-    // Show the transient dialog
-    if (showRetrievingDataDialog) {
-        // Derive the message from the ViewModel's state
-        val loadingMessage = when {
-            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.FETCHING_SCRIPTURE -> "Fetching scripture..."
-            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.SCRIPTURE_READY -> "Scripture ready, navigating..."
-            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.FETCHING_TAKEAWAY -> "Fetching insights from AI..."
-            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.VALIDATING_TAKEAWAY -> "Validating insights..."
-            newVerseState.loadingStage == NewVerseViewModel.LoadingStage.NONE && newVerseState.newlySavedVerseId != null && !newVerseState.isContentSaved -> "Saving AI content..."
-            else -> "Finalizing..." // Fallback message
-        }
-        TransientDialog(loadingMessage = loadingMessage)
-    }
-
-
     if (showExistingVerseDialog && existingVerseForDialog != null) {
         val verseToShow = existingVerseForDialog!! // Safe due to the check
         AlertDialog(
