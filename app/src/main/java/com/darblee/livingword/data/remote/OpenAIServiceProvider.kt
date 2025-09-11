@@ -19,7 +19,7 @@ class OpenAIServiceProvider : AIServiceProvider {
     override val displayName: String = "OpenAI"
     override val serviceType: AIServiceType = AIServiceType.OPENAI
     override val defaultModel: String = AIServiceType.OPENAI.defaultModel
-    override val priority: Int = 2
+    override val priority: Int = 1
     
     private var currentConfig: AIServiceConfig? = null
     private var initializationError: String? = null

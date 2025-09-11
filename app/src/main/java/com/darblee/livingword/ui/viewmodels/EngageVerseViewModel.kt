@@ -101,70 +101,6 @@ class EngageVerseViewModel() : ViewModel(){
     }
 
     /**
-     * Debug method to help troubleshoot AI service issues
-     * This will attempt to get a simple response from the AI service to test connectivity and parsing
-     */
-    fun testAIService() {
-        updateAiServiceStatus()
-        val geminiReady = _state.value.isAiServiceReady
-
-        if (!geminiReady) {
-            _state.update {
-                it.copy(
-                    aiResponseError = "AI service not ready: ${aiService.getInitializationError()}"
-                )
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            Log.d("EngageVerseViewModel", "Testing AI service with simple request...")
-            
-            // Test with a simple verse and input
-            when (val result = aiService.getAIScore("John 3:16", "For God so loved the world", "This verse teaches about God's love")) {
-                is AiServiceResult.Success -> {
-                    _state.update {
-                        it.copy(
-                            aiResponseError = "AI service test successful! ContextScore: ${result.data.ContextScore}"
-                        )
-                    }
-                    Log.d("EngageVerseViewModel", "AI service test successful: ${result.data}")
-                }
-                is AiServiceResult.Error -> {
-                    _state.update {
-                        it.copy(
-                            aiResponseError = "AI service test failed: ${result.message}"
-                        )
-                    }
-                    Log.e("EngageVerseViewModel", "AI service test failed: ${result.message}")
-                }
-            }
-        }
-    }
-
-    /**
-     * Debug method to check current caching state
-     */
-    fun debugCacheState(userDirectQuote: String, userContext: String) {
-        val currentState = _state.value
-        Log.d("EngageVerseViewModel", "=== CACHE DEBUG STATE ===")
-        Log.d("EngageVerseViewModel", "Current input:")
-        Log.d("EngageVerseViewModel", "  - Direct quote: '$userDirectQuote'")
-        Log.d("EngageVerseViewModel", "  - Context: '$userContext'")
-        Log.d("EngageVerseViewModel", "Last evaluated input:")
-        Log.d("EngageVerseViewModel", "  - Direct quote: '${currentState.lastEvaluatedDirectQuote}'")
-        Log.d("EngageVerseViewModel", "  - Context: '${currentState.lastEvaluatedUserApplication}'")
-        Log.d("EngageVerseViewModel", "Input matches: ${currentState.lastEvaluatedDirectQuote.trim() == userDirectQuote.trim() && currentState.lastEvaluatedUserApplication.trim() == userContext.trim()}")
-        Log.d("EngageVerseViewModel", "Has valid AI data:")
-        Log.d("EngageVerseViewModel", "  - ContextExplanation: ${!currentState.aiScoreExplanationText.isNullOrEmpty()}")
-        Log.d("EngageVerseViewModel", "  - ApplicationFeedback: ${!currentState.applicationFeedback.isNullOrEmpty()}")
-        Log.d("EngageVerseViewModel", "  - ContextScore: ${currentState.contextScore}")
-        Log.d("EngageVerseViewModel", "  - No error: ${currentState.aiResponseError == null}")
-        Log.d("EngageVerseViewModel", "Using cached results flag: ${currentState.isUsingCachedResults}")
-        Log.d("EngageVerseViewModel", "========================")
-    }
-
-    /**
      * Load cached AI feedback from the BibleVerse if the input hasn't changed
      */
     private fun loadCachedFeedbackIfAvailable(
@@ -176,14 +112,10 @@ class EngageVerseViewModel() : ViewModel(){
             Log.d("EngageVerseViewModel", "Checking for cached feedback...")
 
             // Check if we have cached feedback data using direct property access
-            val hasExistingFeedback = (verse.aiContextExplanationText.isNotEmpty() || verse.applicationFeedback.isNotEmpty()) && 
+            val hasExistingFeedback = (verse.aiContextExplanationText.isNotEmpty() || verse.applicationFeedback.isNotEmpty()) &&
                                      verse.userContextScore > 0
-            val inputMatches = verse.userDirectQuote.trim() == userMemorizedScripture.trim() && 
+            val inputMatches = verse.userDirectQuote.trim() == userMemorizedScripture.trim() &&
                               verse.userContext.trim() == userApplicationContent.trim()
-
-            Log.d("EngageVerseViewModel", "Has cached feedback: $hasExistingFeedback, Input matches: $inputMatches")
-            Log.d("EngageVerseViewModel", "Cached input - Direct quote: '${verse.userDirectQuote}', Context: '${verse.userContext}'")
-            Log.d("EngageVerseViewModel", "Current input - Direct quote: '$userMemorizedScripture', Context: '$userApplicationContent'")
 
             if (hasExistingFeedback && inputMatches) {
                 Log.d("EngageVerseViewModel", "Loading cached AI feedback results")
@@ -192,10 +124,6 @@ class EngageVerseViewModel() : ViewModel(){
                 val cachedContextExplanation = verse.aiContextExplanationText
                 val cachedApplicationFeedback = verse.applicationFeedback
 
-                Log.d("EngageVerseViewModel", "Cached data validation:")
-                Log.d("EngageVerseViewModel", "  - ContextExplanation: '${cachedContextExplanation.take(50)}...' (length: ${cachedContextExplanation.length})")
-                Log.d("EngageVerseViewModel", "  - ApplicationFeedback: '${cachedApplicationFeedback.take(50)}...' (length: ${cachedApplicationFeedback.length})")
-                Log.d("EngageVerseViewModel", "  - ContextScore: ${verse.userContextScore}")
 
                 // Check if the cached data is actually valid (not empty or placeholder text)
                 val isValidCache = (
@@ -204,7 +132,7 @@ class EngageVerseViewModel() : ViewModel(){
                     !cachedContextExplanation.contains("Getting score") &&
                     verse.userContextScore > 0
                 )
-                
+
                 Log.d("EngageVerseViewModel", "Cache validity check: $isValidCache")
 
                 if (isValidCache) {

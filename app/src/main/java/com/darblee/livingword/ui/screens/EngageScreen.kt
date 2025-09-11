@@ -144,8 +144,8 @@ private fun buildAnnotatedStringForScoreDialog(
     val locale = Locale.getDefault()
 
     // Split into sections based on content
-    val contextFeedbackText = "Context Feedback: $aiScoreExplanation"
-    val applicationFeedbackText = "Application Feedback: ${applicationFeedback.replace("###", "")}"
+    val contextFeedbackText = aiScoreExplanation
+    val applicationFeedbackText = applicationFeedback.replace("###", "")
     val contextSentences = splitIntoSentences(contextFeedbackText, locale)
     val applicationSentences = splitIntoSentences(applicationFeedbackText, locale)
 

@@ -21,7 +21,7 @@ class OllamaAIServiceProvider : AIServiceProvider {
     override val serviceType: AIServiceType = AIServiceType.OLLAMA
     override val defaultModel: String = "hf.co/mradermacher/Protestant-Christian-Bible-Expert-v2.0-12B-i1-GGUF:IQ4_XS"
 
-    override val priority: Int = 1
+    override val priority: Int = 2
     
     private var isConfigured = false
     private var initializationError: String? = null
