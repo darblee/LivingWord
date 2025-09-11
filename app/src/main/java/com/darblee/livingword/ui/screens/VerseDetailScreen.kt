@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -107,6 +106,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.viewModelScope
+import com.darblee.livingword.data.BibleVerse
 import com.darblee.livingword.data.ScriptureUtils.verseListToString
 
 // Helper extension function to append text with verse number styling
@@ -1171,12 +1171,12 @@ fun VerseDetailScreen(
             }
 
             if (showShareDialog) {
+                val sharedText = buildSharedTextVerseDetailScreen(verseItem)
                 ShareDialog(
                     onDismiss = { showShareDialog = false },
                     onCopy = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val textToCopy = verseItem?.aiTakeAwayResponse
-                        val clip = ClipData.newPlainText( "Verse Text Clipboard",  textToCopy )
+                        val clip = ClipData.newPlainText( "Verse Text Clipboard",  sharedText )
                         clipboard.setPrimaryClip(clip)
                         showShareDialog = false
                     },
@@ -1194,11 +1194,8 @@ fun VerseDetailScreen(
                                     "Take-away"
                                 )
                             }
-                            val verseText = verseListToString(verseItem?.scriptureVerses ?: emptyList())
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                "Verse\n$verseText\n\nTake-Away\n${verseItem?.aiTakeAwayResponse}"
-                            )
+
+                            putExtra(Intent.EXTRA_TEXT, sharedText)
                         }
                         context.startActivity(Intent.createChooser(intent, "Send Email"))
                         showShareDialog = false
@@ -1207,6 +1204,25 @@ fun VerseDetailScreen(
             }
         }
     )
+}
+
+/**
+ * Builds a string representation of the verse detail screen content,
+ * suitable for sharing (e.g., via email or clipboard).
+ *
+ * @param verseItem The [BibleVerse] object containing the verse details.
+ * @return A formatted string with the verse reference, translation, scripture text, and AI take-away.
+ *         Returns an empty string if [verseItem] is null.
+ */
+private fun buildSharedTextVerseDetailScreen(verseItem: BibleVerse?): String {
+    if (verseItem == null) return ""
+
+    val stringBuilder = StringBuilder()
+    stringBuilder.append("${verseReference(verseItem)} (${verseItem.translation})\n")
+    val verseText = verseListToString(verseItem.scriptureVerses)
+    stringBuilder.append(verseText)
+
+    return "$stringBuilder\n\nTake-Away\n${verseItem.aiTakeAwayResponse}"
 }
 
 @Composable

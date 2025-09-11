@@ -72,7 +72,6 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
-import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.Card
@@ -80,6 +79,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
+import com.darblee.livingword.data.ScriptureUtils.verseListToString
 import com.darblee.livingword.ui.viewmodels.TTSViewModel
 import java.text.BreakIterator
 import java.util.Locale
@@ -933,7 +933,6 @@ fun EngageScreen(
                                     onClick = {
                                         if (!hasPermission) {
                                             Log.w("EngageScreen", "Record audio permission not granted.")
-                                            // TODO: Implement permission request flow if not already present elsewhere
                                             return@FloatingActionButton
                                         }
 
@@ -1127,7 +1126,6 @@ fun EngageScreen(
                                     onClick = {
                                         if (!hasPermission) {
                                             Log.w("EngageScreen", "Record audio permission not granted.")
-                                            // TODO: Implement permission request flow if not already present elsewhere
                                             return@FloatingActionButton
                                         }
 
@@ -1750,30 +1748,17 @@ fun EngageScreen(
                 }
 
                 if (showShareDialog) {
+                    val sharedText = buildSharedTextEngageScreen(verse)
                     ShareDialog(
                         onDismiss = { showShareDialog = false },
                         onCopy = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val textToCopy = buildShareText(
-                                directQuoteText = directQuoteTextFieldValue.text,
-                                userApplicationText = userApplicationTextFieldValue.text,
-                                contextScore = state.contextScore,
-                                aiContextExplanation = state.aiScoreExplanationText,
-                                applicationFeedback = state.applicationFeedback
-                            )
-                            val clip = ClipData.newPlainText("Memorized Content Clipboard", textToCopy)
+                            val clip = ClipData.newPlainText("Memorized Content Clipboard", sharedText)
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                             showShareDialog = false
                         },
                         onSendEmail = {
-                            val shareText = buildShareText(
-                                directQuoteText = directQuoteTextFieldValue.text,
-                                userApplicationText = userApplicationTextFieldValue.text,
-                                contextScore = state.contextScore,
-                                aiContextExplanation = state.aiScoreExplanationText,
-                                applicationFeedback = state.applicationFeedback
-                            )
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 if (verse != null) {
@@ -1787,7 +1772,7 @@ fun EngageScreen(
                                         "My Bible Verse Memorization"
                                     )
                                 }
-                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                putExtra(Intent.EXTRA_TEXT, sharedText)
                             }
                             context.startActivity(Intent.createChooser(intent, "Send Email"))
                             showShareDialog = false
@@ -2214,44 +2199,59 @@ private fun CompareContentBox(label: String, content: String) {
     }
 }
 
-private fun buildShareText(
-    directQuoteText: String,
-    userApplicationText: String,
-    contextScore: Int,
-    aiContextExplanation: String?,
-    applicationFeedback: String?
-): String {
-    val stringBuilder = StringBuilder()
+/**
+ * Builds a string representation of the shared text for a given Bible verse to be used in Engage
+ * Screen.
+ *
+ * This function formats the Bible verse information, user's quote and application,
+ * and optionally includes AI feedback (context score, explanation, and application feedback)
+ * if available.
+ *
+ * @param verseItem The [BibleVerse] object containing the data to be formatted.
+ *                  If null, an empty string is returned.
+ * @return A formatted string ready for sharing, containing the verse, user input,
+ *         and AI feedback if present. Returns an empty string if `verseItem` is null.
+ */
+private fun buildSharedTextEngageScreen(verseItem: BibleVerse?): String {
+    if (verseItem == null)
+        return ""
 
-    // Always include the basic content
-    stringBuilder.append("User Quote\n")
-    stringBuilder.append(directQuoteText)
+    val stringBuilder = StringBuilder()
+    stringBuilder.append("${verseReference(verseItem)} (${verseItem.translation})\n")
+
+    val scriptureText = verseListToString(verseItem.scriptureVerses)
+    stringBuilder.append(scriptureText)
     stringBuilder.append("\n\n")
 
-    stringBuilder.append("User Application\n")
-    stringBuilder.append(userApplicationText)
+    // Always include the basic content
+    stringBuilder.append("User Quote:\n")
+    stringBuilder.append(verseItem.userDirectQuote)
+    stringBuilder.append("\n\n")
+
+    stringBuilder.append("User Application:\n")
+    stringBuilder.append(verseItem.userContext)
+
 
     // Add AI feedback content if it exists
-    val hasAiFeedback = contextScore >= 0 ||
-            !aiContextExplanation.isNullOrBlank() ||
-            !applicationFeedback.isNullOrBlank()
-
+    val aiContextScoreExplanation = verseItem.aiContextExplanationText
+    val hasAiFeedback = aiContextScoreExplanation.isNotBlank()
     if (hasAiFeedback) {
         stringBuilder.append("\n\n--- AI Feedback ---\n")
 
         // Add Context Score and explanation if available
-        if (contextScore >= 0) {
-            stringBuilder.append("\nContext Score: $contextScore")
-            if (!aiContextExplanation.isNullOrBlank()) {
+        if (verseItem.userContextScore >= 0) {
+            stringBuilder.append("\nContext Score: ${verseItem.userContextScore}")
+            if (aiContextScoreExplanation.isNotBlank()) {
                 stringBuilder.append("\nContext Feedback:\n")
-                stringBuilder.append(aiContextExplanation.trim())
+                stringBuilder.append(aiContextScoreExplanation.trim())
             }
         }
 
         // Add Application Feedback if available
-        if (!applicationFeedback.isNullOrBlank()) {
+        val appFeedback = verseItem.applicationFeedback
+        if (appFeedback.isNotBlank()) {
             stringBuilder.append("\n\nFeedback on Application:\n")
-            stringBuilder.append(applicationFeedback.trim())
+            stringBuilder.append(appFeedback.trim())
         }
     }
 

@@ -87,7 +87,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// TODO: When adding votd, it fetch scripture and fecth key-away all in one steps as opposed to going to verseDetailScreen to fetch scripture and get take-away in separate steps.
 private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     if (text.isBlank()) return emptyList()
     val iterator = BreakIterator.getSentenceInstance(locale)
