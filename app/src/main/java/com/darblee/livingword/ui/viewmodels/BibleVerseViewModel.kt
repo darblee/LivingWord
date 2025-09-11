@@ -240,26 +240,6 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
         }
     }
 
-    fun updateVerseAIContent(
-        verseId: Long,
-        aiTakeAwayResponse: String,
-        newVerseViewModel: NewVerseViewModel? = null
-    ) {
-        viewModelScope.launch {
-            try {
-                Log.d("BibleVerseViewModel", "Updating verse $verseId with AI content: ${aiTakeAwayResponse.take(50)}...")
-                val existingVerse = repository.getVerseById(verseId)
-                val updatedVerse = existingVerse.copy(aiTakeAwayResponse = aiTakeAwayResponse)
-                repository.updateVerse(updatedVerse)
-                Log.d("BibleVerseViewModel", "Successfully updated verse $verseId with AI content")
-                newVerseViewModel?.contentSavedSuccessfully(verseId)
-            } catch (e: Exception) {
-                Log.e("BibleVerseViewModel", "Error updating verse AI content: ${e.message}", e)
-                newVerseViewModel?.updateGeneralError("Failed to update AI content: ${e.localizedMessage}")
-            }
-        }
-    }
-
     suspend fun fetchAITakeawayForVerse(verseId: Long): Pair<Boolean, String> {
         return try {
             Log.d("BibleVerseViewModel", "Fetching AI takeaway for verse $verseId...")

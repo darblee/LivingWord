@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,8 +27,6 @@ import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -316,38 +313,15 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         homeViewModel.state.collect { state ->
-            Log.i("HomeScreen", "HomeViewModel state collected. LoadingStage: ${state.loadingStage}, GeneralError: ${state.generalError}, AiResponseError: ${state.aiResponseError}")
-
-            showRetrievingDataDialog = when (state.loadingStage) {
-                HomeViewModel.LoadingStage.NONE -> {
-                    Log.d("HomeScreen", "LoadingStage is NONE, hiding dialog")
-                    false
-                }
-                else -> {
-                    Log.d("HomeScreen", "LoadingStage is ${state.loadingStage}, showing dialog")
-                    true
-                }
-            }
-
-            loadingMessage = when (state.loadingStage) {
-                HomeViewModel.LoadingStage.FETCHING_SCRIPTURE -> "Fetching scripture..."
-                HomeViewModel.LoadingStage.FETCHING_TAKEAWAY -> "Fetching insights from AI..."
-                HomeViewModel.LoadingStage.VALIDATING_TAKEAWAY -> "Validating insights..."
-                else -> "Processing..."
-            }
-
-            Log.i("HomeScreen", "Loading message: $loadingMessage, aiResponseText.isNotEmpty(): ${state.aiTakeAwayText.isNotEmpty()}, scriptureVerses.isNotEmpty(): ${state.scriptureVerses.isNotEmpty()} state.isContentSaved: ${state.isContentSaved}")
-
-            Log.d("HomeScreen", "Save check - aiTakeAwayText.isNotEmpty(): ${state.aiTakeAwayText.isNotEmpty()}, scriptureVerses.isNotEmpty(): ${state.scriptureVerses.isNotEmpty()}, isContentSaved: ${state.isContentSaved}, selectedVOTD != null: ${state.selectedVOTD != null}, loadingStage: ${state.loadingStage}")
-            if (state.aiTakeAwayText.isNotEmpty() && state.scriptureVerses.isNotEmpty() && !state.isContentSaved && state.selectedVOTD != null && state.loadingStage == HomeViewModel.LoadingStage.NONE) {
+            if (state.scriptureVerses.isNotEmpty() && !state.isContentSaved && state.selectedVOTD != null && state.loadingStage == HomeViewModel.LoadingStage.NONE) {
                 Log.i("HomeScreen", "Adding new verse to database")
                 bibleVerseViewModel.saveNewVerseHome(
                     verse = state.selectedVOTD,
-                    aiTakeAwayResponse = state.aiTakeAwayText,
+                    aiTakeAwayResponse ="",
                     topics = emptyList(), // Assuming no topics for VOTD
                     translation = state.translation,
                     scriptureVerses = state.scriptureVerses,
-                    homeViewModel = homeViewModel // Pass the homeViewModel instance
+                    homeViewModel = homeViewModel
                 )
             }
 
@@ -470,8 +444,7 @@ fun HomeScreen(
                                 val chapter = chapterAndVerse[0].toIntOrNull()
                                 val verseRange = chapterAndVerse[1].split("-")
                                 val startVerse = verseRange[0].toIntOrNull()
-                                val endVerse =
-                                    if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
+                                val endVerse = if (verseRange.size > 1) verseRange[1].toIntOrNull() else startVerse
 
                                 if (chapter != null && startVerse != null && endVerse != null) {
                                     scope.launch {
@@ -496,8 +469,8 @@ fun HomeScreen(
                                                         startVerse,
                                                         endVerse
                                                     )
-                                                homeViewModel.setSelectedVerseAndFetchData(
-                                                    votdBibleVerseRef
+                                                homeViewModel.addVOTDToDB(
+                                                    votdBibleVerseRef, verseContent, displayTranslation
                                                 )
                                             } else {
                                                 Toast.makeText(
@@ -667,7 +640,7 @@ fun VerseOfTheDaySection(
                     Spacer(modifier = Modifier.width(4.dp))
                     Button(
                         onClick = onAddClick,
-                        enabled = verseOfTheDayReference != "Loading..." && verseOfTheDayReference != "Error loading Verse of the Day",
+                        enabled = verseContent.isNotEmpty(),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(

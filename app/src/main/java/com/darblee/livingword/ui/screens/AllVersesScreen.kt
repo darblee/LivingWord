@@ -351,7 +351,6 @@ fun AllVersesScreen(
         }
     }
 
-
     // Track if we've already navigated to prevent multiple navigations
     var hasNavigated by remember { mutableStateOf(false) }
 
@@ -382,8 +381,7 @@ fun AllVersesScreen(
                         Log.d("AllVersesScreen", "  - ${entry.destination.route}")
                     }
                     
-                    showRetrievingDataDialog = false // Hide dialog before navigating
-                    navController.navigate(Screen.VerseDetailScreen(verseID = currentState.newlySavedVerseId!!, editMode = true)) {
+                    navController.navigate(Screen.VerseDetailScreen(verseID = currentState.newlySavedVerseId, editMode = true)) {
                         popUpTo(Screen.Home)
                     }
                     hasNavigated = true // Mark as navigated to prevent re-navigation

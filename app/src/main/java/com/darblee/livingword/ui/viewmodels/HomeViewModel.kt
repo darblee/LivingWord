@@ -12,7 +12,6 @@ import com.darblee.livingword.data.remote.AiServiceResult
 import com.darblee.livingword.data.remote.AIService
 import com.darblee.livingword.data.verseReferenceBibleVerseRef
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,138 +48,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var fetchDataJob: Job? = null
 
-    private val preferenceStore = PreferenceStore(application)
     private val aIService = AIService // Singleton instance
 
     init {
         updateAiServiceStatus()
     }
 
-    fun setSelectedVerseAndFetchData(verse: BibleVerseRef?) {
-        if (verse == null) {
-            clearVerseData()
-            return
-        }
-        Log.i("HomeViewModel", "setSelectedVerseAndFetchData: $verse")
-
-        updateAiServiceStatus() // Refresh AI status before fetching
-        val aiReady = _state.value.isAiServiceReady
-        val aiInitError = _state.value.aiResponseError ?: _state.value.generalError
-
-        val currentState = _state.value
-
-        // Avoid re-fetching if the exact same verse is already selected and loaded without errors
-        if (verse == currentState.selectedVOTD &&
-            currentState.scriptureVerses.isNotEmpty() && currentState.scriptureError == null &&
-            (currentState.aiTakeAwayText.isNotEmpty() || currentState.aiResponseError != null || !aiReady)
-        ) {
-            Log.d("HomeViewModel", "Verse $verse already loaded. Skipping fetch.")
-            if (aiReady && currentState.aiTakeAwayText.isEmpty() && currentState.aiResponseError != null &&
-                currentState.loadingStage != LoadingStage.FETCHING_TAKEAWAY && currentState.loadingStage != LoadingStage.VALIDATING_TAKEAWAY
-            ) {
-                Log.d("HomeViewModel", "Retrying AI response fetch for $verse.")
-                fetchKeyTakeAwayOnly(verse)
-            }
-            return
-        }
-
-        fetchDataJob?.cancel()
-
+    fun addVOTDToDB(
+        verse: BibleVerseRef?,
+        verseContent: List<Verse>,
+        translation: String
+    ) {
         _state.update {
             it.copy(
                 selectedVOTD = verse,
-                loadingStage = if (aiReady) LoadingStage.FETCHING_SCRIPTURE else LoadingStage.NONE,
-                aiTakeAwayText = if (aiReady) "Starting process..." else (aiInitError ?: "AI Service not ready."),
-                scriptureError = null,
-                aiResponseError = if (aiReady) null else aiInitError,
-                generalError = if (aiInitError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || aiInitError?.contains("API Key missing", ignoreCase = true) == true) "initError" else null,
+                scriptureVerses = verseContent,
+                translation = translation,
+                loadingStage = LoadingStage.NONE,
+                aiTakeAwayText = "",
+                aiResponseError = null,
                 isContentSaved = false,
                 isVotdAddInitiated = true
             )
         }
-
-        if (!aiReady) return
-
-        fetchDataJob = viewModelScope.launch {
-            val translation = preferenceStore.readTranslationFromSetting()
-            delay(100)
-
-            // STAGE 1: Fetch Scripture
-            _state.update { it.copy(loadingStage = LoadingStage.FETCHING_SCRIPTURE) }
-
-            when (val scriptureResult = aIService.fetchScripture(verse, translation)) {
-                is AiServiceResult.Success -> {
-                    Log.i("HomeViewModel", "Successful Fetched scripture for $verse")
-                    _state.update { it.copy(
-                        scriptureVerses = scriptureResult.data,
-                        translation = translation,
-                        )
-                    }
-                }
-                is AiServiceResult.Error -> {
-                    _state.update { it.copy(loadingStage = LoadingStage.NONE, scriptureError = scriptureResult.message, isVotdAddInitiated = false) }
-                    return@launch // Stop the process on error
-                }
-            }
-
-            // STAGE 2: Get Key Takeaway
-            Log.d("HomeViewModel", "Before updating to FETCHING_TAKEAWAY. Current loadingStage: ${_state.value.loadingStage}")
-            _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY, isVotdAddInitiated = true) }
-            Log.d("HomeViewModel", "After updating to FETCHING_TAKEAWAY. New loadingStage: ${_state.value.loadingStage}")
-            val verseRef = verseReferenceBibleVerseRef(verse)
-
-            delay(100)
-
-            when (val takeAwayResult = aIService.getKeyTakeaway(verseRef)) {
-                is AiServiceResult.Success -> {
-                    val takeawayResponseText = takeAwayResult.data
-
-                    // STAGE 3: Validate Takeaway
-                    Log.d("HomeViewModel", "Before updating to VALIDATING_TAKEAWAY. Current loadingStage: ${_state.value.loadingStage}")
-                    _state.update { it.copy(loadingStage = LoadingStage.VALIDATING_TAKEAWAY) }
-                    Log.d("HomeViewModel", "After updating to VALIDATING_TAKEAWAY. New loadingStage: ${_state.value.loadingStage}")
-                    when (val validationResult = AIService.validateKeyTakeawayResponse(verseRef, takeawayResponseText)) {
-                        is AiServiceResult.Success -> {
-                            if (validationResult.data) {
-                                Log.i("HomeViewModel", "Takeaway for $verseRef is acceptable: $takeawayResponseText")
-                                Log.d("HomeViewModel", "Before updating to NONE (acceptable). Current loadingStage: ${_state.value.loadingStage}")
-                                _state.update {
-                                    it.copy(
-                                        loadingStage = LoadingStage.NONE,
-                                        aiTakeAwayText = takeawayResponseText,
-                                        aiResponseError = null,
-                                    )
-                                }
-                                Log.d("HomeViewModel", "After updating to NONE (acceptable). New loadingStage: ${_state.value.loadingStage}")
-                            } else {
-                                Log.w("HomeViewModel", "Takeaway for $verseRef was rejected.")
-                                Log.d("HomeViewModel", "Before updating to NONE (rejected). Current loadingStage: ${_state.value.loadingStage}")
-                                _state.update {
-                                    it.copy(
-                                        loadingStage = LoadingStage.NONE,
-                                        aiResponseError = "The AI-generated insight was rejected by the validator. Please try again.",
-                                        isVotdAddInitiated = false
-                                    )
-                                }
-                                Log.d("HomeViewModel", "After updating to NONE (rejected). New loadingStage: ${_state.value.loadingStage}")
-                            }
-                        }
-                        is AiServiceResult.Error -> {
-                            Log.e("MyApp", "Validation failed: ${validationResult.message}")
-                            Log.d("HomeViewModel", "Before updating to NONE (validation error). Current loadingStage: ${_state.value.loadingStage}")
-                            _state.update { it.copy(loadingStage = LoadingStage.NONE, aiResponseError = "Validation failed: ${validationResult.message}", isVotdAddInitiated = false) }
-                            Log.d("HomeViewModel", "After updating to NONE (validation error). New loadingStage: ${_state.value.loadingStage}")
-                        }
-                    }
-                }
-                is AiServiceResult.Error -> {
-                    Log.d("HomeViewModel", "Before updating to NONE (takeaway error). Current loadingStage: ${_state.value.loadingStage}")
-                    _state.update { it.copy(loadingStage = LoadingStage.NONE, aiResponseError = takeAwayResult.message, isVotdAddInitiated = false) }
-                    Log.d("HomeViewModel", "After updating to NONE (takeaway error). New loadingStage: ${_state.value.loadingStage}")
-                }
-            }
-            }
-        }
+    }
 
     private fun updateAiServiceStatus() {
         val isReady = aIService.isInitialized()
@@ -191,55 +82,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 aiResponseError = if (it.aiResponseError == null && initError != null) initError else it.aiResponseError,
                 generalError = if (initError?.contains("Failed to initialize AI Model", ignoreCase = true) == true || initError?.contains("API Key missing", ignoreCase = true) == true) initError else null
             )
-        }
-    }
-
-    private fun fetchKeyTakeAwayOnly(verse: BibleVerseRef) {
-        updateAiServiceStatus()
-        if (!_state.value.isAiServiceReady) {
-            Log.w("HomeViewModel", "Skipping take-away retry as AIService is not initialized/configured.")
-            _state.update {
-                it.copy(
-                    loadingStage = LoadingStage.NONE,
-                    aiResponseError = it.aiResponseError ?: aIService.getInitializationError() ?: "AI Service not ready."
-                )
-            }
-            return
-        }
-
-        Log.d("HomeViewModel", "Before updating to FETCHING_TAKEAWAY (fetchKeyTakeAwayOnly). Current loadingStage: ${_state.value.loadingStage}")
-        _state.update { it.copy(loadingStage = LoadingStage.FETCHING_TAKEAWAY, aiResponseError = null, aiTakeAwayText = "Getting key take-away...") }
-        Log.d("HomeViewModel", "After updating to FETCHING_TAKEAWAY (fetchKeyTakeAwayOnly). New loadingStage: ${_state.value.loadingStage}")
-
-        val verseRef = verseReferenceBibleVerseRef(verse)
-
-        viewModelScope.launch {
-            when (val takeAwayResult = aIService.getKeyTakeaway(verseRef)) {
-                is AiServiceResult.Success -> {
-                    Log.d("HomeViewModel", "Before updating to NONE (fetchKeyTakeAwayOnly success). Current loadingStage: ${_state.value.loadingStage}")
-                    _state.update {
-                        it.copy(
-                            loadingStage = LoadingStage.NONE,
-                            aiTakeAwayText = takeAwayResult.data,
-                            aiResponseError = null,
-                            isVotdAddInitiated = false
-                        )
-                    }
-                    Log.d("HomeViewModel", "After updating to NONE (fetchKeyTakeAwayOnly success). New loadingStage: ${_state.value.loadingStage}")
-                }
-                is AiServiceResult.Error -> {
-                    Log.d("HomeViewModel", "Before updating to NONE (fetchKeyTakeAwayOnly error). Current loadingStage: ${_state.value.loadingStage}")
-                    _state.update {
-                        it.copy(
-                            loadingStage = LoadingStage.NONE,
-                            aiTakeAwayText = "",
-                            aiResponseError = takeAwayResult.message,
-                            isVotdAddInitiated = false
-                        )
-                    }
-                    Log.d("HomeViewModel", "After updating to NONE (fetchKeyTakeAwayOnly error). New loadingStage: ${_state.value.loadingStage}")
-                }
-            }
         }
     }
 
