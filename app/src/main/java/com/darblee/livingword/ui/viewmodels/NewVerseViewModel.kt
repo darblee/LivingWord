@@ -124,6 +124,8 @@ class NewVerseViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+
+    // TODO: Add code to handle take-away validation from another AI LLM engine
     fun setSelectedVerseAndFetchData(verse: BibleVerseRef?) {
         if (verse == null) {
             clearVerseData()

@@ -333,6 +333,10 @@ fun AllVersesScreen(
         )
     }
 
+    if (showRetrievingDataDialog) {
+        TransientDialog(loadingMessage = "Fetching scripture ...")
+    }
+
     // Early save when scripture is ready
     LaunchedEffect(newVerseState.loadingStage, newVerseState.selectedVerse, newVerseState.scriptureVerses.size) {
         Log.d("AllVersesScreen", "LaunchedEffect(Early save) triggered - loadingStage: ${newVerseState.loadingStage}")
