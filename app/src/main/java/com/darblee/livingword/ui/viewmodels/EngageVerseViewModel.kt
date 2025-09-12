@@ -180,7 +180,8 @@ class EngageVerseViewModel() : ViewModel(){
         verse: BibleVerseRef,
         userMemorizedScripture: String,
         userApplicationContent: String,
-        cachedBibleVerse: com.darblee.livingword.data.BibleVerse? = null
+        cachedBibleVerse: com.darblee.livingword.data.BibleVerse? = null,
+        override: Boolean = false
     ) {
         Log.d("EngageVerseViewModel", "getAIFeedback called with verse: $verse")
 
@@ -211,8 +212,10 @@ class EngageVerseViewModel() : ViewModel(){
             currentState.contextScore > 0 &&
             currentState.aiResponseError == null
         )
-        
-        if (currentInputMatches && hasValidStateResults) {
+
+        Log.d("EngageVerseViewModel", "GetAIFeedback override: $override")
+
+        if (!override && currentInputMatches && hasValidStateResults) {
             Log.d("EngageVerseViewModel", "Found matching results in ViewModel state, using cached results")
             _state.update {
                 it.copy(
@@ -225,7 +228,7 @@ class EngageVerseViewModel() : ViewModel(){
         }
 
         // Check for cached results in database if BibleVerse is provided
-        if (cachedBibleVerse != null) {
+        if (!override && cachedBibleVerse != null) {
             Log.d("EngageVerseViewModel", "Checking database cache...")
             val usedCache = loadCachedFeedbackIfAvailable(cachedBibleVerse, userMemorizedScripture, userApplicationContent)
             if (usedCache) {

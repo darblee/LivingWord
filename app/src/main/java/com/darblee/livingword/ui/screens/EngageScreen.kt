@@ -88,7 +88,6 @@ import java.util.Locale
 // Enum to track which text block is targeted for single TTS playback in this screen
 enum class EngageSingleTtsTarget { NONE, SCRIPTURE, TAKE_AWAY }
 
-
 private fun splitIntoSentences(text: String, locale: Locale): List<String> {
     if (text.isBlank()) return emptyList()
     val iterator = BreakIterator.getSentenceInstance(locale)
@@ -129,7 +128,21 @@ private fun AnnotatedString.Builder.appendFormattedSentence(sentence: String, bo
     }
 }
 
-// Helper function to build annotated string for TTS highlighting
+/**
+ * Builds two annotated strings for the score dialog, one for AI score explanation and one for application feedback.
+ * The currently spoken sentence is highlighted.
+ *
+ * @param aiScoreExplanation The AI-generated explanation of the score.
+ * @param applicationFeedback The feedback related to the application.
+ * @param currentlySpeakingIndex The index of the sentence currently being spoken by TTS.
+ * @param isSpeaking True if TTS is currently active, false otherwise.
+ * @param isPaused True if TTS is paused, false otherwise.
+ * @param currentTtsTextId The ID of the text currently being processed by TTS, used to ensure highlighting is specific to this dialog.
+ * @param highlightStyle The [SpanStyle] to apply to the currently speaking sentence.
+ * @param baseTextColor The default text color.
+ * @param boldColor The color to use for bolded text within sentences.
+ * @return A [Pair] of [AnnotatedString] objects, where the first is for the AI score explanation and the second is for the application feedback.
+ */
 private fun buildAnnotatedStringForScoreDialog(
     aiScoreExplanation: String,
     applicationFeedback: String,
@@ -140,7 +153,7 @@ private fun buildAnnotatedStringForScoreDialog(
     highlightStyle: SpanStyle,
     baseTextColor: Color,
     boldColor: Color
-): List<AnnotatedString> {
+): Pair<AnnotatedString, AnnotatedString> {
     val locale = Locale.getDefault()
 
     // Split into sections based on content
@@ -190,7 +203,7 @@ private fun buildAnnotatedStringForScoreDialog(
         }
     }
 
-    return listOf(contextAnnotated, applicationAnnotated)
+    return Pair(contextAnnotated, applicationAnnotated)
 }
 
 // Helper function to build AnnotatedString with potential TTS highlighting & Markdown
@@ -1276,22 +1289,8 @@ fun EngageScreen(
                                     if (feedbackButtonEnabled) {
                                         val directQuoteToEvaluate = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
                                         val userApplicationComment = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
-                                        if (verse != null) {
-                                            val verseInfo = BibleVerseRef(
-                                                book = verse!!.book,
-                                                chapter = verse!!.chapter,
-                                                startVerse = verse!!.startVerse,
-                                                endVerse = verse!!.endVerse
-                                            )
-                                            // Pass the cached BibleVerse object to enable caching
-                                            engageVerseViewModel.getAIFeedback(
-                                                verseInfo,
-                                                directQuoteToEvaluate,
-                                                userApplicationComment,
-                                                cachedBibleVerse = verse // Pass the verse object for caching
-                                            )
-                                            showScoreDialog = true
-                                        }
+                                        generateAIScoreFeedback(verse, directQuoteToEvaluate, userApplicationComment, engageVerseViewModel)
+                                        showScoreDialog = true
                                     }
                                 },
                                 modifier = Modifier
@@ -1790,7 +1789,7 @@ fun EngageScreen(
                     }
 
                     // Build annotated strings for highlighting (now only 2 sections: Context + Application)
-                    val annotatedStrings = buildAnnotatedStringForScoreDialog(
+                    val (aiContextExplanation, aiApplicationFeedback) = buildAnnotatedStringForScoreDialog(
                         aiScoreExplanation = state.aiScoreExplanationText ?: "",
                         applicationFeedback = state.applicationFeedback ?: "",
                         currentlySpeakingIndex = currentlySpeakingIndex,
@@ -1879,9 +1878,7 @@ fun EngageScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally // Center progress indicator
                             ) {
-                                if (state.aiResponseLoading) {
-                                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
-                                } else if (state.aiResponseError != null) {
+                                if (state.aiResponseError != null) {
                                     Text(
                                         text = "Error: ${state.aiResponseError}",
                                         color = MaterialTheme.colorScheme.error,
@@ -1889,18 +1886,21 @@ fun EngageScreen(
                                         modifier = Modifier.padding(vertical = 16.dp)
                                     )
                                 } else {
+                                    val contextScore = if (state.contextScore >= 0) state.contextScore.toString() else ""
                                     ScrollableTitledOutlinedBoxWithTTS(
-                                        label = "Context Score: ${state.contextScore}",
-                                        content = annotatedStrings[0],
-                                        modifier = Modifier.weight(1f)
+                                        label = "Context Score: $contextScore",
+                                        content = aiContextExplanation,
+                                        modifier = Modifier.weight(1f),
+                                        aiResponseLoading = state.aiResponseLoading
                                     )
 
                                     Spacer(modifier = Modifier.height(12.dp))
 
                                     ScrollableTitledOutlinedBoxWithTTS(
                                         label = "Application Feedback",
-                                        content = annotatedStrings[1],
-                                        modifier = Modifier.weight(1f)
+                                        content = aiApplicationFeedback,
+                                        modifier = Modifier.weight(1f),
+                                        aiResponseLoading = state.aiResponseLoading
                                     )
                                 }
                             }
@@ -1909,16 +1909,16 @@ fun EngageScreen(
                             if (!state.aiResponseLoading) { // Show buttons only when not loading
                                 // Check if feedback content has changed from saved content
                                 val saveFeedbackEnabled = verse?.let { currentVerse ->
-                                    val currentAiContextExplanation = state.aiScoreExplanationText ?: ""
+                                    val currentAiScoreExplanation = state.aiScoreExplanationText ?: ""
                                     val currentApplicationFeedback = state.applicationFeedback ?: ""
                                     
                                     // Check if AI feedback content differs from saved content
-                                    val aiContextChanged = currentAiContextExplanation != currentVerse.aiContextExplanationText
+                                    val aiContextChanged = currentAiScoreExplanation != currentVerse.aiContextExplanationText
                                     val applicationFeedbackChanged = currentApplicationFeedback != currentVerse.applicationFeedback
                                     val scoresChanged = (state.contextScore != currentVerse.userContextScore)
                                     
                                     // Enable if any AI feedback content has changed and we have valid AI data
-                                    val hasValidAiData = currentAiContextExplanation.isNotEmpty() || 
+                                    val hasValidAiData = currentAiScoreExplanation.isNotEmpty() ||
                                                         currentApplicationFeedback.isNotEmpty() ||
                                                         state.contextScore >= 0
                                     
@@ -1927,21 +1927,31 @@ fun EngageScreen(
 
                                 Row {
                                     TextButton(
+                                        onClick = {
+                                            val directQuoteToEvaluate = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
+                                            val userApplicationComment = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
+                                            generateAIScoreFeedback(verse, directQuoteToEvaluate, userApplicationComment, engageVerseViewModel,
+                                                override = true)
+                                        }
+                                    ) {
+                                        Text("Regenerate")
+                                    }
+                                    TextButton(
                                         enabled = saveFeedbackEnabled,
                                         onClick = {
-                                            // Save feedback to database
+                                            // Save latest AI Score feedback to database
                                             verse?.let { currentVerse ->
                                                 val directQuoteToSave = (directQuoteTextFieldValue.text + directQuotePartialText).trim()
-                                                val contextToSave = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
+                                                val userApplicationTextToSave = (userApplicationTextFieldValue.text + userApplicationPartialText).trim()
                                                 val contextScoreToSave = if (state.contextScore >= 0) state.contextScore else -1
 
                                                 bibleViewModel.updateUserData(
                                                     verseId = currentVerse.id,
                                                     userDirectQuote = directQuoteToSave,
-                                                    userContext = contextToSave,
+                                                    userApplicationText = userApplicationTextToSave,
                                                     userContextScore = contextScoreToSave,
                                                     aiContextExplanationText = state.aiScoreExplanationText ?: "",
-                                                    applicationFeedback = state.applicationFeedback ?: ""
+                                                    aiApplicationFeedback = state.applicationFeedback ?: ""
                                                 )
                                                 
                                                 // Refresh verse data to trigger recomposition of saveFeedbackEnabled
@@ -1990,11 +2000,38 @@ fun EngageScreen(
     }
 }
 
+fun generateAIScoreFeedback(
+    verse: BibleVerse?,
+    directQuoteToEvaluate: String,
+    userApplicationComment: String,
+    engageVerseViewModel: EngageVerseViewModel,
+    override: Boolean = false
+)
+{
+    if (verse == null) return
+
+    val verseInfo = BibleVerseRef(
+        book = verse.book,
+        chapter = verse.chapter,
+        startVerse = verse.startVerse,
+        endVerse = verse.endVerse
+    )
+    // Pass the cached BibleVerse object to enable caching
+    engageVerseViewModel.getAIFeedback(
+        verseInfo,
+        directQuoteToEvaluate,
+        userApplicationComment,
+        cachedBibleVerse = verse, // Pass the verse object for caching
+        override
+    )
+}
+
 @Composable
 fun ScrollableTitledOutlinedBoxWithTTS(
     label: String,
     content: AnnotatedString,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    aiResponseLoading: Boolean,
 ) {
     Box(modifier = modifier) {
         // The main container with border and internal padding for content.
@@ -2008,15 +2045,24 @@ fun ScrollableTitledOutlinedBoxWithTTS(
                 )
                 .padding(top = 8.dp) // Padding to avoid content overlapping with the label area
         ) {
-            SelectionContainer(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .verticalScroll(rememberScrollState())
-                )
+            if (aiResponseLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                SelectionContainer(modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .verticalScroll(rememberScrollState())
+                    )
+                }
             }
         }
 

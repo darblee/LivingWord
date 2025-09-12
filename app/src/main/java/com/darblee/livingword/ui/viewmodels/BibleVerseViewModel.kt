@@ -396,10 +396,10 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
     fun updateUserData(
         verseId: Long,
         userDirectQuote: String,
-        userContext: String,
+        userApplicationText: String,
         userContextScore: Int,
         aiContextExplanationText: String,
-        applicationFeedback: String
+        aiApplicationFeedback: String
     ) {
         viewModelScope.launch {
             try {
@@ -407,7 +407,7 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                 repository.updateAIFeedbackData(
                     verseId = verseId,
                     aiContextExplanation = aiContextExplanationText,
-                    applicationFeedback = applicationFeedback,
+                    applicationFeedback = aiApplicationFeedback,
                     contextScore = userContextScore
                 )
 
@@ -415,20 +415,20 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                 val verseToUpdate = repository.getVerseById(verseId)
                 val updatedVerse = verseToUpdate.copy(
                     userDirectQuote = userDirectQuote,
-                    userContext = userContext,
+                    userContext = userApplicationText,
                     userContextScore = userContextScore,
                     aiContextExplanationText = aiContextExplanationText,
-                    applicationFeedback = applicationFeedback,
+                    applicationFeedback = aiApplicationFeedback,
                     lastModified = System.currentTimeMillis()
                 )
 
                 repository.updateVerse(updatedVerse)
-                Toast.makeText(context, "Memorized Content is saved", Toast.LENGTH_SHORT).show()
-                Log.i("BibleVerseViewModel", "Successfully updated user memorization data for verse ID: $verseId")
-                _errorMessage.value = "Memorization progress saved!"
+                Toast.makeText(context, "AI Score amd Feedback are saved", Toast.LENGTH_SHORT).show()
+                Log.i("BibleVerseViewModel", "Successfully updated AI Score amd Feedback data for verse ID: $verseId")
+                _errorMessage.value = "AI Score amd Feedback progress saved!"
             } catch (e: Exception) {
-                Log.e("BibleVerseViewModel", "Error updating user memorization data for verse ID: $verseId", e)
-                _errorMessage.value = "Error saving memorization data: ${e.localizedMessage}"
+                Log.e("BibleVerseViewModel", "Error updating AI Score amd Feedback data for verse ID: $verseId", e)
+                _errorMessage.value = "Error saving AI Score amd Feedback data: ${e.localizedMessage}"
             }
         }
     }
