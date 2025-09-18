@@ -6,12 +6,12 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.data.remote.AIServiceRegistry
+import com.darblee.livingword.ui.screens.FilterOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -134,6 +134,10 @@ class PreferenceStore(private val context: Context) {
         val VOTD_CONTENT_CACHE_KEY = stringPreferencesKey("votd_content_cache")
         val VOTD_CACHED_TRANSLATION_KEY = stringPreferencesKey("votd_cached_translation")
         val VOTD_LAST_FETCH_DATE_KEY = stringPreferencesKey("votd_last_fetch_date")
+
+        // Keys for Filter Preferences
+        val FILTER_OPTION_KEY = stringPreferencesKey("filter_option")
+        val SELECTED_TOPIC_KEY = stringPreferencesKey("selected_topic")
 
         // Default Settings
         const val DEFAULT_TRANSLATION = "ESV"
@@ -332,6 +336,40 @@ class PreferenceStore(private val context: Context) {
             null
         }
     }
+
+    // Save Filter Preferences
+    suspend fun saveFilterPreferences(filterOption: FilterOption, selectedTopic: String?) {
+        context.datastore.edit { preferences ->
+            preferences[FILTER_OPTION_KEY] = filterOption.name
+            if (selectedTopic != null) {
+                preferences[SELECTED_TOPIC_KEY] = selectedTopic
+            } else {
+                preferences.remove(SELECTED_TOPIC_KEY)
+            }
+        }
+    }
+
+    // Read Filter Preferences
+    suspend fun readFilterPreferences(): FilterPreferences {
+        val preferences = context.datastore.data.first()
+        val filterOptionString = preferences[FILTER_OPTION_KEY]
+        val selectedTopic = preferences[SELECTED_TOPIC_KEY]
+
+        val filterOption = try {
+            if (filterOptionString != null) {
+                FilterOption.valueOf(filterOptionString)
+            } else {
+                FilterOption.ALL // Default to ALL if not found
+            }
+        } catch (e: IllegalArgumentException) {
+            FilterOption.ALL // Default to ALL if invalid value
+        }
+
+        return FilterPreferences(
+            filterOption = filterOption,
+            selectedTopic = selectedTopic
+        )
+    }
 }
 
 // Data class to hold cached VOTD data
@@ -340,6 +378,12 @@ data class VotdCache(
     val content: String,
     val translation: String,
     val date: String
+)
+
+// Data class to hold filter preferences
+data class FilterPreferences(
+    val filterOption: FilterOption = FilterOption.ALL,
+    val selectedTopic: String? = null
 )
 
 

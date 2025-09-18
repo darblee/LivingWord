@@ -59,7 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +68,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.darblee.livingword.BackPressHandler
 import com.darblee.livingword.Global.VERSE_RESULT_KEY
+import com.darblee.livingword.PreferenceStore
 import com.darblee.livingword.R
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleVerse
@@ -105,6 +106,16 @@ fun AllVersesScreen(
     var filterOption by remember { mutableStateOf(FilterOption.ALL) }
     var selectedTopic by remember { mutableStateOf<String?>(null) }
 
+    val preferenceStore = remember { PreferenceStore(context) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Load saved filter preferences on initialization
+    LaunchedEffect(Unit) {
+        val savedFilters = preferenceStore.readFilterPreferences()
+        filterOption = savedFilters.filterOption
+        selectedTopic = savedFilters.selectedTopic
+    }
+
     val versesForTopic by remember(selectedTopic) {
         selectedTopic?.let { bibleViewModel.getVersesByTopic(it) } ?: flowOf(emptyList())
     }.collectAsState(initial = emptyList())
@@ -133,7 +144,7 @@ fun AllVersesScreen(
 
     // Reset navigation state when entering AllVersesScreen without newVerseJson
     // This prevents bounce-back navigation from bottom nav bar
-    LaunchedEffect(Unit) {
+    LaunchedEffect("navigationReset") {
         Log.d("AllVersesScreen", "=== ALLVERSESSCREEN INITIALIZATION ===")
         Log.d("AllVersesScreen", "newVerseJson parameter: $newVerseJson")
         Log.d("AllVersesScreen", "newVerseViewModel state before reset:")
@@ -160,10 +171,18 @@ fun AllVersesScreen(
     if (showFilterDialog) {
         FilterDialog(
             topics = allTopics.map { it.topic },
+            currentFilterOption = filterOption,
+            currentSelectedTopic = selectedTopic,
             onDismiss = { showFilterDialog = false },
             onApplyFilter = { newFilterOption, newSelectedTopic ->
                 filterOption = newFilterOption
                 selectedTopic = newSelectedTopic
+
+                // Save filter preferences
+                coroutineScope.launch {
+                    preferenceStore.saveFilterPreferences(newFilterOption, newSelectedTopic)
+                }
+
                 when (newFilterOption) {
                     FilterOption.ALL -> {
                         bibleViewModel.getAllVerses()
@@ -361,7 +380,7 @@ fun AllVersesScreen(
     // New verse is saved. Now navigate to edit verse screen  
     // IMPORTANT: Collect state directly to avoid stale state issues
     LaunchedEffect(hasNavigated, resetCompleted) {
-        Log.d("AllVersesScreen", "=== NAVIGATION LAUNCHEDEFFECT TRIGGERED ===")
+        Log.d("AllVersesScreen", "=== NAVIGATION LAUNCHED EFFECT TRIGGERED ===")
         Log.d("AllVersesScreen", "hasNavigated: $hasNavigated")
         Log.d("AllVersesScreen", "resetCompleted: $resetCompleted")
         Log.d("AllVersesScreen", "newVerseJson parameter: $newVerseJson")
@@ -412,7 +431,7 @@ fun AllVersesScreen(
 
     // Reset navigation state after final save completes
     LaunchedEffect(newVerseState.isContentSaved) {
-        Log.d("AllVersesScreen", "=== RESET NAVIGATION STATE LAUNCHEDEFFECT ===")
+        Log.d("AllVersesScreen", "=== RESET NAVIGATION STATE LAUNCHED EFFECT ===")
         Log.d("AllVersesScreen", "isContentSaved: ${newVerseState.isContentSaved}")
         Log.d("AllVersesScreen", "newlySavedVerseId: ${newVerseState.newlySavedVerseId}")
         
@@ -626,15 +645,21 @@ fun AllVersesScreen(
 @Composable
 fun FilterDialog(
     topics: List<String>,
+    currentFilterOption: FilterOption = FilterOption.ALL,
+    currentSelectedTopic: String? = null,
     onDismiss: () -> Unit,
     onApplyFilter: (FilterOption, String?) -> Unit
 ) {
-    var selectedOption by remember { mutableStateOf(FilterOption.ALL) }
+    var selectedOption by remember { mutableStateOf(currentFilterOption) }
     var expanded by remember { mutableStateOf(false) }
-    var selectedTopic by remember { mutableStateOf<String?>(null) }
+    var selectedTopic by remember { mutableStateOf(currentSelectedTopic) }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = onDismiss, // Handle back button press (equivalent to Cancel)
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        ),
         title = { Text("Verses Listing") },
         text = {
             Column {

@@ -303,6 +303,14 @@ fun ScripturePreviewDialogJson(
     )
 }
 
+/**
+ * Builds an [AnnotatedString] from a list of [Verse] objects.
+ * Each verse number is styled as superscript, red, and with a smaller font size.
+ * The verse content is appended as is, inheriting the style from the surrounding Text composable.
+ *
+ * @param verses The list of [Verse] objects to display.
+ * @return An [AnnotatedString] with styled verse numbers and verse content.
+ */
 fun buildAnnotatedVerseString(verses: List<Verse>) : AnnotatedString  {
     return buildAnnotatedString {
         verses.forEach { verse ->
