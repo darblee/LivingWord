@@ -23,6 +23,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+/**
+ * A composable function that displays a dialog to inform the user about the use of AI-generated content.
+ *
+ * This dialog includes:
+ * - A title: "A Note on AI-Generated Content".
+ * - A disclaimer text explaining that AI-generated content can be flawed and should be used as a tool for understanding and considered in prayer.
+ * - A checkbox allowing the user to opt out of seeing the disclaimer again ("Do not show this again").
+ * - An "OK" button to dismiss the dialog.
+ *
+ * @param onDismiss A callback function that is invoked when the dialog is dismissed. It receives a boolean value indicating whether the "Do not show this again" checkbox was checked.
+ */
 @Composable
 fun AIDisclaimerDialog(
     onDismiss: (doNotShowAgain: Boolean) -> Unit

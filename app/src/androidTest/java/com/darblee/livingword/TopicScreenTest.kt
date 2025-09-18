@@ -1,5 +1,6 @@
 package com.darblee.livingword
 
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
@@ -199,7 +200,8 @@ class TopicScreenTest {
         // Generate unique topic names for testing
         val originalTopicName = "OriginalTopic_${System.currentTimeMillis()}"
         val newTopicName = "RenamedTopic_${System.currentTimeMillis()}"
-        
+
+        Log.i("RenameTopicTest", "originalTopicName: $originalTopicName, newTopicName: $newTopicName")
         // Step 1: Add the original topic
         bibleViewModel.addTopic(originalTopicName)
         delay(1000) // Wait for creation
@@ -207,6 +209,7 @@ class TopicScreenTest {
         // Step 2: Verify original topic exists
         val topicsAfterCreation = bibleViewModel.allTopicsWithCount.value
         val originalTopic = topicsAfterCreation.find { it.topic.equals(originalTopicName, ignoreCase = false) }
+        Log.i("RenameTopicTest", "List of topics after creation of newTopicName: $topicsAfterCreation")
         assertTrue("Original topic should exist after creation", originalTopic != null)
         
         val initialTopicCount = topicsAfterCreation.size

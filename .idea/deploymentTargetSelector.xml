@@ -21,19 +21,19 @@
           </targets>
         </DialogSelection>
       </SelectionState>
-      <SelectionState runConfigName="AllVersesScreenTest">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
       <SelectionState runConfigName="AIServiceTestSuite">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="Tests in 'com.darblee.livingword'">
+      <SelectionState runConfigName="validateKeyTakeawayResponse_withInaccurateTakeaway_shouldReturnFalse()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="EngageScreenTest">
+      <SelectionState runConfigName="HomeScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="test1_engageScreen_feedbackFeature_completesSuccessfully()">
+      <SelectionState runConfigName="TopicScreenTest">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="renameTopic_successful()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
