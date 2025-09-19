@@ -423,9 +423,9 @@ class BibleVerseViewModel(private var repository: BibleVerseRepository, private 
                 )
 
                 repository.updateVerse(updatedVerse)
-                Toast.makeText(context, "AI Score amd Feedback are saved", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "AI feedback is saved", Toast.LENGTH_SHORT).show()
                 Log.i("BibleVerseViewModel", "Successfully updated AI Score amd Feedback data for verse ID: $verseId")
-                _errorMessage.value = "AI Score amd Feedback progress saved!"
+                _errorMessage.value = "AI feedback is saved!"
             } catch (e: Exception) {
                 Log.e("BibleVerseViewModel", "Error updating AI Score amd Feedback data for verse ID: $verseId", e)
                 _errorMessage.value = "Error saving AI Score amd Feedback data: ${e.localizedMessage}"

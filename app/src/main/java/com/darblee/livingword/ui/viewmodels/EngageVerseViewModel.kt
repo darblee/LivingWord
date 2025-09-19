@@ -44,7 +44,9 @@ class EngageVerseViewModel() : ViewModel(){
         // Cache tracking fields
         val lastEvaluatedDirectQuote: String = "",
         val lastEvaluatedUserApplication: String = "",
-        val isUsingCachedResults: Boolean = false
+        val isUsingCachedResults: Boolean = false,
+        val hasCachedData: Boolean = false, // Track if there's any cached data available
+        val isRegenerateRequest: Boolean = false // Track if current request is a regenerate
     )
 
     private val _state = MutableStateFlow(MemorizedVerseScreenState())
@@ -78,7 +80,9 @@ class EngageVerseViewModel() : ViewModel(){
                 applicationFeedback = null,
                 aiResponseError = null,
                 aiResponseLoading = false, // ensure loading is off
-                isUsingCachedResults = false // Reset cache flag when manually loading scores
+                isUsingCachedResults = false, // Reset cache flag when manually loading scores
+                hasCachedData = false,
+                isRegenerateRequest = false
             )
         }
     }
@@ -94,9 +98,20 @@ class EngageVerseViewModel() : ViewModel(){
                     aiResponseError = null,
                     lastEvaluatedDirectQuote = "",
                     lastEvaluatedUserApplication = "",
-                    isUsingCachedResults = false
+                    isUsingCachedResults = false,
+                    hasCachedData = false,
+                    isRegenerateRequest = false
                 )
             }
+        }
+    }
+
+    fun clearErrorState() {
+        _state.update {
+            it.copy(
+                aiResponseError = null,
+                isRegenerateRequest = false
+            )
         }
     }
 
@@ -145,13 +160,16 @@ class EngageVerseViewModel() : ViewModel(){
                             aiResponseError = null,
                             lastEvaluatedDirectQuote = userMemorizedScripture.trim(),
                             lastEvaluatedUserApplication = userApplicationContent.trim(),
-                            isUsingCachedResults = true
+                            isUsingCachedResults = true,
+                            hasCachedData = true
                         )
                     }
                     Log.d("EngageVerseViewModel", "Successfully loaded valid cached feedback")
                     return true
                 } else {
                     Log.d("EngageVerseViewModel", "Cached data exists but is invalid or incomplete - fetching fresh data")
+                    // Still mark that cached data exists, even if invalid
+                    _state.update { it.copy(hasCachedData = hasExistingFeedback) }
                 }
             } else {
                 Log.d("EngageVerseViewModel", "Cache check failed:")
@@ -164,6 +182,8 @@ class EngageVerseViewModel() : ViewModel(){
                     Log.d("EngageVerseViewModel", "  - Stored context: '${verse.userContext.trim()}'")
                     Log.d("EngageVerseViewModel", "  - Current context: '${userApplicationContent.trim()}'")
                 }
+                // Update cached data status
+                _state.update { it.copy(hasCachedData = hasExistingFeedback) }
             }
 
             Log.d("EngageVerseViewModel", "No valid cached results found - will fetch from AI service")
@@ -221,7 +241,8 @@ class EngageVerseViewModel() : ViewModel(){
                 it.copy(
                     isUsingCachedResults = true,
                     aiResponseLoading = false,
-                    aiResponseError = null
+                    aiResponseError = null,
+                    isRegenerateRequest = false
                 )
             }
             return // Exit early, using state cache
@@ -239,16 +260,27 @@ class EngageVerseViewModel() : ViewModel(){
         
         // No cache available, proceed with AI call
         Log.d("EngageVerseViewModel", "No cache available, proceeding with AI call...")
-        performAICall(verse, userMemorizedScripture, userApplicationContent)
+
+        // Store current state before making AI call, especially for regenerate scenarios
+        val isRegenerateCall = override
+        performAICall(verse, userMemorizedScripture, userApplicationContent, isRegenerateCall)
     }
 
     private fun performAICall(
         verse: BibleVerseRef,
         userMemorizedScripture: String,
-        userApplicationContent: String
+        userApplicationContent: String,
+        isRegenerateCall: Boolean = false
     ) {
 
         Log.d("EngageVerseViewModel", "Making fresh AI service call...")
+
+        // Store previous state for potential revert on regenerate failure
+        val currentState = _state.value
+        val previousScore = currentState.contextScore
+        val previousExplanation = currentState.aiScoreExplanationText
+        val previousFeedback = currentState.applicationFeedback
+        val hasPreviousData = previousScore > 0 && !previousExplanation.isNullOrEmpty() && !previousFeedback.isNullOrEmpty()
 
         // Set loading state before making the API call
         _state.update {
@@ -258,14 +290,15 @@ class EngageVerseViewModel() : ViewModel(){
                 contextScore = -1,
                 aiScoreExplanationText = null,
                 applicationFeedback = null,
-                isUsingCachedResults = false
+                isUsingCachedResults = false,
+                isRegenerateRequest = isRegenerateCall
             )
         }
 
         val verseRef = "${verse.book} ${verse.chapter}:${verse.startVerse}-${verse.endVerse}"
 
         viewModelScope.launch {
-            Log.d("EngageVerseViewModel", "Calling Hybrid AI service (Gemini + OpenAI fallback) for verse: $verseRef")
+            Log.d("EngageVerseViewModel", "Calling  AI service for verse: $verseRef")
 
             // Call the AIService (Gemini with OpenAI fallback)
             when (val scoreData = aiService.getAIScore(verseRef, userMemorizedScripture, userApplicationContent)) {
@@ -282,7 +315,8 @@ class EngageVerseViewModel() : ViewModel(){
                                 aiResponseError = null,
                                 lastEvaluatedDirectQuote = userMemorizedScripture.trim(),
                                 lastEvaluatedUserApplication = userApplicationContent.trim(),
-                                isUsingCachedResults = false
+                                isUsingCachedResults = false,
+                                isRegenerateRequest = false
                             )
                         }
 
@@ -296,7 +330,8 @@ class EngageVerseViewModel() : ViewModel(){
                                 aiScoreExplanationText = null,
                                 applicationFeedback = null,
                                 aiResponseError = "Unable to parse AI response: ${e.message}",
-                                isUsingCachedResults = false
+                                isUsingCachedResults = false,
+                                isRegenerateRequest = false
                             )
                         }
                     }
@@ -304,15 +339,48 @@ class EngageVerseViewModel() : ViewModel(){
                 is AiServiceResult.Error -> {
                     Log.e("EngageVerseViewModel", "AI service returned error: ${scoreData.message}")
 
-                    _state.update {
-                        it.copy(
-                            aiResponseLoading = false,
-                            contextScore = -1,
-                            aiScoreExplanationText = null,
-                            applicationFeedback = null,
-                            aiResponseError = scoreData.message,
-                            isUsingCachedResults = false
-                        )
+                    // Handle regenerate failures with different logic based on cached data availability
+                    if (isRegenerateCall && hasPreviousData) {
+                        // Revert to previous data and show appropriate error message
+                        Log.d("EngageVerseViewModel", "Regenerate failed but cached data exists, reverting to cached data")
+                        _state.update {
+                            it.copy(
+                                aiResponseLoading = false,
+                                contextScore = previousScore,
+                                aiScoreExplanationText = previousExplanation,
+                                applicationFeedback = previousFeedback,
+                                aiResponseError = "${scoreData.message}.",
+                                isUsingCachedResults = true,
+                                isRegenerateRequest = true // Keep this true until user clicks OK
+                            )
+                        }
+                    } else if (isRegenerateCall) {
+                        // No cached data to revert to
+                        Log.d("EngageVerseViewModel", "Regenerate failed and no cached data available")
+                        _state.update {
+                            it.copy(
+                                aiResponseLoading = false,
+                                contextScore = -1,
+                                aiScoreExplanationText = null,
+                                applicationFeedback = null,
+                                aiResponseError = "Failed to generate AI response: ${scoreData.message}. Please try hitting 'Generate' again or check your AI service settings and network connection.",
+                                isUsingCachedResults = false,
+                                isRegenerateRequest = false
+                            )
+                        }
+                    } else {
+                        // Regular (non-regenerate) failure
+                        _state.update {
+                            it.copy(
+                                aiResponseLoading = false,
+                                contextScore = -1,
+                                aiScoreExplanationText = null,
+                                applicationFeedback = null,
+                                aiResponseError = scoreData.message,
+                                isUsingCachedResults = false,
+                                isRegenerateRequest = false
+                            )
+                        }
                     }
                 }
             }

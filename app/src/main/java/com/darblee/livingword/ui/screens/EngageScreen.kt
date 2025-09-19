@@ -1809,8 +1809,16 @@ fun EngageScreen(
                         onDismissRequest = {
                             // Only allow dismiss if not loading, or handle dismiss during loading appropriately
                             if (!state.aiResponseLoading) {
-                                showScoreDialog = false
-                                ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
+                                // Handle different scenarios for dismiss request
+                                if (state.aiResponseError != null && state.isRegenerateRequest && state.isUsingCachedResults) {
+                                    // Regenerate error with cached data - clear error and keep dialog open
+                                    engageVerseViewModel.clearErrorState()
+                                    // Dialog stays open to show cached results
+                                } else {
+                                    // Normal case or regenerate error without cached data - close dialog
+                                    showScoreDialog = false
+                                    ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
+                                }
                             }
                         },
 
@@ -1878,14 +1886,51 @@ fun EngageScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally // Center progress indicator
                             ) {
-                                if (state.aiResponseError != null) {
-                                    Text(
-                                        text = "Error: ${state.aiResponseError}",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        modifier = Modifier.padding(vertical = 16.dp)
-                                    )
-                                } else {
+                                val errorMessage = state.aiResponseError
+                                if (errorMessage != null) {
+                                    // Show error with improved styling and message
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp)
+                                        ) {
+                                            Text(
+                                                text = if (state.isRegenerateRequest) "Regenerate Failed" else "AI Error",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                text = errorMessage,
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+
+                                            // Show additional info for regenerate with cached data
+                                            if (state.isRegenerateRequest && state.isUsingCachedResults) {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = "✓ Displaying previous results below",
+                                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Show content if available (either no error, or error with cached data)
+                                if (state.aiResponseError == null || (state.isRegenerateRequest && state.isUsingCachedResults)) {
                                     val contextScore = if (state.contextScore >= 0) state.contextScore.toString() else ""
                                     ScrollableTitledOutlinedBoxWithTTS(
                                         label = "Context Score: $contextScore",
@@ -1962,11 +2007,19 @@ fun EngageScreen(
                                             }
                                         }
                                     ) {
-                                        Text("Save Feedback")
+                                        Text("Save")
                                     }
                                     TextButton(onClick = {
-                                        showScoreDialog = false
-                                        ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
+                                        // Handle different scenarios for OK button
+                                        if (state.aiResponseError != null && state.isRegenerateRequest && state.isUsingCachedResults) {
+                                            // Regenerate error with cached data - clear error and keep dialog open
+                                            engageVerseViewModel.clearErrorState()
+                                            // Dialog stays open to show cached results
+                                        } else {
+                                            // Normal case or regenerate error without cached data - close dialog
+                                            showScoreDialog = false
+                                            ttsViewModel.stopAllSpeaking() // Ensure TTS is stopped
+                                        }
                                     }) {
                                         Text("OK")
                                     }
