@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -228,6 +229,22 @@ fun AppScaffold(
                     },
                     label = { Text("Topics") },
                     icon = { Icon(Icons.Filled.Bookmarks, contentDescription = "Topic") }
+                )
+                NavigationBarItem(
+                    selected = currentScreenInstance is Screen.FlashCardScreen,
+                    onClick = {
+                        if (currentScreenInstance !is Screen.FlashCardScreen) {
+                            // Clear all back stack entries and navigate directly to FlashCardScreen
+                            navController.navigate(route = Screen.FlashCardScreen) {
+                                popUpTo(0) { // Clear entire back stack
+                                    inclusive = true
+                                }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    label = { Text("Quiz") },
+                    icon = { Icon(Icons.Filled.Quiz, contentDescription = "Quiz Flash Card") }
                 )
             }
         }

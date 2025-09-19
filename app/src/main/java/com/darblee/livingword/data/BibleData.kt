@@ -3,11 +3,11 @@ package com.darblee.livingword.data
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.ui.graphics.Color
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.IOException
-
 
 /**
  * Represents the selected Bible verse components.
@@ -70,6 +70,56 @@ object BibleData {
         "1 Peter", "2 Peter", "1 John", "2 John", "3 John",
         "Jude", "Revelation"
     )
+
+    /**
+     * Determines the color associated with an Old Testament book based on its index.
+     * The colors are used to visually group books by their traditional biblical sections.
+     * - Pentateuch (index 0-4): Yellow
+     * - History (index 5-16): Green
+     * - Wisdom/Poetry (index 17-21): Purple (0xFF800080)
+     * - Major Prophets (index 22-26): Red
+     * - Minor Prophets (index > 26): Blue
+     *
+     * @param index The zero-based index of the Old Testament book.
+     * @return The [Color] corresponding to the book's section.
+     */
+    fun oldTestamentBookColor(index: Int): Color {
+        return when (index) {
+            in 0..4 -> Color.Yellow               // Pentateuch
+            in 5..16 -> Color.Green               // History
+            in 17..21 -> Color(0xFF800080) // Wisdom/Poetry
+            in 22..26 -> Color.Red                // Major Prophets
+            else -> Color.Blue                          // Minor Prophets
+        }
+    }
+
+
+    /**
+     * Provides a color for New Testament books based on their index (position in a list).
+     * This is typically used for UI theming or visual differentiation.
+     * The color coding is:
+     * - Gospels (index 0-3): Yellow
+     * - Acts (History, index 4): Green
+     * - Pauline Epistles (General, index 5-13): Purple (0xFF800080)
+     * - Pauline Epistles (Pastoral, index 14-17): Orange (0xFFFFA500)
+     * - General Epistles (index 18-25): Red
+     * - Revelation (Apocalyptic, other indices): Blue
+     *
+     * @param index The 0-based index of the New Testament book.
+     * @return A [Color] object representing the color for that book category.
+     */
+    fun newTestamentBookColor(index: Int): Color {
+        return when (index) {
+            in 0..3 -> Color.Yellow               // Gospels
+            4 -> Color.Green                            // Acts (History)
+            in 5..13 -> Color(0xFF800080)  // Pauline Epistles (General)
+            in 14..17 -> Color(0xFFFFA500) // Pauline Epistles (Pastoral)
+            in 18..25 -> Color.Red                // General Epistles
+            else -> Color.Blue                          // Revelation (Apocalyptic)
+        }
+    }
+
+
 
     // Holds the fully parsed data loaded from the JSON asset file.
     // Structure: Map<FullNameString, BookDetails>
@@ -211,5 +261,28 @@ object BibleData {
     // Helper function to clean scripture text for TTS by removing bracketed verse numbers
     fun String.removePassageRef(): String {
         return this.replace(Regex("""\[\d+]\s?"""), "") // Removes "[N]" and an optional space after it
+    }
+
+    /**
+     * Helper function to create a VersePicker navigation route.
+     * This starts the VersePicker navigation flow that guides the user through
+     * book -> chapter -> start verse -> end verse selection.
+     *
+     * Note for return screen:
+     * Use LaunchedEffect to observe the back stack size. This is used when selecting the verse, which
+     * involve navigating couple of screens to select the verse. WHen the final ending verse is selected.
+     * saveStateHandle will have verse result and user will navigate back to this screen.
+     *
+     * @param route The screen to return to when user cancels or completes selection
+     * @return The Screen route to navigate to for starting verse picking
+     */
+    fun createVersePickerRoute(route: com.darblee.livingword.Screen): com.darblee.livingword.Screen {
+        val screenId = when (route) {
+            is com.darblee.livingword.Screen.FlashCardScreen -> "FlashCardScreen"
+            is com.darblee.livingword.Screen.AllVersesScreen -> "AllVersesScreen"
+            is com.darblee.livingword.Screen.TopicScreen -> "TopicScreen"
+            else -> "FlashCardScreen" // Default fallback
+        }
+        return com.darblee.livingword.Screen.VersePickerBookScreen(screenId)
     }
 }

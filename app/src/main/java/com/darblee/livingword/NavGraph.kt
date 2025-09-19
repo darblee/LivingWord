@@ -22,6 +22,7 @@ import androidx.navigation.toRoute
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.screens.AddVerseByDescriptionScreen
 import com.darblee.livingword.ui.screens.AllVersesScreen
+import com.darblee.livingword.ui.screens.FlashCardScreen
 import com.darblee.livingword.ui.screens.GetBookScreen
 import com.darblee.livingword.ui.screens.GetChapterScreen
 import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
@@ -32,6 +33,10 @@ import com.darblee.livingword.ui.screens.EngageScreen
 import com.darblee.livingword.ui.screens.TopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
 import com.darblee.livingword.ui.screens.VerseDetailScreen
+import com.darblee.livingword.ui.screens.VersePickerBookScreen
+import com.darblee.livingword.ui.screens.VersePickerChapterScreen
+import com.darblee.livingword.ui.screens.VersePickerStartVerseScreen
+import com.darblee.livingword.ui.screens.VersePickerEndVerseScreen
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.viewmodels.AddVerseByDescriptionViewModel
 import kotlinx.serialization.Serializable
@@ -55,6 +60,9 @@ sealed class Screen {
 
     @Serializable
     data object TopicScreen : Screen()
+
+    @Serializable
+    data object FlashCardScreen : Screen()
 
     @Serializable
     data class TopicSelectionScreen(val selectedTopicsJson: String? = null) : Screen()
@@ -101,8 +109,36 @@ sealed class Screen {
 
     @Serializable
     data object GoogleDriveOpsScreen : Screen()
+
+    // VersePicker navigation flow screens
+    @Serializable
+    data class VersePickerBookScreen(val returnScreen: String) : Screen()
+
+    @Serializable
+    data class VersePickerChapterScreen(val returnScreen: String, val book: String) : Screen()
+
+    @Serializable
+    data class VersePickerStartVerseScreen(val returnScreen: String, val book: String, val chapter: Int) : Screen()
+
+    @Serializable
+    data class VersePickerEndVerseScreen(val returnScreen: String, val book: String, val chapter: Int, val startVerse: Int) : Screen()
 }
 
+/**
+ * Helper function to convert string screen identifiers back to Screen objects.
+ * Used by VersePicker screens to handle navigation.
+ *
+ * @param screenName The string identifier for the target screen
+ * @return The corresponding Screen object
+ */
+fun getTargetScreen(screenName: String): Screen {
+    return when (screenName) {
+        "FlashCardScreen" -> Screen.FlashCardScreen
+        "AllVersesScreen" -> Screen.AllVersesScreen
+        "TopicScreen" -> Screen.TopicScreen
+        else -> Screen.FlashCardScreen // Default fallback
+    }
+}
 
 @Composable
 fun SetUpNavGraph(
@@ -137,6 +173,14 @@ fun SetUpNavGraph(
             TopicScreen(navController = navController, bibleViewModel = bibleViewModel,
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme)
+        }
+
+        // Define the Flash Card Screen destination.
+        composable<Screen.FlashCardScreen> {
+            FlashCardScreen(navController = navController,
+                onColorThemeUpdated = onColorThemeUpdated,
+                currentTheme = currentTheme,
+                bibleVerseViewModel = bibleViewModel)
         }
 
         composable<Screen.GetBookScreen> {
@@ -213,6 +257,46 @@ fun SetUpNavGraph(
             GoogleDriveOpsScreen(navController = navController,
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme)
+        }
+
+        // VersePicker navigation flow screens
+        composable<Screen.VersePickerBookScreen> { backStackEntry ->
+            val screenRouteParams = backStackEntry.toRoute<Screen.VersePickerBookScreen>()
+            VersePickerBookScreen(
+                navController = navController,
+                currentTheme = currentTheme,
+                returnScreen = screenRouteParams.returnScreen
+            )
+        }
+
+        composable<Screen.VersePickerChapterScreen> { backStackEntry ->
+            val screenRouteParams = backStackEntry.toRoute<Screen.VersePickerChapterScreen>()
+            VersePickerChapterScreen(
+                navController = navController,
+                returnScreen = screenRouteParams.returnScreen,
+                book = screenRouteParams.book
+            )
+        }
+
+        composable<Screen.VersePickerStartVerseScreen> { backStackEntry ->
+            val screenRouteParams = backStackEntry.toRoute<Screen.VersePickerStartVerseScreen>()
+            VersePickerStartVerseScreen(
+                navController = navController,
+                returnScreen = screenRouteParams.returnScreen,
+                book = screenRouteParams.book,
+                chapter = screenRouteParams.chapter
+            )
+        }
+
+        composable<Screen.VersePickerEndVerseScreen> { backStackEntry ->
+            val screenRouteParams = backStackEntry.toRoute<Screen.VersePickerEndVerseScreen>()
+            VersePickerEndVerseScreen(
+                navController = navController,
+                returnScreen = screenRouteParams.returnScreen,
+                book = screenRouteParams.book,
+                chapter = screenRouteParams.chapter,
+                startVerse = screenRouteParams.startVerse
+            )
         }
     }
 
