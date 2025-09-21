@@ -49,6 +49,7 @@ import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
 import com.darblee.livingword.getTargetScreen
 import com.darblee.livingword.data.BibleData
+import com.darblee.livingword.data.ScriptureTaskType
 import com.darblee.livingword.data.BibleVerseRef
 import kotlinx.serialization.json.Json
 
@@ -74,7 +75,8 @@ fun VersePickerStartVerseScreen(
     navController: NavHostController,
     returnScreen: String,
     book: String,
-    chapter: Int
+    chapter: Int,
+    scriptureTaskType: ScriptureTaskType
 ) {
     val scrollState = rememberScrollState()
 
@@ -93,7 +95,7 @@ fun VersePickerStartVerseScreen(
                     modifier = Modifier
                         .clickable(
                             onClick = {
-                                navController.navigate(Screen.VersePickerBookScreen(returnScreen))
+                                navController.navigate(Screen.VersePickerBookScreen(returnScreen, scriptureTaskType))
                             },
                             role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
@@ -112,7 +114,7 @@ fun VersePickerStartVerseScreen(
                     modifier = Modifier
                         .clickable(
                             onClick = {
-                                navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book))
+                                navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book, scriptureTaskType))
                             },
                             role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
@@ -143,7 +145,7 @@ fun VersePickerStartVerseScreen(
                     onClick = {
                         // Navigate back to original screen
                         navController.navigate(getTargetScreen(returnScreen)) {
-                            popUpTo(Screen.VersePickerBookScreen(returnScreen)) {
+                            popUpTo(Screen.VersePickerBookScreen(returnScreen, scriptureTaskType)) {
                                 inclusive = true
                             }
                         }
@@ -219,7 +221,8 @@ fun VersePickerStartVerseScreen(
                                         returnScreen = returnScreen,
                                         book = book,
                                         chapter = chapter,
-                                        startVerse = verse
+                                        startVerse = verse,
+                                        scriptureTaskType = scriptureTaskType
                                     )
                                 )
                             }, onDoubleClick = onDoubleClickAction)
@@ -239,7 +242,7 @@ fun VersePickerStartVerseScreen(
                 ) {
                     Button(
                         onClick = {
-                            navController.navigate(Screen.VersePickerBookScreen(returnScreen))
+                            navController.navigate(Screen.VersePickerBookScreen(returnScreen, scriptureTaskType))
                         },
                         shape = RoundedCornerShape(8.dp),
                         modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
@@ -255,7 +258,7 @@ fun VersePickerStartVerseScreen(
 
                     Button(
                         onClick = {
-                            navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book))
+                            navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book, scriptureTaskType))
                         },
                         shape = RoundedCornerShape(8.dp),
                         modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,

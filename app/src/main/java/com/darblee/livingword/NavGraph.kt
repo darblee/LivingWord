@@ -39,6 +39,7 @@ import com.darblee.livingword.ui.screens.VersePickerStartVerseScreen
 import com.darblee.livingword.ui.screens.VersePickerEndVerseScreen
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.viewmodels.AddVerseByDescriptionViewModel
+import com.darblee.livingword.data.ScriptureTaskType
 import kotlinx.serialization.Serializable
 
 @Serializable // Mark the sealed class as Serializable
@@ -112,16 +113,16 @@ sealed class Screen {
 
     // VersePicker navigation flow screens
     @Serializable
-    data class VersePickerBookScreen(val returnScreen: String) : Screen()
+    data class VersePickerBookScreen(val returnScreen: String, val scriptureTaskType: ScriptureTaskType) : Screen()
 
     @Serializable
-    data class VersePickerChapterScreen(val returnScreen: String, val book: String) : Screen()
+    data class VersePickerChapterScreen(val returnScreen: String, val book: String, val scriptureTaskType: ScriptureTaskType) : Screen()
 
     @Serializable
-    data class VersePickerStartVerseScreen(val returnScreen: String, val book: String, val chapter: Int) : Screen()
+    data class VersePickerStartVerseScreen(val returnScreen: String, val book: String, val chapter: Int, val scriptureTaskType: ScriptureTaskType) : Screen()
 
     @Serializable
-    data class VersePickerEndVerseScreen(val returnScreen: String, val book: String, val chapter: Int, val startVerse: Int) : Screen()
+    data class VersePickerEndVerseScreen(val returnScreen: String, val book: String, val chapter: Int, val startVerse: Int, val scriptureTaskType: ScriptureTaskType) : Screen()
 }
 
 /**
@@ -265,7 +266,8 @@ fun SetUpNavGraph(
             VersePickerBookScreen(
                 navController = navController,
                 currentTheme = currentTheme,
-                returnScreen = screenRouteParams.returnScreen
+                returnScreen = screenRouteParams.returnScreen,
+                scriptureTaskType = screenRouteParams.scriptureTaskType
             )
         }
 
@@ -274,7 +276,8 @@ fun SetUpNavGraph(
             VersePickerChapterScreen(
                 navController = navController,
                 returnScreen = screenRouteParams.returnScreen,
-                book = screenRouteParams.book
+                book = screenRouteParams.book,
+                scriptureTaskType = screenRouteParams.scriptureTaskType
             )
         }
 
@@ -284,7 +287,8 @@ fun SetUpNavGraph(
                 navController = navController,
                 returnScreen = screenRouteParams.returnScreen,
                 book = screenRouteParams.book,
-                chapter = screenRouteParams.chapter
+                chapter = screenRouteParams.chapter,
+                scriptureTaskType = screenRouteParams.scriptureTaskType
             )
         }
 
@@ -295,7 +299,8 @@ fun SetUpNavGraph(
                 returnScreen = screenRouteParams.returnScreen,
                 book = screenRouteParams.book,
                 chapter = screenRouteParams.chapter,
-                startVerse = screenRouteParams.startVerse
+                startVerse = screenRouteParams.startVerse,
+                scriptureTaskType = screenRouteParams.scriptureTaskType
             )
         }
     }

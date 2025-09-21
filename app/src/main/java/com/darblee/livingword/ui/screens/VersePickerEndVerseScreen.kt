@@ -50,6 +50,7 @@ import com.darblee.livingword.Screen
 import com.darblee.livingword.getTargetScreen
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.data.BibleVerseRef
+import com.darblee.livingword.data.ScriptureTaskType
 
 @Composable
 fun VersePickerEndVerseScreen(
@@ -57,7 +58,8 @@ fun VersePickerEndVerseScreen(
     returnScreen: String,
     book: String,
     chapter: Int,
-    startVerse: Int
+    startVerse: Int,
+    scriptureTaskType: ScriptureTaskType
 ) {
     val scrollState = rememberScrollState()
 
@@ -76,7 +78,7 @@ fun VersePickerEndVerseScreen(
                     modifier = Modifier
                         .clickable(
                             onClick = {
-                                navController.navigate(Screen.VersePickerBookScreen(returnScreen))
+                                navController.navigate(Screen.VersePickerBookScreen(returnScreen, scriptureTaskType))
                             },
                             role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
@@ -95,7 +97,7 @@ fun VersePickerEndVerseScreen(
                     modifier = Modifier
                         .clickable(
                             onClick = {
-                                navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book))
+                                navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book, scriptureTaskType))
                             },
                             role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
@@ -114,7 +116,7 @@ fun VersePickerEndVerseScreen(
                     modifier = Modifier
                         .clickable(
                             onClick = {
-                                navController.navigate(Screen.VersePickerStartVerseScreen(returnScreen, book, chapter))
+                                navController.navigate(Screen.VersePickerStartVerseScreen(returnScreen, book, chapter, scriptureTaskType))
                             },
                             role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
@@ -145,7 +147,7 @@ fun VersePickerEndVerseScreen(
                     onClick = {
                         // Navigate back to original screen
                         navController.navigate(getTargetScreen(returnScreen)) {
-                            popUpTo(Screen.VersePickerBookScreen(returnScreen)) {
+                            popUpTo(Screen.VersePickerBookScreen(returnScreen, scriptureTaskType)) {
                                 inclusive = true
                             }
                         }
@@ -193,7 +195,8 @@ fun VersePickerEndVerseScreen(
                                 book = book,
                                 chapter = chapter,
                                 startVerse = startVerse,
-                                endVerse = selectedVerse
+                                endVerse = selectedVerse,
+                                scriptureTaskType = scriptureTaskType
                             )
 
                             // Save result to savedStateHandle for the originating screen
@@ -226,7 +229,7 @@ fun VersePickerEndVerseScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
-                        onClick = { navController.navigate(Screen.VersePickerBookScreen(returnScreen)) },
+                        onClick = { navController.navigate(Screen.VersePickerBookScreen(returnScreen, scriptureTaskType)) },
                         shape = RoundedCornerShape(8.dp),
                         modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
                         contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
@@ -240,7 +243,7 @@ fun VersePickerEndVerseScreen(
                     }
 
                     Button(
-                        onClick = { navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book)) },
+                        onClick = { navController.navigate(Screen.VersePickerChapterScreen(returnScreen, book, scriptureTaskType)) },
                         shape = RoundedCornerShape(8.dp),
                         modifier = Global.SMALL_ACTION_BUTTON_MODIFIER,
                         contentPadding = Global.SMALL_ACTION_BUTTON_PADDING
@@ -255,7 +258,7 @@ fun VersePickerEndVerseScreen(
 
                     Button(
                         onClick = {
-                            navController.navigate(Screen.VersePickerStartVerseScreen(returnScreen, book, chapter))
+                            navController.navigate(Screen.VersePickerStartVerseScreen(returnScreen, book, chapter, scriptureTaskType))
                         },
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = Global.SMALL_ACTION_BUTTON_PADDING

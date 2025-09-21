@@ -1,6 +1,8 @@
 package com.darblee.livingword.ui.screens
 
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,31 +36,165 @@ import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.data.BibleVerseRef
+import com.darblee.livingword.data.ScriptureTaskType
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import kotlinx.serialization.json.Json
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.darblee.livingword.data.BibleVerse
+import com.darblee.livingword.ui.viewmodels.NewVerseViewModel
+
+
 
 @Composable
 fun FlashCardScreen(
     navController: NavController,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
-    bibleVerseViewModel: BibleVerseViewModel
+    bibleVerseViewModel: BibleVerseViewModel,
+    newVerseJson: String? = null
 ) {
-    var selectedVerseRef by remember { mutableStateOf<BibleVerseRef?>(null) }
+    val context = LocalContext.current
+
+    val newVerseViewModel: NewVerseViewModel = viewModel(
+        // Scope to the navigation host instead of this composable so it survives navigation
+        viewModelStoreOwner = LocalActivity.current as ComponentActivity
+    )
+
+    LaunchedEffect(newVerseJson) {
+        newVerseJson?.let {
+            try {
+                val bibleVerseRef = Json.decodeFromString<BibleVerseRef>(it)
+                // Here, you would call the function to add the verse to your database
+                // For example, if bibleViewModel has an addVerse function:
+                // bibleViewModel.addVerse(bibleVerseRef)
+                // For now, let's just show a toast
+                Toast.makeText(context, "Attempting to add verse: ${bibleVerseRef.book} ${bibleVerseRef.chapter}:${bibleVerseRef.startVerse}", Toast.LENGTH_LONG).show()
+
+                // You'll need to decide how to handle the actual saving. If it's a simple add:
+                bibleVerseViewModel.saveNewVerse(
+                    verse = bibleVerseRef,
+                    aiTakeAwayResponse = "", // You might need to fetch this or pass it
+                    topics = emptyList(), // You might need to fetch this or pass it
+                    newVerseViewModel = newVerseViewModel, // Pass the NewVerseViewModel instance
+                    translation = "KJV", // You might need to pass this
+                    scriptureVerses = emptyList() // You might need to fetch this or pass it
+                )
+
+            } catch (e: Exception) {
+                Log.e("AllVersesScreen", "Error parsing newVerseJson: ${e.message}", e)
+                Toast.makeText(context, "Error adding verse: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Use LaunchedEffect tied to lifecycle to observe results from SavedStateHandle
+    // --- Handle Navigation Results ---
+    val newVerseState by newVerseViewModel.state.collectAsStateWithLifecycle()
+
+    var showRetrievingDataDialog by remember { mutableStateOf(false) }
+
+    var showExistingVerseDialog by remember { mutableStateOf(false) }
+    var existingVerseForDialog by remember { mutableStateOf<BibleVerse?>(null) }
 
     // Check for VersePicker result - use the back stack size as a trigger
-    val backStackSize = navController.currentBackStack.value.size
-
+    var selectedVerseFromAddVerse by remember { mutableStateOf<BibleVerseRef?>(null) }
+    val backStackSize = navController.currentBackStack.collectAsState().value.size
     LaunchedEffect(backStackSize) {
-        val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-        savedStateHandle?.get<String>(Global.VERSE_RESULT_KEY)?.let { resultJson ->
-            val verseRef = Json.decodeFromString<BibleVerseRef>(resultJson)
-            selectedVerseRef = verseRef
-            // Clear the result to prevent reprocessing
-            savedStateHandle.remove<String>(Global.VERSE_RESULT_KEY)
+        try {
+            val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+            savedStateHandle?.get<String>(Global.VERSE_RESULT_KEY)?.let { resultJson ->
+                val verseRef = Json.decodeFromString<BibleVerseRef>(resultJson)
+                selectedVerseFromAddVerse = verseRef
+
+                // Clear the result to prevent reprocessing
+                savedStateHandle.remove<String>(Global.VERSE_RESULT_KEY)
+            }
+
+            if (selectedVerseFromAddVerse == null) {
+                newVerseViewModel.setSelectedVerseAndFetchData(null) // Clear data on error
+                return@LaunchedEffect
+            }
+
+            val existingVerse = bibleVerseViewModel.findExistingVerse(
+                book = selectedVerseFromAddVerse!!.book,
+                chapter = selectedVerseFromAddVerse!!.chapter,
+                startVerse = selectedVerseFromAddVerse!!.startVerse
+            )
+
+            if (existingVerse != null) {
+                Log.i(
+                    "AllVerseScreen",
+                    "Verse \"${existingVerse.book}\" ${existingVerse.chapter}:${existingVerse.startVerse} already exists in DB with ID: ${existingVerse.id}."
+                )
+
+                existingVerseForDialog = existingVerse // Store for dialog
+                showExistingVerseDialog = true
+
+                // Navigation to VerseDetail will happen when dialog is dismissed
+            } else {
+                // Verse does not exist, proceed with fetching all the date - scripture and take-away
+                Log.i(
+                    "AllVerseScreen",
+                    "Verse \"${selectedVerseFromAddVerse!!.book}\" ${selectedVerseFromAddVerse!!.chapter}:${selectedVerseFromAddVerse!!.startVerse} not found in DB. Fetching new data."
+                )
+
+/*                showRetrievingDataDialog = true
+                newVerseViewModel.setSelectedVerseAndFetchData(selectedVerseFromAddVerse)*/
+            }
+        } catch (e: Exception) {
+            Log.e("AllVerseScreen", "Error deserializing BibleVerse: ${e.message}", e)
+            newVerseViewModel.setSelectedVerseAndFetchData(null) // Clear data on error
+            return@LaunchedEffect
         }
+    }
+
+
+    var showAIErrorDialog by remember { mutableStateOf(false) }
+    var aiErrorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(newVerseState.scriptureError, newVerseState.aiResponseError) {
+        val error = newVerseState.scriptureError ?: newVerseState.aiResponseError
+        if (error != null) {
+            aiErrorMessage = error
+            showAIErrorDialog = true
+            showRetrievingDataDialog = false
+        }
+    }
+
+    if (showRetrievingDataDialog) {
+        TransientDialog(loadingMessage = "Fetching scripture ...")
+    }
+
+    if (showExistingVerseDialog && existingVerseForDialog != null) {
+        val verseToShow = existingVerseForDialog!! // Safe due to the check
+        AlertDialog(
+            onDismissRequest = {
+                showExistingVerseDialog = false
+                existingVerseForDialog = null
+                newVerseViewModel.clearVerseData()
+            },
+            title = { Text("Verse Exists") },
+            text = { Text("The verse '${verseToShow.book} ${verseToShow.chapter}:${verseToShow.startVerse}' " +
+                    "already exists in your collection. You will be taken to the verse detail for option to edit it.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExistingVerseDialog = false
+                        navController.navigate(Screen.VerseDetailScreen(verseID = verseToShow.id, editMode = false)) {
+                            popUpTo(Screen.Home)
+                        }
+                        newVerseViewModel.clearVerseData()
+                        existingVerseForDialog = null
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
     }
 
     AppScaffold(
@@ -76,7 +214,7 @@ fun FlashCardScreen(
             ) {
                 Button(
                     onClick = {
-                        val versePickerRoute = BibleData.createVersePickerRoute(Screen.FlashCardScreen)
+                        val versePickerRoute = BibleData.createVersePickerRoute(Screen.FlashCardScreen, ScriptureTaskType.GetScriptureRefOnly)
                         navController.navigate(versePickerRoute)
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -85,7 +223,7 @@ fun FlashCardScreen(
                 }
 
                 // Display selected verse information
-                selectedVerseRef?.let { verseRef ->
+                selectedVerseFromAddVerse?.let { verseRef ->
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Card(
@@ -143,7 +281,6 @@ fun FlashCardScreen(
         }
     )
 
-    val context = LocalContext.current
     val activity = LocalActivity.current
     var backPressedTime by remember { mutableLongStateOf(0L) }
     BackPressHandler {

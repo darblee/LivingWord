@@ -9,6 +9,13 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.IOException
 
+
+enum class ScriptureTaskType {
+    GetScriptureRefOnly,
+    GetScriptureAndTakeAway
+}
+
+
 /**
  * Represents the selected Bible verse components.
  * This is used both as a result type and potentially part of a screen's state.
@@ -19,7 +26,8 @@ data class BibleVerseRef(
     val book: String,
     val chapter: Int,
     val startVerse: Int,
-    val endVerse: Int
+    val endVerse: Int,
+    val scriptureTaskType: ScriptureTaskType = ScriptureTaskType.GetScriptureRefOnly
 )
 
 /**
@@ -274,15 +282,16 @@ object BibleData {
      * saveStateHandle will have verse result and user will navigate back to this screen.
      *
      * @param route The screen to return to when user cancels or completes selection
+     * @param scriptureTaskType The type of scripture task being performed
      * @return The Screen route to navigate to for starting verse picking
      */
-    fun createVersePickerRoute(route: com.darblee.livingword.Screen): com.darblee.livingword.Screen {
+    fun createVersePickerRoute(route: com.darblee.livingword.Screen, scriptureTaskType: ScriptureTaskType): com.darblee.livingword.Screen {
         val screenId = when (route) {
             is com.darblee.livingword.Screen.FlashCardScreen -> "FlashCardScreen"
             is com.darblee.livingword.Screen.AllVersesScreen -> "AllVersesScreen"
             is com.darblee.livingword.Screen.TopicScreen -> "TopicScreen"
             else -> "FlashCardScreen" // Default fallback
         }
-        return com.darblee.livingword.Screen.VersePickerBookScreen(screenId)
+        return com.darblee.livingword.Screen.VersePickerBookScreen(screenId, scriptureTaskType)
     }
 }

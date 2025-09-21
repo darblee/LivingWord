@@ -43,6 +43,7 @@ import com.darblee.livingword.Screen
 import com.darblee.livingword.getTargetScreen
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.data.BookInfo
+import com.darblee.livingword.data.ScriptureTaskType
 import com.darblee.livingword.ui.theme.ColorThemeOption
 
 /**
@@ -58,7 +59,8 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
 fun VersePickerBookScreen(
     navController: NavHostController,
     currentTheme: ColorThemeOption,
-    returnScreen: String
+    returnScreen: String,
+    scriptureTaskType: ScriptureTaskType
 ) {
     // State to keep track of the selected tab index
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -102,7 +104,7 @@ fun VersePickerBookScreen(
                     onClick = {
                         // Navigate back to original screen
                         navController.navigate(getTargetScreen(returnScreen)) {
-                            popUpTo(Screen.VersePickerBookScreen(returnScreen)) {
+                            popUpTo(Screen.VersePickerBookScreen(returnScreen, scriptureTaskType)) {
                                 inclusive = true
                             }
                         }
@@ -152,7 +154,8 @@ fun VersePickerBookScreen(
                             navController.navigate(
                                 Screen.VersePickerChapterScreen(
                                     returnScreen,
-                                    bookInfo.fullName
+                                    bookInfo.fullName,
+                                    scriptureTaskType
                                 )
                             )
                         },
