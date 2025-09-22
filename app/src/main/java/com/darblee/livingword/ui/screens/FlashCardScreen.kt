@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -101,49 +100,55 @@ fun FlashCardScreen(
     var existingVerseForDialog by remember { mutableStateOf<BibleVerse?>(null) }
 
     // Check for VersePicker result - use the back stack size as a trigger
-    var selectedVerseFromAddVerse by remember { mutableStateOf<BibleVerseRef?>(null) }
+    var selectedVerse by remember { mutableStateOf<BibleVerseRef?>(null) }
     val backStackSize = navController.currentBackStack.collectAsState().value.size
     LaunchedEffect(backStackSize) {
         try {
             val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
             savedStateHandle?.get<String>(Global.VERSE_RESULT_KEY)?.let { resultJson ->
                 val verseRef = Json.decodeFromString<BibleVerseRef>(resultJson)
-                selectedVerseFromAddVerse = verseRef
+                selectedVerse = verseRef
 
                 // Clear the result to prevent reprocessing
                 savedStateHandle.remove<String>(Global.VERSE_RESULT_KEY)
             }
 
-            if (selectedVerseFromAddVerse == null) {
+            if (selectedVerse == null) {
                 newVerseViewModel.setSelectedVerseAndFetchData(null) // Clear data on error
                 return@LaunchedEffect
             }
 
-            val existingVerse = bibleVerseViewModel.findExistingVerse(
-                book = selectedVerseFromAddVerse!!.book,
-                chapter = selectedVerseFromAddVerse!!.chapter,
-                startVerse = selectedVerseFromAddVerse!!.startVerse
-            )
-
-            if (existingVerse != null) {
-                Log.i(
-                    "AllVerseScreen",
-                    "Verse \"${existingVerse.book}\" ${existingVerse.chapter}:${existingVerse.startVerse} already exists in DB with ID: ${existingVerse.id}."
-                )
-
-                existingVerseForDialog = existingVerse // Store for dialog
-                showExistingVerseDialog = true
-
-                // Navigation to VerseDetail will happen when dialog is dismissed
+            if (selectedVerse!!.scriptureTaskType == ScriptureTaskType.GetScriptureRefOnly) {
+                Log.i("FlashCardScreen", "VersePicker returned ScriptureTaskType.GetScriptureRefOnly.")
             } else {
-                // Verse does not exist, proceed with fetching all the date - scripture and take-away
-                Log.i(
-                    "AllVerseScreen",
-                    "Verse \"${selectedVerseFromAddVerse!!.book}\" ${selectedVerseFromAddVerse!!.chapter}:${selectedVerseFromAddVerse!!.startVerse} not found in DB. Fetching new data."
+                Log.i("FlashCardScreen", "VersePicker returned ScriptureTaskType.GetScriptureText.")
+
+                val existingVerse = bibleVerseViewModel.findExistingVerse(
+                    book = selectedVerse!!.book,
+                    chapter = selectedVerse!!.chapter,
+                    startVerse = selectedVerse!!.startVerse
                 )
 
-/*                showRetrievingDataDialog = true
+                if (existingVerse != null) {
+                    Log.i(
+                        "AllVerseScreen",
+                        "Verse \"${existingVerse.book}\" ${existingVerse.chapter}:${existingVerse.startVerse} already exists in DB with ID: ${existingVerse.id}."
+                    )
+
+                    existingVerseForDialog = existingVerse // Store for dialog
+                    showExistingVerseDialog = true
+
+                    // Navigation to VerseDetail will happen when dialog is dismissed
+                } else {
+                    // Verse does not exist, proceed with fetching all the date - scripture and take-away
+                    Log.i(
+                        "AllVerseScreen",
+                        "Verse \"${selectedVerse!!.book}\" ${selectedVerse!!.chapter}:${selectedVerse!!.startVerse} not found in DB. Fetching new data."
+                    )
+
+                    /*                showRetrievingDataDialog = true
                 newVerseViewModel.setSelectedVerseAndFetchData(selectedVerseFromAddVerse)*/
+                }
             }
         } catch (e: Exception) {
             Log.e("AllVerseScreen", "Error deserializing BibleVerse: ${e.message}", e)
@@ -212,71 +217,7 @@ fun FlashCardScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(
-                    onClick = {
-                        val versePickerRoute = BibleData.createVersePickerRoute(Screen.FlashCardScreen, ScriptureTaskType.GetScriptureRefOnly)
-                        navController.navigate(versePickerRoute)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Select Verse for Quiz")
-                }
-
-                // Display selected verse information
-                selectedVerseFromAddVerse?.let { verseRef ->
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Selected Verse:",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Text(
-                                text = "Book: ${verseRef.book}",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-
-                            Text(
-                                text = "Chapter: ${verseRef.chapter}",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-
-                            val verseRange = if (verseRef.startVerse == verseRef.endVerse) {
-                                "Verse: ${verseRef.startVerse}"
-                            } else {
-                                "Verses: ${verseRef.startVerse}-${verseRef.endVerse}"
-                            }
-
-                            Text(
-                                text = verseRange,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-
-                            Text(
-                                text = "Reference: ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}" +
-                                        if (verseRef.startVerse != verseRef.endVerse) "-${verseRef.endVerse}" else "",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-                } ?: run {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(
-                        text = "No verse selected yet.\nTap the button above to select a verse for your quiz.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                HandleScriptureRef(selectedVerse, navController)
             }
         }
     )
@@ -290,5 +231,74 @@ fun FlashCardScreen(
             backPressedTime = System.currentTimeMillis()
             Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show()
         }
+    }
+}
+
+@Composable
+fun HandleScriptureRef(selectedVerse: BibleVerseRef?, navController: NavController) {
+
+    Button(
+        onClick = {
+            val versePickerRoute = BibleData.createVersePickerRoute(Screen.FlashCardScreen, ScriptureTaskType.GetScriptureRefOnly)
+            navController.navigate(versePickerRoute)
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Select Verse for Quiz")
+    }
+
+    selectedVerse?.let { verseRef ->
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Selected Verse:",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "Book: ${verseRef.book}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Text(
+                    text = "Chapter: ${verseRef.chapter}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                val verseRange = if (verseRef.startVerse == verseRef.endVerse) {
+                    "Verse: ${verseRef.startVerse}"
+                } else {
+                    "Verses: ${verseRef.startVerse}-${verseRef.endVerse}"
+                }
+
+                Text(
+                    text = verseRange,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Text(
+                    text = "Reference: ${verseRef.book} ${verseRef.chapter}:${verseRef.startVerse}" +
+                            if (verseRef.startVerse != verseRef.endVerse) "-${verseRef.endVerse}" else "",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+    } ?: run {
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "No verse selected yet.\nTap the button above to select a verse for your quiz.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
