@@ -58,44 +58,6 @@ fun FlashCardScreen(
 ) {
     val context = LocalContext.current
 
-    val newVerseViewModel: NewVerseViewModel = viewModel(
-        // Scope to the navigation host instead of this composable so it survives navigation
-        viewModelStoreOwner = LocalActivity.current as ComponentActivity
-    )
-
-    LaunchedEffect(newVerseJson) {
-        newVerseJson?.let {
-            try {
-                val bibleVerseRef = Json.decodeFromString<BibleVerseRef>(it)
-                // Here, you would call the function to add the verse to your database
-                // For example, if bibleViewModel has an addVerse function:
-                // bibleViewModel.addVerse(bibleVerseRef)
-                // For now, let's just show a toast
-                Toast.makeText(context, "Attempting to add verse: ${bibleVerseRef.book} ${bibleVerseRef.chapter}:${bibleVerseRef.startVerse}", Toast.LENGTH_LONG).show()
-
-                // You'll need to decide how to handle the actual saving. If it's a simple add:
-                bibleVerseViewModel.saveNewVerse(
-                    verse = bibleVerseRef,
-                    aiTakeAwayResponse = "", // You might need to fetch this or pass it
-                    topics = emptyList(), // You might need to fetch this or pass it
-                    newVerseViewModel = newVerseViewModel, // Pass the NewVerseViewModel instance
-                    translation = "KJV", // You might need to pass this
-                    scriptureVerses = emptyList() // You might need to fetch this or pass it
-                )
-
-            } catch (e: Exception) {
-                Log.e("AllVersesScreen", "Error parsing newVerseJson: ${e.message}", e)
-                Toast.makeText(context, "Error adding verse: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    // Use LaunchedEffect tied to lifecycle to observe results from SavedStateHandle
-    // --- Handle Navigation Results ---
-    val newVerseState by newVerseViewModel.state.collectAsStateWithLifecycle()
-
-    var showRetrievingDataDialog by remember { mutableStateOf(false) }
-
     var showExistingVerseDialog by remember { mutableStateOf(false) }
     var existingVerseForDialog by remember { mutableStateOf<BibleVerse?>(null) }
 
@@ -114,7 +76,6 @@ fun FlashCardScreen(
             }
 
             if (selectedVerse == null) {
-                newVerseViewModel.setSelectedVerseAndFetchData(null) // Clear data on error
                 return@LaunchedEffect
             }
 
@@ -131,7 +92,7 @@ fun FlashCardScreen(
 
                 if (existingVerse != null) {
                     Log.i(
-                        "AllVerseScreen",
+                        "FlashCardScreen",
                         "Verse \"${existingVerse.book}\" ${existingVerse.chapter}:${existingVerse.startVerse} already exists in DB with ID: ${existingVerse.id}."
                     )
 
@@ -142,36 +103,15 @@ fun FlashCardScreen(
                 } else {
                     // Verse does not exist, proceed with fetching all the date - scripture and take-away
                     Log.i(
-                        "AllVerseScreen",
+                        "FlashCardScreen",
                         "Verse \"${selectedVerse!!.book}\" ${selectedVerse!!.chapter}:${selectedVerse!!.startVerse} not found in DB. Fetching new data."
                     )
-
-                    /*                showRetrievingDataDialog = true
-                newVerseViewModel.setSelectedVerseAndFetchData(selectedVerseFromAddVerse)*/
                 }
             }
         } catch (e: Exception) {
             Log.e("AllVerseScreen", "Error deserializing BibleVerse: ${e.message}", e)
-            newVerseViewModel.setSelectedVerseAndFetchData(null) // Clear data on error
             return@LaunchedEffect
         }
-    }
-
-
-    var showAIErrorDialog by remember { mutableStateOf(false) }
-    var aiErrorMessage by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(newVerseState.scriptureError, newVerseState.aiResponseError) {
-        val error = newVerseState.scriptureError ?: newVerseState.aiResponseError
-        if (error != null) {
-            aiErrorMessage = error
-            showAIErrorDialog = true
-            showRetrievingDataDialog = false
-        }
-    }
-
-    if (showRetrievingDataDialog) {
-        TransientDialog(loadingMessage = "Fetching scripture ...")
     }
 
     if (showExistingVerseDialog && existingVerseForDialog != null) {
@@ -180,7 +120,6 @@ fun FlashCardScreen(
             onDismissRequest = {
                 showExistingVerseDialog = false
                 existingVerseForDialog = null
-                newVerseViewModel.clearVerseData()
             },
             title = { Text("Verse Exists") },
             text = { Text("The verse '${verseToShow.book} ${verseToShow.chapter}:${verseToShow.startVerse}' " +
@@ -192,7 +131,6 @@ fun FlashCardScreen(
                         navController.navigate(Screen.VerseDetailScreen(verseID = verseToShow.id, editMode = false)) {
                             popUpTo(Screen.Home)
                         }
-                        newVerseViewModel.clearVerseData()
                         existingVerseForDialog = null
                     }
                 ) {
@@ -218,6 +156,24 @@ fun FlashCardScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 HandleScriptureRef(selectedVerse, navController)
+
+                Button(
+                    onClick = {
+                        navController.navigate(Screen.QuizByTopicScreen)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("By Topic")
+                }
+
+                Button(
+                    onClick = {
+                        // TODO : Handle scripture verse quiz
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("By Scripture")
+                }
             }
         }
     )
