@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.text.KeyboardActions
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -161,6 +163,8 @@ internal fun TopicSelectionContent(
     val keyboardController = LocalSoftwareKeyboardController.current
     var newTopicText by remember { mutableStateOf("") }
     var showDialog by remember { mutableStateOf(false) } // Added state for dialog
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
 
     AppScaffold(
         title = { Text("Topic Selection") },
@@ -176,7 +180,7 @@ internal fun TopicSelectionContent(
                     .padding(16.dp),
             ) {
                 Text(
-                    text = "Select Topics. Add new one if needed",
+                    text = "Select Topic(s). Add new one if needed",
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -232,13 +236,15 @@ internal fun TopicSelectionContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2), // 2 columns
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = screenHeight * 0.55f)
                 ) {
                     topicSelections.keys.toList().sorted().forEach { topic ->
                         item {
@@ -252,7 +258,7 @@ internal fun TopicSelectionContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
                     onClick = {
