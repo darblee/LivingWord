@@ -192,7 +192,8 @@ fun SetUpNavGraph(
         composable<Screen.QuizByTopicScreen> {
             QuizByTopicScreen(navController = navController,
                 onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme)
+                currentTheme = currentTheme,
+                bibleVerseViewModel = bibleViewModel)
         }
 
         composable<Screen.GetBookScreen> {
