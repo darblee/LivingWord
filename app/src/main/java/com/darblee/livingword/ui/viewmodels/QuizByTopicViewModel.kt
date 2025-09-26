@@ -71,6 +71,22 @@ class QuizByTopicViewModel : ViewModel() {
     }
 
     /**
+     * Clear all verse selections
+     *
+     * This function is needed for test case testing.
+     */
+    fun clearVerseSelections() {
+        _state.update { current ->
+            current.copy(
+                quizVerses = current.quizVerses.map { verse ->
+                    verse.copy(isSelected = false)
+                },
+                isValidated = false
+            )
+        }
+    }
+
+    /**
      * Validate user's answers and mark each verse as correct or incorrect
      */
     fun validateAnswers() {
