@@ -159,15 +159,6 @@ fun FlashCardScreen(
 
                 Button(
                     onClick = {
-                        navController.navigate(Screen.QuizByTopicScreen)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("By Topic")
-                }
-
-                Button(
-                    onClick = {
                         // TODO : Handle scripture verse quiz
                     },
                     modifier = Modifier.fillMaxWidth()

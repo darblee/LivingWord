@@ -24,7 +24,6 @@ import com.darblee.livingword.ui.screens.AddVerseByDescriptionScreen
 import com.darblee.livingword.ui.screens.AllVersesScreen
 import com.darblee.livingword.ui.screens.FlashCardScreen
 import com.darblee.livingword.ui.screens.GetBookScreen
-import com.darblee.livingword.ui.screens.QuizByTopicScreen
 import com.darblee.livingword.ui.screens.GetChapterScreen
 import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
 import com.darblee.livingword.ui.screens.GetStartVerseNumberScreen
@@ -64,9 +63,6 @@ sealed class Screen {
 
     @Serializable
     data object FlashCardScreen : Screen()
-
-    @Serializable
-    data object QuizByTopicScreen : Screen()
 
     @Serializable
     data class TopicSelectionScreen(val selectedTopicsJson: String? = null) : Screen()
@@ -178,14 +174,6 @@ fun SetUpNavGraph(
         // Define the Flash Card Screen destination.
         composable<Screen.FlashCardScreen> {
             FlashCardScreen(navController = navController,
-                onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme,
-                bibleVerseViewModel = bibleViewModel)
-        }
-
-        // Define the Quiz by Topic Screen destination.
-        composable<Screen.QuizByTopicScreen> {
-            QuizByTopicScreen(navController = navController,
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme,
                 bibleVerseViewModel = bibleViewModel)
