@@ -287,10 +287,9 @@ object BibleData {
      */
     fun createVersePickerRoute(route: com.darblee.livingword.Screen, scriptureTaskType: ScriptureTaskType): com.darblee.livingword.Screen {
         val screenId = when (route) {
-            is com.darblee.livingword.Screen.FlashCardScreen -> "FlashCardScreen"
             is com.darblee.livingword.Screen.AllVersesScreen -> "AllVersesScreen"
             is com.darblee.livingword.Screen.TopicScreen -> "TopicScreen"
-            else -> "FlashCardScreen" // Default fallback
+            else -> "AllVersesScreen" // Default fallback
         }
         return com.darblee.livingword.Screen.VersePickerBookScreen(screenId, scriptureTaskType)
     }

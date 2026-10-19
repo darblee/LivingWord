@@ -22,7 +22,6 @@ import androidx.navigation.toRoute
 import com.darblee.livingword.ui.viewmodels.BibleVerseViewModel
 import com.darblee.livingword.ui.screens.AddVerseByDescriptionScreen
 import com.darblee.livingword.ui.screens.AllVersesScreen
-import com.darblee.livingword.ui.screens.FlashCardScreen
 import com.darblee.livingword.ui.screens.GetBookScreen
 import com.darblee.livingword.ui.screens.GetChapterScreen
 import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
@@ -60,9 +59,6 @@ sealed class Screen {
 
     @Serializable
     data object TopicScreen : Screen()
-
-    @Serializable
-    data object FlashCardScreen : Screen()
 
     @Serializable
     data class TopicSelectionScreen(val selectedTopicsJson: String? = null) : Screen()
@@ -130,10 +126,9 @@ sealed class Screen {
  */
 fun getTargetScreen(screenName: String): Screen {
     return when (screenName) {
-        "FlashCardScreen" -> Screen.FlashCardScreen
         "AllVersesScreen" -> Screen.AllVersesScreen
         "TopicScreen" -> Screen.TopicScreen
-        else -> Screen.FlashCardScreen // Default fallback
+        else -> Screen.AllVersesScreen // Default fallback
     }
 }
 
@@ -169,14 +164,6 @@ fun SetUpNavGraph(
             TopicScreen(navController = navController, bibleViewModel = bibleViewModel,
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme)
-        }
-
-        // Define the Flash Card Screen destination.
-        composable<Screen.FlashCardScreen> {
-            FlashCardScreen(navController = navController,
-                onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme,
-                bibleVerseViewModel = bibleViewModel)
         }
 
         composable<Screen.GetBookScreen> {
