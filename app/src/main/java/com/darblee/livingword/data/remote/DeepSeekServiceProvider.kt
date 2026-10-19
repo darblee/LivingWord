@@ -7,6 +7,7 @@ import com.darblee.livingword.data.BibleVerseRef
 import com.darblee.livingword.data.Verse
 import com.darblee.livingword.ui.viewmodels.ScoreData
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 class DeepSeekServiceProvider : AIServiceProvider {
 
@@ -56,7 +57,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
     ): AiServiceResult<List<Verse>> {
         return try {
             if (!isInitialized()) return AiServiceResult.Error("DeepSeek provider not initialized")
-            withTimeoutOrNull(30000L) {
+            withTimeoutOrNull(30000L.milliseconds) {
                 DeepSeekService.fetchScripture(verseRef, translation, systemInstruction, userPrompt)
             } ?: AiServiceResult.Error("DeepSeek error: Timed out after 30 seconds")
         } catch (e: Exception) {
@@ -72,7 +73,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
     ): AiServiceResult<String> {
         return try {
             if (!isInitialized()) return AiServiceResult.Error("DeepSeek provider not initialized")
-            withTimeoutOrNull(30000L) {
+            withTimeoutOrNull(30000L.milliseconds) {
                 DeepSeekService.getKeyTakeaway(verseRef, systemInstruction, userPrompt)
             } ?: AiServiceResult.Error("DeepSeek error: Timed out after 30 seconds")
         } catch (e: Exception) {
@@ -90,7 +91,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
     ): AiServiceResult<ScoreData> {
         return try {
             if (!isInitialized()) return AiServiceResult.Error("DeepSeek provider not initialized")
-            withTimeoutOrNull(30000L) {
+            withTimeoutOrNull(30000L.milliseconds) {
                 DeepSeekService.getAIScore(verseRef, userApplicationComment, systemInstruction, userPrompt, applicationFeedbackPrompt)
             } ?: AiServiceResult.Error("DeepSeek error: Timed out after 30 seconds")
         } catch (e: Exception) {
@@ -105,7 +106,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
     ): AiServiceResult<Boolean> {
         return try {
             if (!isInitialized()) return AiServiceResult.Error("DeepSeek provider not initialized")
-            withTimeoutOrNull(30000L) {
+            withTimeoutOrNull(30000L.milliseconds) {
                 DeepSeekService.validateKeyTakeawayResponse(systemInstruction, userPrompt)
             } ?: AiServiceResult.Error("DeepSeek error: Timed out after 30 seconds")
         } catch (e: Exception) {
@@ -121,7 +122,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
     ): AiServiceResult<List<BibleVerseRef>> {
         return try {
             if (!isInitialized()) return AiServiceResult.Error("DeepSeek provider not initialized")
-            withTimeoutOrNull(30000L) {
+            withTimeoutOrNull(30000L.milliseconds) {
                 DeepSeekService.getNewVersesBasedOnDescription(description, systemInstruction, userPrompt)
             } ?: AiServiceResult.Error("DeepSeek error: Timed out after 30 seconds")
         } catch (e: Exception) {
