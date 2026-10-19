@@ -1,5 +1,6 @@
 package com.darblee.livingword.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -127,25 +128,26 @@ fun GetBookScreen(
     }
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
-fun OldTestamentTab(
+private fun OldTestamentTab(
     navController: NavHostController,
     books: List<BookInfo>,
     currentTheme: ColorThemeOption
 ) {
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val (minCellSize, buttonHeight) = BibleData.bookGridLayout(screenWidthDp)
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
+        columns = GridCells.Adaptive(minSize = minCellSize.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
         contentPadding = PaddingValues(top = 16.dp),
         modifier = Modifier.fillMaxSize(),
         content = {
-            // Use itemsIndexed to get index for color logic
             itemsIndexed(books) { index, bookInfo ->
                 val buttonColor = if (currentTheme == ColorThemeOption.Light) {
                     Color.Blue
                 } else {
-                    // Color logic based on index within the OT list
                     when (index) {
                         in 0..4 -> Color.Yellow // Pentateuch
                         in 5..16 -> Color.Green // History
@@ -154,31 +156,32 @@ fun OldTestamentTab(
                         else -> Color.Blue // Minor Prophets
                     }
                 }
-                BookButton(navController, bookInfo, buttonColor)
+                BookButton(navController, bookInfo, buttonColor, buttonHeight)
             }
         }
     )
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
-fun NewTestamentTab(
+private fun NewTestamentTab(
     navController: NavHostController,
     books: List<BookInfo>,
     currentTheme: ColorThemeOption
 ) {
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val (minCellSize, buttonHeight) = BibleData.bookGridLayout(screenWidthDp)
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
+        columns = GridCells.Adaptive(minSize = minCellSize.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
         contentPadding = PaddingValues(top = 16.dp),
         modifier = Modifier.fillMaxSize(),
         content = {
-            // Use itemsIndexed for the NT list as well
             itemsIndexed(books) { index, bookInfo ->
                 val buttonColor = if (currentTheme == ColorThemeOption.Light) {
                     Color.Blue
                 } else {
-                    // Color logic based on index within the NT list
                     when (index) {
                         in 0..3 -> Color.Yellow // Gospels
                         4 -> Color.Green // Acts (History)
@@ -188,32 +191,31 @@ fun NewTestamentTab(
                         else -> Color.Blue // Revelation (Apocalyptic)
                     }
                 }
-                BookButton(navController, bookInfo, buttonColor)
+                BookButton(navController, bookInfo, buttonColor, buttonHeight)
             }
         }
     )
 }
 
 
-// Reusable composable for book buttons
 @Composable
 private fun BookButton(
     navController: NavHostController,
     bookInfo: BookInfo,
-    buttonColor: Color
+    buttonColor: Color,
+    buttonHeight: Int
 ) {
     Button(
         modifier = Modifier
-            .width(Global.BUTTON_WIDTH.dp)
-            .height(Global.BUTTON_HEIGHT.dp),
+            .fillMaxWidth()
+            .height(buttonHeight.dp),
         onClick = {
-            // Navigate using the full name from BookInfo
             navController.navigate(Screen.GetChapterScreen(book = bookInfo.fullName))
         },
         contentPadding = PaddingValues(4.dp),
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), // Make button transparent
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
     ) {
         ProvideTextStyle(value = MaterialTheme.typography.labelLarge.copy(color = buttonColor))
         {

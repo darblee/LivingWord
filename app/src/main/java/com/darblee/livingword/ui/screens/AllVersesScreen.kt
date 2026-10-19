@@ -34,7 +34,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -50,6 +49,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,6 +78,7 @@ import com.darblee.livingword.ui.viewmodels.NewVerseViewModel
 import com.darblee.livingword.ui.components.AppScaffold
 import com.darblee.livingword.ui.theme.ColorThemeOption
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -88,7 +89,6 @@ enum class FilterOption {
     TOPIC
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllVersesScreen(
     navController: NavController,
@@ -135,7 +135,7 @@ fun AllVersesScreen(
     )
 
     // Track if reset has completed to ensure Navigation LaunchedEffect doesn't see stale state
-    var resetCompleted by remember { mutableStateOf(false) }
+    var resetCompleted by rememberSaveable { mutableStateOf(false) }
     
     // Reset the resetCompleted flag when newVerseJson changes (new composition)
     LaunchedEffect(newVerseJson) {
@@ -375,7 +375,7 @@ fun AllVersesScreen(
     }
 
     // Track if we've already navigated to prevent multiple navigations
-    var hasNavigated by remember { mutableStateOf(false) }
+    var hasNavigated by rememberSaveable { mutableStateOf(false) }
 
     // New verse is saved. Now navigate to edit verse screen  
     // IMPORTANT: Collect state directly to avoid stale state issues
@@ -387,43 +387,26 @@ fun AllVersesScreen(
         
         // Only proceed if reset is complete (prevents race condition)
         if (resetCompleted && !hasNavigated) {
-            Log.d("AllVersesScreen", "Conditions met, starting state collection...")
-            
-            // Collect state directly within LaunchedEffect to avoid stale state
-            newVerseViewModel.state.collect { currentState ->
-                Log.d("AllVersesScreen", "Navigation LaunchedEffect: collecting fresh state")
-                Log.d("AllVersesScreen", "Fresh state - newlySavedVerseId: ${currentState.newlySavedVerseId}")
-                Log.d("AllVersesScreen", "Fresh state - isContentSaved: ${currentState.isContentSaved}")
-                Log.d("AllVersesScreen", "Fresh state - loadingStage: ${currentState.loadingStage}")
-                
-                if (currentState.newlySavedVerseId != null && !hasNavigated) {
-                    Log.d("AllVersesScreen", "!!! BOUNCE-BACK NAVIGATION TRIGGERED !!!")
-                    Log.d("AllVersesScreen", "Navigating to VerseDetailScreen(${currentState.newlySavedVerseId}, editMode=true)")
-                    Log.d("AllVersesScreen", "Current back stack:")
-                    navController.currentBackStack.value.forEach { entry ->
-                        Log.d("AllVersesScreen", "  - ${entry.destination.route}")
-                    }
-                    
-                    navController.navigate(Screen.VerseDetailScreen(verseID = currentState.newlySavedVerseId, editMode = true)) {
-                        popUpTo(Screen.Home)
-                    }
-                    hasNavigated = true // Mark as navigated to prevent re-navigation
-                    Log.d("AllVersesScreen", "Bounce-back navigation completed, hasNavigated set to true")
-                    return@collect // Exit the collect loop after navigation
-                } else {
-                    val reason = when {
-                        currentState.newlySavedVerseId == null -> "newlySavedVerseId is null"
-                        hasNavigated -> "already navigated"
-                        else -> "unknown"
-                    }
-                    Log.d("AllVersesScreen", "Navigation conditions not met - reason: $reason")
-                }
+            Log.d("AllVersesScreen", "Conditions met, waiting for verse to be saved...")
+
+            val savedState = newVerseViewModel.state.first { it.newlySavedVerseId != null }
+
+            Log.d("AllVersesScreen", "!!! BOUNCE-BACK NAVIGATION TRIGGERED !!!")
+            Log.d("AllVersesScreen", "Navigating to VerseDetailScreen(${savedState.newlySavedVerseId}, editMode=true)")
+            Log.d("AllVersesScreen", "Current back stack:")
+            navController.currentBackStack.value.forEach { entry ->
+                Log.d("AllVersesScreen", "  - ${entry.destination.route}")
             }
+
+            navController.navigate(Screen.VerseDetailScreen(verseID = savedState.newlySavedVerseId!!, editMode = true)) {
+                popUpTo(Screen.Home)
+            }
+            hasNavigated = true
+            Log.d("AllVersesScreen", "Bounce-back navigation completed, hasNavigated set to true")
         } else {
             val reason = when {
                 !resetCompleted -> "reset not completed (preventing race condition)"
-                hasNavigated -> "already navigated"
-                else -> "unknown"
+                else -> "already navigated"
             }
             Log.d("AllVersesScreen", "Initial conditions not met - reason: $reason")
         }

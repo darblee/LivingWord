@@ -127,8 +127,6 @@ object BibleData {
         }
     }
 
-
-
     // Holds the fully parsed data loaded from the JSON asset file.
     // Structure: Map<FullNameString, BookDetails>
     private var bookDetailsMap: Map<String, BookDetails>? = null
@@ -257,7 +255,7 @@ object BibleData {
         }
 
         // Validate startVerse
-        if (startVerse <= 0 || startVerse > count) {
+        if (startVerse !in 1..count) {
             Log.w(TAG, "Invalid startVerse ($startVerse) for: $book $chapter (Total verses: $count)")
             return emptyList() // Return empty list if startVerse is out of bounds
         }
@@ -271,26 +269,10 @@ object BibleData {
         return this.replace(Regex("""\[\d+]\s?"""), "") // Removes "[N]" and an optional space after it
     }
 
-    /**
-     * Helper function to create a VersePicker navigation route.
-     * This starts the VersePicker navigation flow that guides the user through
-     * book -> chapter -> start verse -> end verse selection.
-     *
-     * Note for return screen:
-     * Use LaunchedEffect to observe the back stack size. This is used when selecting the verse, which
-     * involve navigating couple of screens to select the verse. WHen the final ending verse is selected.
-     * saveStateHandle will have verse result and user will navigate back to this screen.
-     *
-     * @param route The screen to return to when user cancels or completes selection
-     * @param scriptureTaskType The type of scripture task being performed
-     * @return The Screen route to navigate to for starting verse picking
-     */
-    fun createVersePickerRoute(route: com.darblee.livingword.Screen, scriptureTaskType: ScriptureTaskType): com.darblee.livingword.Screen {
-        val screenId = when (route) {
-            is com.darblee.livingword.Screen.AllVersesScreen -> "AllVersesScreen"
-            is com.darblee.livingword.Screen.TopicScreen -> "TopicScreen"
-            else -> "AllVersesScreen" // Default fallback
-        }
-        return com.darblee.livingword.Screen.VersePickerBookScreen(screenId, scriptureTaskType)
+
+    fun bookGridLayout(screenWidthDp: Int): Pair<Int, Int> = when {
+        screenWidthDp >= 840 -> Pair(180, 72)
+        screenWidthDp >= 600 -> Pair(140, 56)
+        else -> Pair(105, 48) // 105 = BUTTON_WIDTH(100) + 5
     }
 }

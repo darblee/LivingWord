@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -31,14 +30,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.annotation.SuppressLint
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
 import com.darblee.livingword.getTargetScreen
 import com.darblee.livingword.data.BibleData
@@ -55,6 +55,7 @@ import com.darblee.livingword.ui.theme.ColorThemeOption
  * @param currentTheme The current color theme of the application.
  * @param returnScreen The route of the screen to return to after selection or cancellation.
  */
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun VersePickerBookScreen(
     navController: NavHostController,
@@ -129,8 +130,10 @@ fun VersePickerBookScreen(
 
             val currentBooks = if (selectedTabIndex == 0) oldTestamentBooks else newTestamentBooks
 
+            val (minCellSize, buttonHeight) = BibleData.bookGridLayout(LocalConfiguration.current.screenWidthDp)
+
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = (Global.BUTTON_WIDTH + 5).dp),
+                columns = GridCells.Adaptive(minSize = minCellSize.dp),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(15.dp),
@@ -150,7 +153,6 @@ fun VersePickerBookScreen(
                     BookButton(
                         bookInfo = bookInfo,
                         onClick = {
-                            // Navigate to chapter selection with the selected book
                             navController.navigate(
                                 Screen.VersePickerChapterScreen(
                                     returnScreen,
@@ -159,7 +161,8 @@ fun VersePickerBookScreen(
                                 )
                             )
                         },
-                        buttonColor = buttonColor
+                        buttonColor = buttonColor,
+                        buttonHeight = buttonHeight
                     )
                 }
             }
@@ -182,13 +185,14 @@ private fun BookButton(
     bookInfo: BookInfo,
     onClick: () -> Unit,
     buttonColor: Color,
+    buttonHeight: Int,
 ) {
     Button(
         onClick = onClick,
         modifier = Modifier
-            .width(Global.BUTTON_WIDTH.dp)
-            .height(Global.BUTTON_HEIGHT.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), // Make button transparent
+            .fillMaxWidth()
+            .height(buttonHeight.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         contentPadding = PaddingValues(4.dp),
         shape = RoundedCornerShape(8.dp),
