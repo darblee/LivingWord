@@ -66,7 +66,6 @@ class MainActivity : ComponentActivity() {
             AIService.configure(aiSettings)
         }
 
-
         enableEdgeToEdge()
         setContent {
             ForcePortraitMode()
@@ -86,7 +85,6 @@ class MainActivity : ComponentActivity() {
 
             SetColorTheme(colorTheme) {
 
-
                 MainViewImplementation(
                     currentTheme = colorTheme,
                     onColorThemeUpdated = { newColorThemeSetting ->
@@ -94,7 +92,6 @@ class MainActivity : ComponentActivity() {
                         // No need to save here, AppScaffold's SettingPopup handles it
                     },
                 )
-
 
                 // Show AI Disclaimer Dialog
                 if (showAIDisclaimer) {
@@ -132,8 +129,7 @@ class MainActivity : ComponentActivity() {
                 bibleViewModel = bibleViewModel,
                 navController = navController,
                 onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme,
-                paddingValues = innerPadding
+                currentTheme = currentTheme
             )
         }
     }

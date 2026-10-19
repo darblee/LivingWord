@@ -1,10 +1,10 @@
 package com.darblee.livingword
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -101,7 +101,7 @@ sealed class Screen {
     data class GetEndVerseNumberScreen(val book: String, val chapter: Int, val startVerse: Int) : Screen()
 
     /**
-     * Screen for showing details for Verse Item. It also provide ability to edit it
+     * Screen for showing details for Verse Item. It also provides ability to edit it
      * Uses 'data class' as it requires 'Verse Identifier' argument.
      * @param verseID The id of the BibleVerse entity in "BibleVerse_Item" Database
      *
@@ -151,7 +151,6 @@ fun SetUpNavGraph(
     navController: NavHostController,
     onColorThemeUpdated: (ColorThemeOption) -> Unit,
     currentTheme: ColorThemeOption,
-    paddingValues: PaddingValues,
 ) {
     // NavHost defines the navigation graph
     NavHost(
@@ -322,6 +321,7 @@ fun SetUpNavGraph(
 
 const val TAG = "NavigationStack"
 
+@SuppressLint("RestrictedApi")
 @Composable
 fun ObserveNavigationStack(navController: NavHostController) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -330,8 +330,8 @@ fun ObserveNavigationStack(navController: NavHostController) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             navController.currentBackStackEntryFlow.collect { entry ->
                 Log.d(TAG, "=== NAVIGATION CHANGE DETECTED ===")
-                Log.d(TAG, "Current destination: ${entry?.destination?.route}")
-                Log.d(TAG, "Arguments: ${entry?.arguments}")
+                Log.d(TAG, "Current destination: ${entry.destination.route}")
+                Log.d(TAG, "Arguments: ${entry.arguments}")
                 
                 // Log the entire back stack
                 val currentNavigationHistory = navController.currentBackStack.value
@@ -345,7 +345,6 @@ fun ObserveNavigationStack(navController: NavHostController) {
         }
     }
 }
-
 
 /**
  * BackPressHandler is used to intercept back press
