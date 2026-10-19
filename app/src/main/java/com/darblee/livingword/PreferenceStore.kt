@@ -221,7 +221,9 @@ class PreferenceStore(private val context: Context) {
             val dynamicConfigs = try {
                 val dynamicConfigsJson = preferences[DYNAMIC_AI_CONFIGS_KEY]
                 if (dynamicConfigsJson != null && dynamicConfigsJson.isNotEmpty()) {
-                    Json.decodeFromString<Map<String, DynamicAIConfig>>(dynamicConfigsJson)
+                    val savedConfigs = Json.decodeFromString<Map<String, DynamicAIConfig>>(dynamicConfigsJson)
+                    // Merge with registry so newly registered providers and updated BuildConfig keys appear
+                    mergeConfigsWithRegistry(savedConfigs)
                 } else {
                     // Generate dynamic configs from registered providers if none exist
                     generateDynamicConfigsFromRegistry()
@@ -260,6 +262,38 @@ class PreferenceStore(private val context: Context) {
         return aiSettingsFlow.first()
     }
     
+    // Merges saved configs with the registry: adds missing providers and fills empty API keys from BuildConfig
+    private fun mergeConfigsWithRegistry(savedConfigs: Map<String, DynamicAIConfig>): Map<String, DynamicAIConfig> {
+        val merged = savedConfigs.toMutableMap()
+        try {
+            AIServiceRegistry.getAllProviders().forEach { provider ->
+                val buildConfigKey = when (provider.serviceType) {
+                    AIServiceType.GEMINI -> BuildConfig.GEMINI_API_KEY
+                    AIServiceType.OPENAI -> BuildConfig.OPENAI_API_KEY
+                    AIServiceType.DEEPSEEK -> BuildConfig.DEEPSEEK_API_KEY
+                    AIServiceType.OLLAMA -> ""
+                }
+                val existing = merged[provider.providerId]
+                when {
+                    existing == null -> merged[provider.providerId] = DynamicAIConfig(
+                        providerId = provider.providerId,
+                        displayName = provider.displayName,
+                        serviceType = provider.serviceType,
+                        modelName = provider.defaultModel,
+                        apiKey = buildConfigKey,
+                        temperature = 0.7f,
+                        isEnabled = true
+                    )
+                    existing.apiKey.isEmpty() && buildConfigKey.isNotEmpty() ->
+                        merged[provider.providerId] = existing.copy(apiKey = buildConfigKey)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("PreferenceStore", "Failed to merge configs with registry", e)
+        }
+        return merged
+    }
+
     // Generate dynamic configs from registry providers
     private fun generateDynamicConfigsFromRegistry(): Map<String, DynamicAIConfig> {
         val dynamicConfigs = mutableMapOf<String, DynamicAIConfig>()
@@ -272,7 +306,7 @@ class PreferenceStore(private val context: Context) {
                 val apiKey = when (provider.serviceType) {
                     AIServiceType.GEMINI -> BuildConfig.GEMINI_API_KEY
                     AIServiceType.OPENAI -> BuildConfig.OPENAI_API_KEY
-                    AIServiceType.DEEPSEEK -> "" // No default API key for DeepSeek
+                    AIServiceType.DEEPSEEK -> BuildConfig.DEEPSEEK_API_KEY
                     AIServiceType.OLLAMA -> "" // No API key needed for local Ollama server
                 }
                 
