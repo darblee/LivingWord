@@ -98,7 +98,6 @@ fun AppScaffold(
                 ),
                 navigationIcon = {
                     val showBackButton = currentScreenInstance is Screen.VerseDetailScreen ||
-                            currentScreenInstance is Screen.EngageScreen ||
                             currentScreenInstance is Screen.NewVerseScreen ||
                             currentScreenInstance is Screen.AddVerseByDescriptionScreen
 

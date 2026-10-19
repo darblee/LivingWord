@@ -149,7 +149,8 @@ object OpenAIService {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
-                    return@withContext AiServiceResult.Error("OpenAI service not initialized: ${getInitializationError()}")
+                    val e: AiServiceResult<ScoreData> = AiServiceResult.Error("OpenAI service not initialized: ${getInitializationError()}")
+                    return@withContext e
                 }
 
                 Log.d("OpenAIService", "Getting AI score for $verseRef")

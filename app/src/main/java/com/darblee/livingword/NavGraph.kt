@@ -30,7 +30,6 @@ import com.darblee.livingword.ui.screens.GetEndVerseNumberScreen
 import com.darblee.livingword.ui.screens.GetStartVerseNumberScreen
 import com.darblee.livingword.ui.screens.GoogleDriveOpsScreen
 import com.darblee.livingword.ui.screens.HomeScreen
-import com.darblee.livingword.ui.screens.EngageScreen
 import com.darblee.livingword.ui.screens.TopicScreen
 import com.darblee.livingword.ui.screens.TopicSelectionScreen
 import com.darblee.livingword.ui.screens.VerseDetailScreen
@@ -108,9 +107,6 @@ sealed class Screen {
      */
     @Serializable
     data class VerseDetailScreen(val verseID: Long, val editMode: Boolean) : Screen()
-
-    @Serializable
-    data class EngageScreen(val verseID: Long) : Screen()  // New screen
 
     @Serializable
     data object GoogleDriveOpsScreen : Screen()
@@ -251,17 +247,6 @@ fun SetUpNavGraph(
                 onColorThemeUpdated = onColorThemeUpdated,
                 currentTheme = currentTheme,
                 editMode = screenRouteParams.editMode
-            )
-        }
-
-        composable<Screen.EngageScreen> { backStackEntry ->
-            val screenRouteParams = backStackEntry.toRoute<Screen.EngageScreen>()
-            EngageScreen(
-                navController = navController,
-                bibleViewModel = bibleViewModel,
-                verseID = screenRouteParams.verseID,
-                onColorThemeUpdated = onColorThemeUpdated,
-                currentTheme = currentTheme
             )
         }
 

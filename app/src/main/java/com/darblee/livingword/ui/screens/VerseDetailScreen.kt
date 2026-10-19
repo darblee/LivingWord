@@ -1058,33 +1058,21 @@ fun VerseDetailScreen(
                         }
                     }  // End of Box for Delete/Read Aloud Button
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Engage/Cancel Button
-                    Button(
-                        onClick = {
-                            if (inEditMode) {
+                    if (inEditMode) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
                                 if (newContentNeedToBeSaved) {
                                     confirmExitWithoutSaving = true
                                 } else {
                                     exitEditMode()
                                 }
-                            } else {
-                                // If Engage Screen also uses TTS, you might want to stop current TTS
-                                ttsViewModel.stopAllSpeaking() // Stop any TTS before Engage Screen
-                                navController.navigate(Screen.EngageScreen(verseID))
-                            }
-                        },
-                        enabled = (!inEditMode) || (newContentNeedToBeSaved),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        val buttonString = if (inEditMode) {
-                            "Cancel"
-                        } else {
-                            "Engage"
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel")
                         }
-                        Text(buttonString)
                     }
                 }
 

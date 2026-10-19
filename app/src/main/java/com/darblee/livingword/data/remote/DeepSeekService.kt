@@ -106,7 +106,8 @@ object DeepSeekService {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isInitialized()) {
-                    return@withContext AiServiceResult.Error("DeepSeek service not initialized: ${getInitializationError()}")
+                    val e: AiServiceResult<ScoreData> = AiServiceResult.Error("DeepSeek service not initialized: ${getInitializationError()}")
+                    return@withContext e
                 }
                 Log.d("DeepSeekService", "Getting AI score for $verseRef")
                 val response = callDeepSeek(userPrompt, maxTokens = 800, systemInstruction = systemInstruction)
