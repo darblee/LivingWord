@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.darblee.livingword.ui.screens
 
 import android.annotation.SuppressLint
@@ -24,7 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,7 +41,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.darblee.livingword.Global
 import com.darblee.livingword.Screen
 import com.darblee.livingword.data.BibleData
 import com.darblee.livingword.data.BookInfo
@@ -109,7 +110,7 @@ fun GetBookScreen(
             Spacer(modifier = Modifier.height(16.dp)) // Space after divider
 
             // TabRow for switching between Old and New Testaments
-            TabRow(selectedTabIndex = tabIndex) {
+            PrimaryTabRow(selectedTabIndex = tabIndex) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = tabIndex == index,

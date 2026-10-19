@@ -6,7 +6,6 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Entity(tableName = "BibleVerse_Items")
@@ -61,7 +60,7 @@ class Converters {
     fun fromVerseList(value: List<Verse>): String {
         return try {
             Json.encodeToString(value)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "[]" // Return empty array JSON if serialization fails
         }
     }
@@ -73,7 +72,7 @@ class Converters {
         } else {
             try {
                 Json.decodeFromString<List<Verse>>(value)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 emptyList()
             }
         }

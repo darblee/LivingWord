@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.darblee.livingword.ui.screens
 
 import androidx.compose.foundation.BorderStroke
@@ -23,7 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -117,7 +119,7 @@ fun VersePickerBookScreen(
                 }
             }
 
-            TabRow(selectedTabIndex = selectedTabIndex) {
+            PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
                 tabTitles.forEachIndexed { index, title ->
                     Tab(
                         text = { Text(title) },
