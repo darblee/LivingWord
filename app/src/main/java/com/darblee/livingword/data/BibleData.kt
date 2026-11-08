@@ -270,6 +270,18 @@ object BibleData {
     }
 
 
+    /**
+     * Determines the optimal grid layout dimensions for the Bible book selection screens
+     * based on the current screen width.
+     *
+     * This function uses standard Android adaptive design breakpoints to scale the
+     * grid cell size and button height appropriately for phones, tablets, and expanded displays.
+     *
+     * @param screenWidthDp The current screen width in density-independent pixels (dp).
+     * @return A [Pair] containing:
+     * - `first`: The minimum cell size (width) for the grid item in dp.
+     * - `second`: The height of the book button in dp.
+     */
     fun bookGridLayout(screenWidthDp: Int): Pair<Int, Int> = when {
         screenWidthDp >= 840 -> Pair(180, 72)
         screenWidthDp >= 600 -> Pair(140, 56)

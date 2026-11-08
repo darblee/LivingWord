@@ -185,7 +185,7 @@ object AIServiceRegistry {
     fun getStatistics(): RegistryStatistics {
         val totalProviders = providers.size
         val availableProviders = providers.values.count { it.isInitialized() }
-        val providersByType = AIServiceType.values().associateWith { type ->
+        val providersByType = AIServiceType.entries.associateWith { type ->
             providers.values.count { it.serviceType == type }
         }
         
