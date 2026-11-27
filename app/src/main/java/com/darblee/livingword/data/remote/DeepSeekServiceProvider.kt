@@ -9,6 +9,10 @@ import com.darblee.livingword.ui.viewmodels.ScoreData
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
+/**
+ * AIServiceProvider implementation that delegates to [DeepSeekService] for all AI operations.
+ * Wraps each call with a 30-second timeout and translates exceptions into [AiServiceResult.Error].
+ */
 class DeepSeekServiceProvider : AIServiceProvider {
 
     override val providerId: String = "deepseek_ai"
@@ -19,6 +23,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
 
     private var initializationError: String? = null
 
+    /** Validates the API key and forwards configuration to [DeepSeekService]. Returns false on empty key or any exception. */
     override fun configure(config: AIServiceConfig): Boolean {
         return try {
             if (config.apiKey.isEmpty()) {
@@ -38,8 +43,10 @@ class DeepSeekServiceProvider : AIServiceProvider {
         }
     }
 
+    /** Delegates initialization check directly to [DeepSeekService]. */
     override fun isInitialized(): Boolean = DeepSeekService.isInitialized()
 
+    /** Sends a lightweight connectivity test to DeepSeek. Returns false if the service is unreachable or throws. */
     override suspend fun test(): Boolean {
         return try {
             DeepSeekService.test()
@@ -49,6 +56,15 @@ class DeepSeekServiceProvider : AIServiceProvider {
         }
     }
 
+    /**
+     * Fetches scripture verses for a given reference via DeepSeek, timing out after 30 seconds.
+     *
+     * @param verseRef The book, chapter, and verse range to retrieve.
+     * @param translation Bible translation code (e.g. "ESV") passed to the AI prompt.
+     * @param systemInstruction System-role prompt that sets the AI's behavior and output format.
+     * @param userPrompt User-role prompt containing the specific fetch request.
+     * @return [AiServiceResult.Success] with the parsed verse list, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun fetchScripture(
         verseRef: BibleVerseRef,
         translation: String,
@@ -66,6 +82,14 @@ class DeepSeekServiceProvider : AIServiceProvider {
         }
     }
 
+    /**
+     * Requests a key takeaway summary for a scripture verse via DeepSeek, timing out after 30 seconds.
+     *
+     * @param verseRef Human-readable verse reference string (e.g. "John 3:16").
+     * @param systemInstruction System-role prompt that sets the AI's behaviour and output format.
+     * @param userPrompt User-role prompt specifying what takeaway to generate.
+     * @return [AiServiceResult.Success] with the takeaway text, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun getKeyTakeaway(
         verseRef: String,
         systemInstruction: String,
@@ -82,6 +106,16 @@ class DeepSeekServiceProvider : AIServiceProvider {
         }
     }
 
+    /**
+     * Scores the user's application comment against a scripture verse via DeepSeek, timing out after 30 seconds.
+     *
+     * @param verseRef Human-readable verse reference string (e.g. "Romans 8:28").
+     * @param userApplicationComment The user's written reflection or application of the verse being evaluated.
+     * @param systemInstruction System-role prompt that sets the AI's scoring behaviour and output format.
+     * @param userPrompt User-role prompt containing the scoring request.
+     * @param applicationFeedbackPrompt Additional prompt used to request written feedback alongside the score.
+     * @return [AiServiceResult.Success] with a [ScoreData] containing the numeric score and feedback, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun getAIScore(
         verseRef: String,
         userApplicationComment: String,
@@ -100,6 +134,13 @@ class DeepSeekServiceProvider : AIServiceProvider {
         }
     }
 
+    /**
+     * Asks DeepSeek to validate whether a previously generated key takeaway response is acceptable, timing out after 30 seconds.
+     *
+     * @param systemInstruction System-role prompt that sets the AI's validation criteria and output format.
+     * @param userPrompt User-role prompt containing the takeaway text to be validated.
+     * @return [AiServiceResult.Success] with `true` if the response is valid, `false` if not, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun validateKeyTakeawayResponse(
         systemInstruction: String,
         userPrompt: String
@@ -115,6 +156,14 @@ class DeepSeekServiceProvider : AIServiceProvider {
         }
     }
 
+    /**
+     * Asks DeepSeek to suggest new scripture verses that match a user-supplied description, timing out after 30 seconds.
+     *
+     * @param description Free-text description of the topic, theme, or concept to find verses for.
+     * @param systemInstruction System-role prompt that sets the AI's search behaviour and output format.
+     * @param userPrompt User-role prompt containing the verse discovery request.
+     * @return [AiServiceResult.Success] with a list of matching [BibleVerseRef] objects, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun getNewVersesBasedOnDescription(
         description: String,
         systemInstruction: String,
@@ -131,6 +180,7 @@ class DeepSeekServiceProvider : AIServiceProvider {
         }
     }
 
+    /** Returns the most recent configuration error message, checking the local field first then falling back to [DeepSeekService]. */
     override fun getInitializationError(): String? {
         return initializationError ?: DeepSeekService.getInitializationError()
     }
