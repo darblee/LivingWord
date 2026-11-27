@@ -91,7 +91,7 @@ fun AppScaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { title() },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = colorScheme.primaryContainer
                 ),
                 navigationIcon = {
@@ -541,7 +541,7 @@ private fun TranslationSetting(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
             )
             ExposedDropdownMenu(
                 expanded = expanded,
@@ -607,7 +607,7 @@ private fun AIModelSetting(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
             )
             ExposedDropdownMenu(
                 expanded = expanded,
