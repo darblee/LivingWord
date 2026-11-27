@@ -9,8 +9,8 @@ import com.darblee.livingword.ui.viewmodels.ScoreData
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Provider implementation for Gemini AI Service.
- * Wraps the existing GeminiAIService to conform to the AIServiceProvider interface.
+ * AIServiceProvider implementation that delegates to [GeminiAIService] for all AI operations.
+ * Wraps each call with a 10-second timeout and translates exceptions into [AiServiceResult.Error].
  */
 class GeminiAIServiceProvider : AIServiceProvider {
     
@@ -23,6 +23,12 @@ class GeminiAIServiceProvider : AIServiceProvider {
     private var currentConfig: AIServiceConfig? = null
     private var initializationError: String? = null
     
+    /**
+     * Builds the legacy [com.darblee.livingword.AISettings] structure required by [GeminiAIService] and applies it.
+     *
+     * @param config Provider-agnostic configuration containing the API key, model name, and temperature.
+     * @return `true` if [GeminiAIService] reports successful initialization after configuration; `false` on any exception.
+     */
     override fun configure(config: AIServiceConfig): Boolean {
         return try {
             Log.d("GeminiAIServiceProvider", "Received config - ServiceType: ${config.serviceType}, Model: ${config.modelName}, ApiKey length: ${config.apiKey.length}")
@@ -59,10 +65,12 @@ class GeminiAIServiceProvider : AIServiceProvider {
         }
     }
     
+    /** Delegates initialization check directly to [GeminiAIService]. */
     override fun isInitialized(): Boolean {
         return GeminiAIService.isInitialized()
     }
     
+    /** Sends a lightweight connectivity test to Gemini. Returns false if the service is unreachable or throws. */
     override suspend fun test(): Boolean {
         return try {
             Log.d("GeminiAIServiceProvider", "Running test")
@@ -73,6 +81,15 @@ class GeminiAIServiceProvider : AIServiceProvider {
         }
     }
     
+    /**
+     * Fetches scripture verses for a given reference via Gemini, timing out after 10 seconds.
+     *
+     * @param verseRef The book, chapter, and verse range to retrieve.
+     * @param translation Bible translation code (e.g. "ESV") passed to the AI prompt.
+     * @param systemInstruction System-role prompt that sets the AI's behaviour and output format.
+     * @param userPrompt User-role prompt containing the specific fetch request.
+     * @return [AiServiceResult.Success] with the parsed verse list, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun fetchScripture(
         verseRef: BibleVerseRef,
         translation: String,
@@ -93,6 +110,14 @@ class GeminiAIServiceProvider : AIServiceProvider {
         }
     }
     
+    /**
+     * Requests a key takeaway summary for a scripture verse via Gemini, timing out after 10 seconds.
+     *
+     * @param verseRef Human-readable verse reference string (e.g. "John 3:16").
+     * @param systemInstruction System-role prompt that sets the AI's behaviour and output format.
+     * @param userPrompt User-role prompt specifying what takeaway to generate.
+     * @return [AiServiceResult.Success] with the takeaway text, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun getKeyTakeaway(
         verseRef: String,
         systemInstruction: String,
@@ -112,6 +137,16 @@ class GeminiAIServiceProvider : AIServiceProvider {
         }
     }
     
+    /**
+     * Scores the user's application comment against a scripture verse via Gemini, timing out after 10 seconds.
+     *
+     * @param verseRef Human-readable verse reference string (e.g. "Romans 8:28").
+     * @param userApplicationComment The user's written reflection or application of the verse being evaluated.
+     * @param systemInstruction System-role prompt that sets the AI's scoring behaviour and output format.
+     * @param userPrompt User-role prompt containing the scoring request.
+     * @param applicationFeedbackPrompt Additional prompt used to request written feedback alongside the score.
+     * @return [AiServiceResult.Success] with a [ScoreData] containing the numeric score and feedback, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun getAIScore(
         verseRef: String,
         userApplicationComment: String,
@@ -133,6 +168,13 @@ class GeminiAIServiceProvider : AIServiceProvider {
         }
     }
     
+    /**
+     * Asks Gemini to validate whether a previously generated key takeaway response is acceptable, timing out after 10 seconds.
+     *
+     * @param systemInstruction System-role prompt that sets the AI's validation criteria and output format.
+     * @param userPrompt User-role prompt containing the takeaway text to be validated.
+     * @return [AiServiceResult.Success] with `true` if the response is valid, `false` if not, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun validateKeyTakeawayResponse(
         systemInstruction: String,
         userPrompt: String
@@ -151,6 +193,14 @@ class GeminiAIServiceProvider : AIServiceProvider {
         }
     }
     
+    /**
+     * Asks Gemini to suggest new scripture verses that match a user-supplied description, timing out after 10 seconds.
+     *
+     * @param description Free-text description of the topic, theme, or concept to find verses for.
+     * @param systemInstruction System-role prompt that sets the AI's search behaviour and output format.
+     * @param userPrompt User-role prompt containing the verse discovery request.
+     * @return [AiServiceResult.Success] with a list of matching [BibleVerseRef] objects, or [AiServiceResult.Error] on timeout or failure.
+     */
     override suspend fun getNewVersesBasedOnDescription(
         description: String,
         systemInstruction: String,
@@ -170,6 +220,7 @@ class GeminiAIServiceProvider : AIServiceProvider {
         }
     }
     
+    /** Returns the most recent configuration error message, checking the local field first then falling back to [GeminiAIService]. */
     override fun getInitializationError(): String? {
         return initializationError ?: GeminiAIService.getInitializationError()
     }
